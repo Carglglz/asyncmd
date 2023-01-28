@@ -3,7 +3,17 @@ import pyb
 import aiorepl
 import aioctl
 import random
+import upylog
 from aiolog import streamlog
+
+
+upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
+log = upylog.getLogger(
+    "pyb", log_to_file=False, rotate=1000
+)  # This log to file 'error.log';
+
+
+aioctl.set_log(streamlog)
 
 
 @aioctl.aiotask
@@ -35,12 +45,10 @@ async def task_button(log=None):
     return True
 
 
-# start the aiorepl task.
-
-
 async def main():
     print("starting tasks...")
-    aioctl.set_log(streamlog)
+    aioctl.add(task_led, 2, 5000, name="task_led_2", _id="task_led_2", log=log)
+    aioctl.add(task_button, log=log)
     aioctl.add(aiorepl.task, name="repl", prompt=">>> ")
 
     await asyncio.gather(*aioctl.tasks())

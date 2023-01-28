@@ -8,20 +8,18 @@ import aioctl
 
 upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
 log = upylog.getLogger(
-    "device", log_to_file=False, rotate=1000
+    "pyb", log_to_file=False, rotate=1000
 )  # This log to file 'error.log';
 
 
-state = 20
 aioctl.set_log(streamlog)
 
-tasks = []
 
-
+@aioctl.aiotask
 async def task_led(n, t, alog=log):
     try:
         i = 10 - n
-        while state:
+        while True:
             # print("task 1")
             await asyncio.sleep_ms(t)
             pyb.LED(n).toggle()
@@ -48,10 +46,10 @@ async def main():
 
     # start other program tasks.
 
-    aioctl.add(task_led, 1, 10500, name="task_led_1")
-    aioctl.add(task_led, 2, 10400, name="task_led_2")
-    aioctl.add(task_led, 3, 10300, name="task_led_3")
-    aioctl.add(task_led, 4, 10200, name="task_led_4")
+    aioctl.add(task_led, 1, 10500, name="task_led_1", _id="task_led_1")
+    aioctl.add(task_led, 2, 10400, name="task_led_2", _id="task_led_2")
+    aioctl.add(task_led, 3, 10300, name="task_led_3", _id="task_led_3")
+    aioctl.add(task_led, 4, 10200, name="task_led_4", _id="task_led_4")
     # start the aiorepl task.
     aioctl.add(aiorepl.task, name="repl", prompt=">>> ")
 

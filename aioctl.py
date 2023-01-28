@@ -41,7 +41,7 @@ def aiotask(f):
             if _id in group().tasks.keys():
                 group().tasks[_id].done_at = time.time()
             if callable(on_stop):
-                return on_stop()
+                return on_stop(*args, **kwargs)
             return on_stop
 
         except Exception as e:
@@ -51,7 +51,7 @@ def aiotask(f):
             if log:
                 log.error(f"[{_id}]" + f" {e.__class__.__name__}: {e.errno}")
             if callable(on_error):
-                return on_error(e)
+                return on_error(e, *args, **kwargs)
             return e
 
     return _task, f.__name__
