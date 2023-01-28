@@ -63,6 +63,8 @@ def create_task(coro, *args, **kwargs):
         name = kwargs.get("name", coro.__name__)
     if "name" in kwargs:
         name = kwargs.pop("name")
+    if not name and hasattr(coro, "__name__"):
+        name = coro.__name__
     # print(type(coro), coro)
 
     # print(dir(coro))
@@ -74,7 +76,7 @@ def create_task(coro, *args, **kwargs):
         _coro = coro(*args, **kwargs)
         if isinstance(_coro, tuple):
             _coro, _name = _coro[0], _coro[1]
-            if not name:
+            if not name or name == "_schedule" or name == "_task":
                 name = _name
     # print(type(_coro), _coro)
     task = asyncio.create_task(_coro)
@@ -181,10 +183,9 @@ def status(name=None, log=True, debug=False):
             if _SCHEDULE:
                 aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
-                _AIOCTL_LOG.cat(grep=name)
+                _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
         else:
-            # 2023-01-12 04:42:51 GMT; 2 weeks 0 days ago
             _since_str = time.localtime(group().tasks[name].since)
             _since_delta = time.time() - group().tasks[name].since
 
@@ -198,7 +199,7 @@ def status(name=None, log=True, debug=False):
             if _SCHEDULE:
                 aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
-                _AIOCTL_LOG.cat(grep=name)
+                _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
     else:
         print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
