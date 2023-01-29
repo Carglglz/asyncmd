@@ -28,6 +28,14 @@ class AioStream(io.StringIO):
             print(self.read().strip())
         self.seek(index)
 
+    def _grep(self, patt, line):
+
+        pattrn = re.compile(patt.replace(".", r"\.").replace("*", ".*") + "$")
+        try:
+            return pattrn.match(line)
+        except Exception:
+            return None
+
     async def follow(self, grep="", wait=0.05):
         init_index = self.tell()
         while True:
@@ -35,9 +43,19 @@ class AioStream(io.StringIO):
                 current_index = self.tell()
                 if current_index != init_index:
                     if grep:
-                        for line in self.getvalue()[init_index:].strip().splitlines():
-                            if line and grep in line:
-                                print(line)
+                        if "*" not in grep:
+                            for line in (
+                                self.getvalue()[init_index:].strip().splitlines()
+                            ):
+                                if line and grep in line:
+                                    print(line)
+                        else:
+                            for line in (
+                                self.getvalue()[init_index:].strip().splitlines()
+                            ):
+                                if line and self._grep(grep, line):
+                                    print(line)
+
                     else:
 
                         for line in self.getvalue()[init_index:].strip().splitlines():
