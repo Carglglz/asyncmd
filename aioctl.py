@@ -13,6 +13,14 @@ try:
 except Exception:
     pass
 
+_SERVICE = False
+try:
+    from aioclass import Service
+
+    _SERVICE = True
+except Exception:
+    pass
+
 _AIOCTL_GROUP = None
 _AIOCTL_LOG = None
 _DEBUG = False
@@ -96,6 +104,13 @@ class Taskctl:
         self.kwargs = kwargs
         self.since = time.time()
         self.done_at = None
+        self._is_service = False
+        self.service = None
+        if _SERVICE:
+            if args:
+                if issubclass(args[0].__class__, Service):
+                    self._is_service = True
+                    self.service = args[0]
 
 
 class TaskGroup:
@@ -178,6 +193,7 @@ def status(name=None, log=True, debug=False):
             _AIOCTL_GROUP.results[name] = _AIOCTL_GROUP.tasks[name].task.data
             _status = "done"
             _done_at = group().tasks[name].done_at
+            _dot = "●"
             if _SCHEDULE:
                 if _done_at:
                     _done_at = time.localtime(_done_at)
@@ -192,10 +208,25 @@ def status(name=None, log=True, debug=False):
                     f"\u001b[31;1m{data.value.__class__.__name__}\u001b[0m:"
                     + f" {data.value.value}"
                 )
+                _dot = "\u001b[31;1m●\u001b[0m"
+            if debug:
+                if _AIOCTL_GROUP.tasks[name]._is_service:
+                    c_task = _AIOCTL_GROUP.tasks[name]
+                    print(f"{_dot} {name} - {c_task.service.info}")
+                    print(f"    Loaded: {c_task.service}")
+                    print(f"    Active: status: {_status} ", end="")
+                    print(f"@ {_done_at} --> result: " + f"{data}")
+                    print(f"    Docs: {c_task.service.docs}")
+                else:
+                    print(f"{_dot} {name}: status: {_status} ", end="")
+                    print(f"@ {_done_at} --> result: " + f"{data}")
 
-            print(f"{name}: status: {_status} @ {_done_at} --> result: " + f"{data}")
+            else:
+                print(f"{_dot} {name}: status: {_status} ", end="")
+                print(f"@ {_done_at} --> result: " + f"{data}")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
+                print(f"     Task: {c_task}")
                 if _done_at:
                     _delta_runtime = (
                         group().tasks[name].done_at - group().tasks[name].since
@@ -214,15 +245,31 @@ def status(name=None, log=True, debug=False):
                 _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
         else:
+            _dot = "\033[92m●\x1b[0m"
             _since_str = time.localtime(group().tasks[name].since)
             _since_delta = time.time() - group().tasks[name].since
 
             if _SCHEDULE:
                 _since_str = aioschedule.get_datetime(_since_str)
                 _since_str += f"; {aioschedule.tmdelta_fmt(_since_delta)}"
-            print(f"{name}: status: \033[92mrunning\x1b[0m since {_since_str} ago")
+            if debug:
+                if _AIOCTL_GROUP.tasks[name]._is_service:
+                    c_task = _AIOCTL_GROUP.tasks[name]
+                    print(f"{_dot} {name} - {c_task.service.info}")
+                    print(f"    Loaded: {c_task.service}")
+                    print("    Active: \033[92m(active) running\x1b[0m ", end="")
+                    print(f"since {_since_str} ago")
+                    print(f"    Docs: {c_task.service.docs}")
+                else:
+                    print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
+                    print(f"since {_since_str} ago")
+
+            else:
+                print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
+                print(f"since {_since_str} ago")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
+                print(f"     Task: {c_task}")
                 print(f"    ┗━► args: {c_task.args}, kwargs: {c_task.kwargs}")
             if _SCHEDULE:
                 aioschedule.status_sc(name, debug=debug)
