@@ -7,28 +7,13 @@ from services import Services
 _SERVICES_GROUP = {service.name: service for service in Services}
 
 
-class Service:
-    def __init__(self, name):
-        self.name = name
-        self.path = ""
-        self.info = ""
-        self.type = "runtime.service"  # continuous running, other types are
-        self.docs = ""
-        self.enabled = False  # preset
-        # core.service --> run one time at boot
-        # schedule.service --> run and stop following a schedule
-
-    def __repr__(self):
-        return f"Service: {self.name}.service from {self.path}"
-
-
 def list():
     global _SERVICES_GROUP
     for service in _SERVICES_GROUP.values():
         print(f"{service}")
 
 
-def load(name=None, debug=False, log=None):
+def load(name=None, debug=False, log=None, debug_log=False):
     global _SERVICES_GROUP
     import aioctl
 
@@ -44,6 +29,10 @@ def load(name=None, debug=False, log=None):
                     _id=f"{service.name}.service",
                     log=log,
                 )
+                if debug:
+                    print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
+                if debug_log and log:
+                    log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
     else:
         if name in _SERVICES_GROUP.keys():
             service = _SERVICES_GROUP[name]
@@ -56,6 +45,11 @@ def load(name=None, debug=False, log=None):
                 _id=f"{service.name}.service",
                 log=log,
             )
+
+            if debug:
+                print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
+            if debug_log and log:
+                log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
 
 
 def enable():

@@ -216,6 +216,7 @@ def status(name=None, log=True, debug=False):
                     print(f"    Loaded: {c_task.service}")
                     print(f"    Active: status: {_status} ", end="")
                     print(f"@ {_done_at} --> result: " + f"{data}")
+                    print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
                 else:
                     print(f"{_dot} {name}: status: {_status} ", end="")
@@ -226,7 +227,7 @@ def status(name=None, log=True, debug=False):
                 print(f"@ {_done_at} --> result: " + f"{data}")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"     Task: {c_task}")
+                print(f"    Task: {c_task}")
                 if _done_at:
                     _delta_runtime = (
                         group().tasks[name].done_at - group().tasks[name].since
@@ -234,7 +235,8 @@ def status(name=None, log=True, debug=False):
                     if _SCHEDULE:
                         _delta_runtime = aioschedule.tmdelta_fmt(_delta_runtime)
                     print(f"    ┗━► runtime: {_delta_runtime}")
-                print(f"    ┗━► args: {c_task.args}, kwargs: {c_task.kwargs}")
+                print(f"    ┗━► args: {c_task.args}")
+                print(f"    ┗━► kwargs: {c_task.kwargs}")
                 if traceback(name, rtn=True):
                     print("    ┗━► traceback: ", end="")
                     traceback(name)
@@ -259,6 +261,7 @@ def status(name=None, log=True, debug=False):
                     print(f"    Loaded: {c_task.service}")
                     print("    Active: \033[92m(active) running\x1b[0m ", end="")
                     print(f"since {_since_str} ago")
+                    print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
                 else:
                     print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
@@ -269,8 +272,9 @@ def status(name=None, log=True, debug=False):
                 print(f"since {_since_str} ago")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"     Task: {c_task}")
-                print(f"    ┗━► args: {c_task.args}, kwargs: {c_task.kwargs}")
+                print(f"    Task: {c_task}")
+                print(f"    ┗━► args: {c_task.args}")
+                print(f"    ┗━► kwargs: {c_task.kwargs}")
             if _SCHEDULE:
                 aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
@@ -386,6 +390,12 @@ async def follow(grep="", wait=0.05):
 
     if _AIOCTL_LOG:
         return await _AIOCTL_LOG.follow(grep=grep, wait=wait)
+
+
+def log(grep=""):
+    global _AIOCTL_LOG
+    if _AIOCTL_LOG:
+        return _AIOCTL_LOG.cat(grep=grep)
 
 
 def traceback(name=None, rtn=False):
