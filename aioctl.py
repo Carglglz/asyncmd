@@ -3,6 +3,7 @@
 import uasyncio as asyncio
 import sys
 import time
+import re
 
 _SCHEDULE = False
 try:
@@ -134,6 +135,14 @@ def tasks():
     return [task.task for task in _AIOCTL_GROUP.tasks.values()]
 
 
+def tasks_match(patt):
+    pattrn = re.compile(patt.replace(".", r"\.").replace("*", ".*") + "$")
+    try:
+        return [task for task in group().tasks.keys() if pattrn.match(task)]
+    except Exception:
+        return []
+
+
 def add(coro, *args, **kwargs):
     global _AIOCTL_GROUP
     new_task = create_task(coro, *args, **kwargs)
@@ -147,7 +156,15 @@ def delete(*args):
     global _AIOCTL_GROUP
     for name in args:
         if name in _AIOCTL_GROUP.tasks.keys():
+            stop(name)
             _AIOCTL_GROUP.tasks.pop(name)
+        else:
+            if "*" in name:
+                for tm in tasks_match(name):
+                    stop(tm)
+                    delete(tm)
+            else:
+                print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
 
 
 def status(name=None, log=True, debug=False):
@@ -159,7 +176,7 @@ def status(name=None, log=True, debug=False):
     if name in _AIOCTL_GROUP.tasks:
         if _AIOCTL_GROUP.tasks[name].task.done():
             _AIOCTL_GROUP.results[name] = _AIOCTL_GROUP.tasks[name].task.data
-            status = "done"
+            _status = "done"
             _done_at = group().tasks[name].done_at
             if _SCHEDULE:
                 if _done_at:
@@ -170,16 +187,27 @@ def status(name=None, log=True, debug=False):
 
             data = _AIOCTL_GROUP.results[name]
             if issubclass(data.value.__class__, Exception):
-                status = "\u001b[31;1mERROR\u001b[0m"
+                _status = "\u001b[31;1mERROR\u001b[0m"
                 data = (
                     f"\u001b[31;1m{data.value.__class__.__name__}\u001b[0m:"
                     + f" {data.value.value}"
                 )
 
-            print(f"{name}: status: {status} @ {_done_at} --> result: " + f"{data}")
+            print(f"{name}: status: {_status} @ {_done_at} --> result: " + f"{data}")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
+                if _done_at:
+                    _delta_runtime = (
+                        group().tasks[name].done_at - group().tasks[name].since
+                    )
+                    if _SCHEDULE:
+                        _delta_runtime = aioschedule.tmdelta_fmt(_delta_runtime)
+                    print(f"    ┗━► runtime: {_delta_runtime}")
                 print(f"    ┗━► args: {c_task.args}, kwargs: {c_task.kwargs}")
+                if traceback(name, rtn=True):
+                    print("    ┗━► traceback: ", end="")
+                    traceback(name)
+                    print("")
             if _SCHEDULE:
                 aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
@@ -202,7 +230,12 @@ def status(name=None, log=True, debug=False):
                 _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
     else:
-        print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
+        if "*" in name:
+            for tm in tasks_match(name):
+                status(tm, log=log, debug=debug)
+
+        else:
+            print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
 
 
 def result(name=None):
@@ -214,6 +247,12 @@ def result(name=None):
         if _AIOCTL_GROUP.tasks[name].task.done():
             return _AIOCTL_GROUP.tasks[name].task.data.value
     else:
+        if "*" in name:
+            for tm in tasks_match(name):
+                print(f"{tm} --> {result(tm)}")
+
+        else:
+            print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
         return
 
 
@@ -253,6 +292,13 @@ def start(name):
             print(e)
         return True
     else:
+
+        if "*" in name:
+            for tm in tasks_match(name):
+                start(tm)
+            return True
+        else:
+            print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
         return False
 
 
@@ -267,7 +313,11 @@ def stop(name=None):
 
             _AIOCTL_GROUP.results[name] = _AIOCTL_GROUP.tasks[name].task.data
         else:
-            print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
+            if "*" in name:
+                for tm in tasks_match(name):
+                    stop(tm)
+            else:
+                print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
 
     except asyncio.CancelledError:
         pass
@@ -291,13 +341,22 @@ async def follow(grep="", wait=0.05):
         return await _AIOCTL_LOG.follow(grep=grep, wait=wait)
 
 
-def traceback(name=None):
+def traceback(name=None, rtn=False):
     if not name:
         return traceback_all()
+    if "*" in name:
+        for tm in tasks_match(name):
+            traceback(tm)
+        return
     _tb = result(name)
     if issubclass(_tb.__class__, Exception):
+        if rtn:
+            return True
         print(f"{name}: Traceback")
         sys.print_exception(_tb)
+    else:
+        if rtn:
+            return False
 
 
 def traceback_all():
