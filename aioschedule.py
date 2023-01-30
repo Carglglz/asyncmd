@@ -167,13 +167,13 @@ def status_sc(name, debug=False):
                 else:
                     _next = _AIOCTL_SCHEDULE_T0 + start_in - time.time()
 
-        print(f"{name}: last @ {last} --> scheduled in {tmdelta_fmt(_next)}")
+        print(f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}")
         if debug:
 
             print(f"    ┗━► schedule opts: {_sch_str}")
     else:
         if debug:
-            print(f"Task {name} not found in schedule group")
+            print(f"    ┗━► schedule: Task {name} not found in schedule group")
 
 
 def status_sc_all():
