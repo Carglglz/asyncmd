@@ -221,6 +221,10 @@ def status(name=None, log=True, debug=False):
                     print(f"@ {_done_at} --> result: " + f"{data}")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
+
+                    if hasattr(c_task.service, "show"):
+                        _show = c_task.service.show()
+                        print(f"    {_show[0]}:  {_show[1]}")
                 else:
                     print(f"{_dot} {name}: status: {_status} ", end="")
                     print(f"@ {_done_at} --> result: " + f"{data}")
@@ -266,6 +270,10 @@ def status(name=None, log=True, debug=False):
                     print(f"since {_since_str} ago")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
+
+                    if hasattr(c_task.service, "show"):
+                        _show = c_task.service.show()
+                        print(f"    {_show[0]}:  {_show[1]}")
                 else:
                     print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
                     print(f"since {_since_str} ago")
