@@ -33,7 +33,8 @@ async def main():
     print("starting tasks...")
     aioctl.set_log(streamlog)
     aioctl.add(aiorepl.task, name="repl")
-    aioservice.load(debug=True, log=log, debug_log=True, config=True)
+    # aioservice.load(debug=True, log=log, debug_log=True, config=True)
+    aioservice.init(log=log, debug_log=True)
 
     aioctl.add(aioschedule.schedule_loop, alog=None)  # must be the last one
 

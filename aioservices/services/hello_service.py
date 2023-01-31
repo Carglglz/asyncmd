@@ -3,6 +3,7 @@ import pyb
 import aioctl
 from aioclass import Service
 import random
+import time
 
 
 class HelloService(Service):
@@ -16,11 +17,16 @@ class HelloService(Service):
         self.kwargs = {"on_stop": self.on_stop, "on_error": self.on_error}
         self.n_led = 1
         self.log = None
+        self.loop_diff = 0
+        self.n_loop = 0
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
     def show(self):
-        return "Temp", f"{25+random.random()} C"  # return Tuple, "Name",
+        _stat_1 = f"   Temp: {25+random.random()} C"
+        _stat_2 = f"   Loop info: exec time: {self.loop_diff} ms;"
+        _stat_2 += f" # loops: {self.n_loop}"
+        return "Stats", f"{_stat_1}{_stat_2}"  # return Tuple, "Name",
         # "info" to display
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
@@ -40,16 +46,19 @@ class HelloService(Service):
         count = 12
         self.n_led = n
         while True:
+            t0 = time.ticks_ms()
             pyb.LED(self.n_led).toggle()
             asyncio.sleep_ms(200)
             pyb.LED(self.n_led).toggle()
             if log:
                 log.info(f"[hello.service] LED {self.n_led} toggled!")
 
-            await asyncio.sleep(s)
             if self.n_led > 3:
                 count -= self.n_led
             res = s / count
+            self.loop_diff = time.ticks_diff(time.ticks_ms(), t0)
+            self.n_loop += 1
+            await asyncio.sleep(s)
 
 
 service = HelloService("hello")

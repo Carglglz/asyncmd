@@ -81,6 +81,14 @@ async def task_led(n, t, alog=log):
         return e
 
 
+_watcher_loop = aioctl.aioschedule.watcher_loop
+
+
+@aioctl.aiotask
+async def watcher_loop(alog=log):
+    await _watcher_loop(alog=alog)
+
+
 async def main():
     print("starting tasks...")
 
@@ -94,6 +102,7 @@ async def main():
     # aioctl.add(aiorepl.task, name="repl", prompt=">>> ")
     # start the aiorepl toggle task
     aioctl.add(start_aiorepl, name="aiotoggle")
+    aioctl.add(watcher_loop, alog=log)
 
     await asyncio.gather(*aioctl.tasks())
 

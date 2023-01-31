@@ -144,6 +144,24 @@ async def schedule_loop(alog=None):
         await asyncio.sleep(1)
 
 
+async def watcher_loop(alog=None, sleep=30):
+    await asyncio.sleep(10)
+    while True:
+        for name, res in aioctl.result_all(as_dict=True).items():
+            if issubclass(res.__class__, Exception):
+                if alog:
+                    _err = f"{res.__class__.__name__}: {res}"
+                    alog.info(f"[watcher_loop] Error @ Task {name} {_err}")
+                if aioctl.group().tasks[name].kwargs.get("restart", True):
+                    pass
+                else:
+                    continue
+                if alog:
+                    alog.info(f"[watcher_loop] Restarting Task {name}")
+                    aioctl.start(name)
+        await asyncio.sleep(sleep)
+
+
 def status_sc(name, debug=False):
     global _AIOCTL_SCHEDULE_GROUP, _AIOCTL_SCHEDULE_T0
     if not name:
