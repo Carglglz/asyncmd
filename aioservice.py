@@ -10,6 +10,14 @@ _SERVICES_GROUP = {service.name: service for service in Services}
 _SERVICES_CONFIG = "services.config"
 
 
+def service(name=None):
+    global _SERVICES_GROUP
+    if not name:
+        return _SERVICES_GROUP
+    elif name in _SERVICES_GROUP:
+        return _SERVICES_GROUP[name]
+
+
 def list():
     global _SERVICES_GROUP
     for service in _SERVICES_GROUP.values():

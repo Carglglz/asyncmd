@@ -13,18 +13,20 @@ class HelloService(Service):
         self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
         self.args = [2, 5]
         self.kwargs = {}
+        self.n_led = 1
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
     @aioctl.aiotask
     async def task(self, n, s, log=None):
         count = 12
+        self.n_led = n
         while True:
-            pyb.LED(n).toggle()
+            pyb.LED(self.n_led).toggle()
             asyncio.sleep_ms(200)
-            pyb.LED(n).toggle()
+            pyb.LED(self.n_led).toggle()
             if log:
-                log.info(f"[hello.service] LED {n} toggled!")
+                log.info(f"[hello.service] LED {self.n_led} toggled!")
 
             await asyncio.sleep(s)
             if n > 3:
