@@ -100,6 +100,35 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
 
 
+def init(debug=True, log=None, debug_log=False, config=True):
+
+    for service in _SERVICES_GROUP.values():
+        if hasattr(service, "type"):
+            if service.type != "core.service":
+                load(
+                    service.name,
+                    debug=debug,
+                    log=log,
+                    debug_log=debug_log,
+                    config=config,
+                )
+
+
+def boot(debug=True, log=None, debug_log=False, config=True):
+    global _SERVICES_GROUP
+
+    for service in _SERVICES_GROUP.values():
+        if hasattr(service, "type"):
+            if service.type == "core.service":
+                load(
+                    service.name,
+                    debug=debug,
+                    log=log,
+                    debug_log=debug_log,
+                    config=config,
+                )
+
+
 def config(name, enable, *args, **kwargs):
     global _SERVICES_CONFIG
     _exists = False
@@ -137,11 +166,11 @@ def config(name, enable, *args, **kwargs):
 
 
 def enable(name):
-    config(name, True, [], {})
+    config(name, True)
 
 
 def disable(name):
-    config(name, False, [], {})
+    config(name, False)
 
 
 def get_config(name=None):
