@@ -200,7 +200,8 @@ def status(name=None, log=True, debug=False):
                     _done_at = aioschedule.get_datetime(_done_at)
                     _done_delta = time.time() - group().tasks[name].done_at
                     _done_at += f"; {aioschedule.tmdelta_fmt(_done_delta)} ago"
-
+                if name in aioschedule.group():
+                    _dot = f"\u001b[36m{_dot}\u001b[0m"
             data = _AIOCTL_GROUP.results[name]
             if issubclass(data.value.__class__, Exception):
                 _err = "ERROR"
