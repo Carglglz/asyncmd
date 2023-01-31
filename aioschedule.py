@@ -158,7 +158,7 @@ async def watcher_loop(alog=None, sleep=30):
                     continue
                 if alog:
                     alog.info(f"[watcher_loop] Restarting Task {name}")
-                    aioctl.start(name)
+                aioctl.start(name)
         await asyncio.sleep(sleep)
 
 
