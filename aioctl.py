@@ -203,7 +203,10 @@ def status(name=None, log=True, debug=False):
 
             data = _AIOCTL_GROUP.results[name]
             if issubclass(data.value.__class__, Exception):
-                _status = "\u001b[31;1mERROR\u001b[0m"
+                _err = "ERROR"
+                if _AIOCTL_GROUP.tasks[name]._is_service:
+                    _err = "failed"
+                _status = f"\u001b[31;1m{_err}\u001b[0m"
                 data = (
                     f"\u001b[31;1m{data.value.__class__.__name__}\u001b[0m:"
                     + f" {data.value.value}"

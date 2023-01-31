@@ -18,6 +18,7 @@ class HelloService(Service):
 
     @aioctl.aiotask
     async def task(self, n, s, log=None):
+        count = 12
         while True:
             pyb.LED(n).toggle()
             asyncio.sleep_ms(200)
@@ -26,6 +27,9 @@ class HelloService(Service):
                 log.info(f"[hello.service] LED {n} toggled!")
 
             await asyncio.sleep(s)
+            if n > 3:
+                count -= n
+            res = s / count
 
 
 service = HelloService("hello")
