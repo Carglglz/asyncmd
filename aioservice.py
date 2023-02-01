@@ -149,6 +149,8 @@ def config(name, enable, *args, **kwargs):
         pass
     if _exists:  # load
         _service_config = get_config()
+        if name not in _service_config:
+            _service_config[name] = {}
         _service_config[name]["enabled"] = enable
         if args:
             _service_config[name]["args"] = args
