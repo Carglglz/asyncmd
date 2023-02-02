@@ -1,4 +1,3 @@
-
 class Service:
     def __init__(self, name):
         self.name = name
@@ -7,6 +6,7 @@ class Service:
         self.type = "runtime.service"  # continuous running, other types are
         self.docs = ""
         self.enabled = False  # preset
+        self.loaded = True
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 

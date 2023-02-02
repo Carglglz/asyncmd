@@ -55,9 +55,13 @@ class HelloService(Service):
 
             if self.n_led > 3:
                 count -= self.n_led
-            res = s / count
+            try:
+                res = s / count
+            except Exception as e:
+                raise random.choice([e, ValueError])
             self.loop_diff = time.ticks_diff(time.ticks_ms(), t0)
             self.n_loop += 1
+            self.n_led = random.choice([1, 2, 3, 4])
             await asyncio.sleep(s)
 
 

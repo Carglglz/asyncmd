@@ -4,7 +4,7 @@ import os
 
 sys.path.append("./aioservices")
 
-from services import Services
+from services import Services, failed_services
 
 _SERVICES_GROUP = {service.name: service for service in Services}
 _SERVICES_CONFIG = "services.config"
@@ -48,6 +48,20 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                                 service.schedule = service.kwargs.pop("schedule")
                     else:
                         service.enabled = False
+            # catch failed load services
+            if service.name in failed_services or not service.loaded:
+
+                if debug:
+                    print(
+                        f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
+                    )
+                    print(f" Error: {service.info.__class__.__name__}")
+                if debug_log and log:
+                    _err = f"{service} not loaded:"
+                    _err += f" Error: {service.info.__class__.__name__}"
+                    log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
+                continue
+
             if service.enabled:
                 aioctl.add(
                     service.task,
@@ -86,6 +100,20 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                             service, "schedule"
                         ):
                             service.schedule = service.kwargs.pop("schedule")
+
+            # catch failed load services
+            if service.name in failed_services or not service.loaded:
+
+                if debug:
+                    print(
+                        f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
+                    )
+                    print(f" Error: {service.info.__class__.__name__}")
+                if debug_log and log:
+                    _err = f"{service} not loaded:"
+                    _err += f" Error: {service.info.__class__.__name__}"
+                    log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
+                return False
 
             aioctl.add(
                 service.task,
@@ -200,3 +228,17 @@ def get_config(name=None):
             return service_config[name]
         else:
             return False
+
+
+def traceback(name=None, rtn=False):
+    global _SERVICES_GROUP
+    if name in _SERVICES_GROUP:
+        _tb = _SERVICES_GROUP[name].info
+        if issubclass(_tb.__class__, Exception):
+            if rtn:
+                return True
+            print(f"{name}: Traceback")
+            sys.print_exception(_tb)
+        else:
+            if rtn:
+                return False
