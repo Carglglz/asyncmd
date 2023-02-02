@@ -42,6 +42,8 @@ class WatcherService(Service):
         else:
             if res.__class__.__name__ in self.err_report[name]:
                 self.err_report[name][res.__class__.__name__]["count"] += 1
+            else:
+                self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
 
     @aioctl.aiotask
     async def task(self, sleep, log=None):
