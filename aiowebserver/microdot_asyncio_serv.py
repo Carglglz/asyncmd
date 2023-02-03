@@ -287,9 +287,12 @@ class Microdot(BaseMicrodot):
             await self.handle_request(reader, writer)
 
         if self.debug:  # pragma: no cover
-            print(
-                "Starting async server on {host}:{port}...".format(host=host, port=port)
-            )
+            if self.log:
+                self.log.info(
+                    f"[microdot.service] Starting async server on {host}:{port}..."
+                )
+            else:
+                print(f"Starting async server on {host}:{port}...")
 
         try:
             self.server = await asyncio.start_server(serve, host, port, ssl=ssl)
@@ -299,6 +302,8 @@ class Microdot(BaseMicrodot):
         while True:
             try:
                 await self.server.wait_closed()
+                if self.log:
+                    self.log.info("[microdot.service] Stopped async server")
                 break
             except AttributeError:  # pragma: no cover
                 # the task hasn't been initialized in the server object yet

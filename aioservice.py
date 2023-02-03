@@ -136,7 +136,8 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
 
 
-def init(debug=True, log=None, debug_log=False, config=True):
+def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True):
+    import aioctl
 
     for service in _SERVICES_GROUP.values():
         if hasattr(service, "type"):
@@ -148,6 +149,13 @@ def init(debug=True, log=None, debug_log=False, config=True):
                     debug_log=debug_log,
                     config=config,
                 )
+
+    if aioctl._SCHEDULE and init_schedule:
+        import aioschedule
+
+        if aioschedule.group():
+            if "schedule_loop" not in aioctl.group().tasks:
+                aioctl.add(aioschedule.schedule_loop)
 
 
 def boot(debug=True, log=None, debug_log=False, config=True):
