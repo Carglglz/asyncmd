@@ -1,4 +1,4 @@
-import ssl
+import ssl as _ssl
 from async_base_animations import _loadnpxy
 from aioclass import Service
 import aioctl
@@ -19,6 +19,9 @@ class MQTTService(Service):
         self.kwargs = {
             "server": "0.0.0.0",
             "port": 1883,
+            "hostname": None,
+            "ssl": False,
+            "ssl_params": {},
             "keepalive": 300,
             "debug": True,
             "on_stop": self.on_stop,
@@ -26,22 +29,10 @@ class MQTTService(Service):
         }
         self.anm = _loadnpxy(18, 71, timing=(400, 850, 850, 400))
 
-        self.sslctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        self.sslctx.load_cert_chain(
-            "SSL_certificate7c9ebd3d9df4.der", "SSL_key7c9ebd3d9df4.pem"
-        )
+        self.sslctx = False
         self.client = None
         self.n_msg = 0
         self.n_pub = 0
-
-        # if "pulse" in aioctl.group().tasks:
-        #     aioctl.delete("pulse")
-        # aioctl.add(pulse, (R, G, B), 1, loops=2, log=request.app.log)
-        # return (
-        #     htmldoc_color.format(str((R, G, B))),
-        #     200,
-        #     {"Content-Type": "text/html"},
-        # )
 
     def show(self):
         return (
@@ -85,12 +76,27 @@ class MQTTService(Service):
         client_id,
         server="0.0.0.0",
         port=1883,
+        ssl=False,
+        ssl_params={},
+        hostname=None,
         keepalive=300,
         debug=True,
         log=None,
     ):
         self.log = log
-        self.client = MQTTClient(client_id, server, port, keepalive=keepalive)
+        if ssl:
+            if not self.sslctx:
+                self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
+                self.sslctx.load_verify_locations(cafile=ssl_params["ca"])
+                self.sslctx.load_cert_chain(ssl_params["cert"], ssl_params["key"])
+        self.client = MQTTClient(
+            client_id,
+            server,
+            port,
+            keepalive=keepalive,
+            ssl=self.sslctx,
+            ssl_params={"server_hostname": hostname},
+        )
         self.client.set_callback(self.on_receive)
         await self.client.connect()
         await self.client.subscribe(b"homeassistant/sensor/esphome/state")

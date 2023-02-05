@@ -29,6 +29,7 @@ class MQTTClient:
         self.port = port
         self.ssl = ssl
         self.ssl_params = ssl_params
+        self.ssl_hostname = ssl_params.get("server_hostname")
         self.pid = 0
         self.cb = None
         self.user = user
@@ -68,7 +69,7 @@ class MQTTClient:
 
     async def connect(self, clean_session=True):
         self.a_reader, self.a_writer = await asyncio.open_connection(
-            self.server, self.port, ssl=self.ssl
+            self.server, self.port, ssl=self.ssl, server_hostname=self.ssl_hostname
         )
         # self.sock = socket.socket()
         # addr = socket.getaddrinfo(self.server, self.port)[0][-1]
