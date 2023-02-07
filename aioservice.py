@@ -9,6 +9,7 @@ from services import Services, failed_services
 _SERVICES_GROUP = {service.name: service for service in Services}
 _SERVICES_CONFIG = "services.config"
 _SERVICES_STATUS = {"loaded": [], "failed": []}
+_SERVICE_LOGGER = None
 
 
 def service(name=None):
@@ -37,7 +38,6 @@ def status(name=None):
         if service(name) in _SERVICES_STATUS["loaded"]:
             print(f"[ \033[92mOK\x1b[0m ] {service(name)} loaded")
         elif service(name) in _SERVICES_STATUS["failed"]:
-
             print(f"[ \u001b[31;1mERROR\u001b[0m ] {service(name)} not loaded:", end="")
             print(f" Error: {service(name).info.__class__.__name__}")
 
@@ -48,9 +48,11 @@ def call(name):
 
 
 def load(name=None, debug=False, log=None, debug_log=False, config=False):
-    global _SERVICES_GROUP, _SERVICES_STATUS
+    global _SERVICES_GROUP, _SERVICES_STATUS, _SERVICE_LOGGER
     import aioctl
 
+    if log:
+        _SERVICE_LOGGER = log
     if not name:
         if config:
             _servs_config = get_config()
@@ -110,7 +112,6 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 _SERVICES_STATUS["loaded"].append(service)
     else:
         if name in _SERVICES_GROUP.keys():
-
             service = _SERVICES_GROUP[name]
             if config:
                 _serv_config = get_config(name)
@@ -127,7 +128,6 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
 
             # catch failed load services
             if service.name in failed_services or not service.loaded:
-
                 _SERVICES_STATUS["failed"].append(service)
                 if debug:
                     print(
@@ -161,6 +161,28 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
 
             _SERVICES_STATUS["loaded"].append(service)
+
+        else:
+            if "./aioservices/services" not in sys.path:
+                sys.path.append("./aioservices/services")
+            try:
+                from services import modules
+
+                if f"{name}_service.py" not in modules:
+                    return False
+                else:
+                    _tmp = __import__(f"{name}_service", [], [], ["service"])
+                    _tmp.service.path = f"./aioservices/services/{name}_service.py"
+                    _SERVICES_GROUP[name] = _tmp.service
+                    load(
+                        name,
+                        debug=True,
+                        log=_SERVICE_LOGGER,
+                        debug_log=True,
+                        config=config,
+                    )
+            except Exception as e:
+                sys.print_exception(e)
 
 
 def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True):
