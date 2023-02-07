@@ -107,21 +107,41 @@ __exec_task = asyncio.create_task(__code())
 
 
 async def paste_mode(s):
-    sys.stdout.write("\r\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\r\n=== ")
+    sys.stdout.write("\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\n=== ")
     buff_paste = ""
     while True:
         b = await s.read(1)
         c = ord(b)
 
         if c == 0x03:
-            sys.stdout.write("\r\n")
+            sys.stdout.write("\n")
             return
         elif c == 0x04:
-            sys.stdout.write("\r\n=== \n")
+            sys.stdout.write("\n===\n")
             return buff_paste
         else:
             buff_paste += b
             sys.stdout.write(b)
+
+async def raw_repl(s, g):
+    sys.stdout.write("\nraw REPL; CTRL-B to exit\n>")
+    buff_raw_repl = ""
+    while True:
+        b = await s.read(1)
+        c = ord(b)
+
+        if c == 0x02:
+            sys.stdout.write("\n")
+            return
+        elif c == 0x04:
+            if buff_raw_repl:
+                result = await execute(buff_raw_repl, g, s)
+                sys.stdout.write("OK")
+                sys.stdout.write("\x04\x04")
+                sys.stdout.write(">")
+                buff_raw_repl = ""
+        else:
+            buff_raw_repl += b
 
 
 
@@ -189,6 +209,14 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                         elif isinstance(ret, str):
                             cmd += ret
                             sys.stdout.write(ret)
+                    elif c == 0x01:
+                        # Ctrl-A --> Raw REPL
+                        res = await raw_repl(s, g)
+                        sys.stdout.write(_aiorepl.banner_name)
+                        sys.stdout.write("; " + _aiorepl.banner_machine)
+                        sys.stdout.write("\r\n")
+                        sys.stdout.write('Type "help()" for more information.\r\n')
+                        break
                     elif c == 0x02:
                         # Ctrl-B
                         sys.stdout.write("\r\n")
