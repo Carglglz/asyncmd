@@ -8,6 +8,7 @@ from services import Services, failed_services
 
 _SERVICES_GROUP = {service.name: service for service in Services}
 _SERVICES_CONFIG = "services.config"
+_SERVICES_STATUS = {"loaded": [], "failed": []}
 
 
 def service(name=None):
@@ -24,8 +25,30 @@ def list():
         print(f"{service}")
 
 
+def status(name=None):
+    global _SERVICES_STATUS
+    if not name:
+        for _service in _SERVICES_STATUS["loaded"]:
+            print(f"[ \033[92mOK\x1b[0m ] {_service} loaded")
+        for _service in _SERVICES_STATUS["failed"]:
+            print(f"[ \u001b[31;1mERROR\u001b[0m ] {_service} not loaded:", end="")
+            print(f" Error: {_service.info.__class__.__name__}")
+    else:
+        if service(name) in _SERVICES_STATUS["loaded"]:
+            print(f"[ \033[92mOK\x1b[0m ] {service(name)} loaded")
+        elif service(name) in _SERVICES_STATUS["failed"]:
+
+            print(f"[ \u001b[31;1mERROR\u001b[0m ] {service(name)} not loaded:", end="")
+            print(f" Error: {service(name).info.__class__.__name__}")
+
+
+def call(name):
+    if callable(service(name)):
+        service(name)()
+
+
 def load(name=None, debug=False, log=None, debug_log=False, config=False):
-    global _SERVICES_GROUP
+    global _SERVICES_GROUP, _SERVICES_STATUS
     import aioctl
 
     if not name:
@@ -50,7 +73,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                         service.enabled = False
             # catch failed load services
             if service.name in failed_services or not service.loaded:
-
+                _SERVICES_STATUS["failed"].append(service)
                 if debug:
                     print(
                         f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
@@ -84,6 +107,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                     print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
                 if debug_log and log:
                     log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
+                _SERVICES_STATUS["loaded"].append(service)
     else:
         if name in _SERVICES_GROUP.keys():
 
@@ -104,6 +128,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
             # catch failed load services
             if service.name in failed_services or not service.loaded:
 
+                _SERVICES_STATUS["failed"].append(service)
                 if debug:
                     print(
                         f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
@@ -134,6 +159,8 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
             if debug_log and log:
                 log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
+
+            _SERVICES_STATUS["loaded"].append(service)
 
 
 def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True):

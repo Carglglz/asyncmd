@@ -5,6 +5,7 @@ import re
 import sys
 import time
 import uasyncio as asyncio
+import _aiorepl
 
 # Import statement (needs to be global, and does not return).
 _RE_IMPORT = re.compile("^import ([^ ]+)( as ([^ ]+))?")
@@ -105,6 +106,25 @@ __exec_task = asyncio.create_task(__code())
         print(f"{type(err).__name__}: {err}")
 
 
+async def paste_mode(s):
+    sys.stdout.write("\r\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\r\n=== ")
+    buff_paste = ""
+    while True:
+        b = await s.read(1)
+        c = ord(b)
+
+        if c == 0x03:
+            sys.stdout.write("\r\n")
+            return
+        elif c == 0x04:
+            sys.stdout.write("\r\n=== \n")
+            return buff_paste
+        else:
+            buff_paste += b
+            sys.stdout.write(b)
+
+
+
 # REPL task. Invoke this with an optional mutable globals dict.
 async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
     print("Starting asyncio REPL...")
@@ -155,9 +175,29 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                         if cmd:
                             cmd = cmd[:-1]
                             sys.stdout.write("\x08 \x08")
+                    elif c == 0x09:
+                        # Tab autocompletion
+
+                        ret = _aiorepl.autocomplete(cmd)
+                        if isinstance(ret, int):
+                            if ret == 0:
+                                continue
+                            else:
+                                # redraw line
+                                sys.stdout.write(prompt)
+                                sys.stdout.write(cmd)
+                        elif isinstance(ret, str):
+                            cmd += ret
+                            sys.stdout.write(ret)
                     elif c == 0x02:
                         # Ctrl-B
-                        continue
+                        sys.stdout.write("\r\n")
+                        sys.stdout.write(_aiorepl.banner_name)
+                        sys.stdout.write("; " + _aiorepl.banner_machine)
+                        sys.stdout.write("\r\n")
+                        sys.stdout.write('Type "help()" for more information.\r\n')
+
+                        break
                     elif c == 0x03:
                         # Ctrl-C
                         if pc == 0x03 and time.ticks_diff(t, pt) < 20:
@@ -178,6 +218,18 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                             if callable(exit_cb):
                                 exit_cb()
                         return
+                    elif c == 0x05:
+                        # Paste mode
+                        _pbuff = await paste_mode(s)
+                        if _pbuff:
+                            cmd = _pbuff + "\r\n"
+                            result = await execute(cmd, g, s)
+                            if result is not None:
+                                sys.stdout.write(repr(result))
+                                sys.stdout.write("\n")
+                            break
+                        else:
+                            continue
                     elif c == 0x1B:
                         # Start of escape sequence.
                         key = await s.read(2)
