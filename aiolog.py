@@ -22,14 +22,15 @@ class AioStream(io.StringIO):
         # read and grep for regex
         if grep:
             for line in self.read().strip().splitlines():
-                if grep in line:
+                if line and "*" in grep and self._grep(grep, line):
+                    print(line)
+                elif grep in line:
                     print(line)
         else:
             print(self.read().strip())
         self.seek(index)
 
     def _grep(self, patt, line):
-
         pattrn = re.compile(patt.replace(".", r"\.").replace("*", ".*") + "$")
         try:
             return pattrn.match(line)
@@ -57,7 +58,6 @@ class AioStream(io.StringIO):
                                     print(line)
 
                     else:
-
                         for line in self.getvalue()[init_index:].strip().splitlines():
                             if line:
                                 print(line)
