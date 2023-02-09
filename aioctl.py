@@ -26,6 +26,39 @@ _AIOCTL_LOG = None
 _DEBUG = False
 
 
+def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
+    if kw == {}:
+        print(f"{sep}{kw}")
+        return
+    if fl:
+        if lev == 0:
+            ind += 2
+        else:
+            ind += 1
+        print(sep + "{", end="")
+    for k, v in kw.items():
+        if v == list(kw.values())[-1]:
+            if lev == 0:
+                ls = " }"
+            else:
+                ls = " },"
+        if isinstance(v, dict) and v:
+            if fl:
+                fl = False
+                print(f"{sep}{repr(k)}:", end="")
+            else:
+                print(f"{sep*ind}{repr(k)}:", end="")
+            pprint_dict(
+                v, sep=sep, ind=len(f"{sep*ind}{repr(k)}:" + " {"), fl=True, lev=lev + 1
+            )
+        else:
+            if fl:
+                fl = False
+                print(f"{sep}{repr(k)}: {repr(v)}{ls}")
+            else:
+                print(f"{sep*ind}{repr(k)}: {repr(v)}{ls}")
+
+
 def aiotask(f):
     # print(f.__name__)
 
@@ -243,14 +276,20 @@ def status(name=None, log=True, debug=False):
                     if _SCHEDULE:
                         _delta_runtime = aioschedule.tmdelta_fmt(_delta_runtime)
                     print(f"    ┗━► runtime: {_delta_runtime}")
+
+                if _SCHEDULE:
+                    if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
+                        aioschedule.status_sc(name, debug=debug)
                 print(f"    ┗━► args: {c_task.args}")
-                print(f"    ┗━► kwargs: {c_task.kwargs}")
+                print("    ┗━► kwargs:", end="")
+                pprint_dict(c_task.kwargs, ind=len("    ┗━► kwargs: "))
                 if traceback(name, rtn=True):
                     print("    ┗━► traceback: ", end="")
                     traceback(name)
                     print("")
-            if _SCHEDULE:
-                aioschedule.status_sc(name, debug=debug)
+            if _SCHEDULE and not debug:
+                if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
+                    aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
                 _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
@@ -285,10 +324,15 @@ def status(name=None, log=True, debug=False):
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
                 print(f"    Task: {c_task}")
+                if _SCHEDULE:
+                    if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
+                        aioschedule.status_sc(name, debug=debug)
                 print(f"    ┗━► args: {c_task.args}")
-                print(f"    ┗━► kwargs: {c_task.kwargs}")
-            if _SCHEDULE:
-                aioschedule.status_sc(name, debug=debug)
+                print("    ┗━► kwargs:", end="")
+                pprint_dict(c_task.kwargs, ind=len("    ┗━► kwargs: "))
+            if _SCHEDULE and not debug:
+                if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
+                    aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
                 _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
@@ -355,7 +399,6 @@ def start(name):
             print(e)
         return True
     else:
-
         if "*" in name:
             for tm in tasks_match(name):
                 start(tm)
