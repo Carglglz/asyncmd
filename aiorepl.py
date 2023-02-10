@@ -106,6 +106,10 @@ __exec_task = asyncio.create_task(__code())
         print(f"{type(err).__name__}: {err}")
 
 
+
+def insert(src, ins, pos):
+    return src[:pos] + ins + src[pos:]
+
 async def paste_mode(s):
     sys.stdout.write("\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\n=== ")
     buff_paste = ""
@@ -163,6 +167,7 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
             hist_b = 0  # How far back in the history are we currently.
             sys.stdout.write(prompt)
             cmd = ""
+            cursor = 0
             while True:
                 b = await s.read(1)
                 pc = c  # save previous character
@@ -193,12 +198,21 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                     elif c == 0x08 or c == 0x7F:
                         # Backspace.
                         if cmd:
-                            cmd = cmd[:-1]
-                            sys.stdout.write("\x08 \x08")
+                            if cursor == len(cmd):
+                                cmd = cmd[:-1]
+                                sys.stdout.write("\x08 \x08")
+                            elif cursor < len(cmd) and cursor > 0:
+                                cmd = cmd[:cursor-1] + cmd[cursor:]
+                                sys.stdout.write("\x08 \x08")
+                            if cursor > 0:
+                                cursor -= 1
+                            if cursor <= len(cmd):
+                                sys.stdout.write(cmd[cursor:] + " ")
+                                sys.stdout.write("\x1B[D"*len(cmd[cursor:] + " "))
                     elif c == 0x09:
                         # Tab autocompletion
 
-                        ret = _aiorepl.autocomplete(cmd)
+                        ret = _aiorepl.autocomplete(cmd[:cursor])
                         if isinstance(ret, int):
                             if ret == 0:
                                 continue
@@ -207,16 +221,27 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                                 sys.stdout.write(prompt)
                                 sys.stdout.write(cmd)
                         elif isinstance(ret, str):
-                            cmd += ret
-                            sys.stdout.write(ret)
+                            if cursor == len(cmd):
+                                cmd += ret
+                                cursor = len(cmd)
+                                sys.stdout.write(ret)
+                            else:
+                                sys.stdout.write(ret + cmd[cursor:])
+                                sys.stdout.write("\x1B[D"*len(cmd[cursor:]))
+                                cmd = cmd[:cursor] + ret + cmd[cursor:]
+                                cursor += len(ret)
                     elif c == 0x01:
                         # Ctrl-A --> Raw REPL
-                        res = await raw_repl(s, g)
-                        sys.stdout.write(_aiorepl.banner_name)
-                        sys.stdout.write("; " + _aiorepl.banner_machine)
-                        sys.stdout.write("\r\n")
-                        sys.stdout.write('Type "help()" for more information.\r\n')
-                        break
+                        if not cmd:
+                            res = await raw_repl(s, g)
+                            sys.stdout.write(_aiorepl.banner_name)
+                            sys.stdout.write("; " + _aiorepl.banner_machine)
+                            sys.stdout.write("\r\n")
+                            sys.stdout.write('Type "help()" for more information.\r\n')
+                            break
+                        else:
+                            sys.stdout.write("\x1B[D"*len(cmd[:cursor]))
+                            cursor = 0
                     elif c == 0x02:
                         # Ctrl-B
                         sys.stdout.write("\r\n")
@@ -248,16 +273,21 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                         return
                     elif c == 0x05:
                         # Paste mode
-                        _pbuff = await paste_mode(s)
-                        if _pbuff:
-                            cmd = _pbuff + "\r\n"
-                            result = await execute(cmd, g, s)
-                            if result is not None:
-                                sys.stdout.write(repr(result))
-                                sys.stdout.write("\n")
-                            break
+                        if not cmd:
+                            _pbuff = await paste_mode(s)
+                            if _pbuff:
+                                cmd = _pbuff + "\r\n"
+                                result = await execute(cmd, g, s)
+                                if result is not None:
+                                    sys.stdout.write(repr(result))
+                                    sys.stdout.write("\n")
+                                break
+                            else:
+                                continue
                         else:
-                            continue
+
+                            sys.stdout.write("\x1B[C"*len(cmd[cursor:]))
+                            cursor = len(cmd)
                     elif c == 0x1B:
                         # Start of escape sequence.
                         key = await s.read(2)
@@ -277,12 +307,30 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                             # Update current command.
                             cmd = hist[(hist_i - hist_b) % _HISTORY_LIMIT]
                             sys.stdout.write(cmd)
+                            cursor = len(cmd)
+                        elif key in ("[D", "[C"):
+                            # left,right
+                            if key == "[D":
+                                if cursor > 0:
+                                    cursor -= 1
+                            else:
+                                if cursor < len(cmd):
+                                    cursor += 1
+                            if cursor > 0 and cursor <= len(cmd):
+                                sys.stdout.write("\x1B" + key)
                     else:
                         # sys.stdout.write("\\x")
                         # sys.stdout.write(hex(c))
                         pass
                 else:
                     sys.stdout.write(b)
-                    cmd += b
+                    if cursor < len(cmd):
+                        sys.stdout.write(cmd[cursor:])
+                        sys.stdout.write("\x1B[D"*len(cmd[cursor:]))
+                    if len(cmd) == cursor:
+                        cmd += b
+                    else:
+                        cmd = insert(cmd, b, cursor)
+                    cursor +=1
     finally:
         micropython.kbd_intr(3)
