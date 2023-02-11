@@ -65,7 +65,9 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                             service.args = _servs_config[service.name]["args"]
 
                         if "kwargs" in _servs_config[service.name]:
-                            service.kwargs = _servs_config[service.name]["kwargs"]
+                            service.kwargs.update(
+                                **_servs_config[service.name]["kwargs"]
+                            )
 
                             if "schedule" in service.kwargs and hasattr(
                                 service, "schedule"
@@ -120,7 +122,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                         service.args = _serv_config["args"]
 
                     if "kwargs" in _serv_config:
-                        service.kwargs = _serv_config["kwargs"]
+                        service.kwargs.update(**_serv_config["kwargs"])
                         if "schedule" in service.kwargs and hasattr(
                             service, "schedule"
                         ):
