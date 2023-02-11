@@ -6,6 +6,7 @@ from async_mqtt import MQTTClient
 import uasyncio as asyncio
 import json
 import random
+import gc
 
 
 class MQTTService(Service):
@@ -46,6 +47,15 @@ class MQTTService(Service):
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
             # aioctl.add(self.app.shutdown)
+        if "as_mqtt.service.disconnect" in aioctl.group().tasks:
+            aioctl.delete("as_mqtt.service.disconnect")
+        aioctl.add(
+            self.disconnect,
+            self,
+            name="as_mqtt.service.disconnect",
+            _id="as_mqtt.service.disconnect",
+        )
+
         return
 
     def on_error(self, e, *args, **kwargs):
@@ -63,9 +73,17 @@ class MQTTService(Service):
             if topic == b"homeassistant/sensor/esphome/pulse":
                 color = json.loads(msg.decode())
                 R, G, B = color["R"], color["G"], color["B"]
-                if "pulse" in aioctl.group().tasks:
-                    aioctl.delete("pulse")
-                aioctl.add(self.pulse, self, (R, G, B), 1, loops=2)
+                if "as_mqtt.service.pulse" in aioctl.group().tasks:
+                    aioctl.delete("as_mqtt.service.pulse")
+                aioctl.add(
+                    self.pulse,
+                    self,
+                    (R, G, B),
+                    1,
+                    loops=2,
+                    name="as_mqtt.service.pulse",
+                    _id="as_mqtt.service.pulse",
+                )
         except Exception as e:
             if self.log:
                 self.log.error(f"[{self.name}.service] {e}")
@@ -112,6 +130,7 @@ class MQTTService(Service):
             sense_param="low",
             name="as_mqtt.service.sense",
             _id="as_mqtt.service.sense",
+            on_stop=self.on_stop,
         )
         # Wait for messages
         while True:
@@ -121,7 +140,7 @@ class MQTTService(Service):
     @aioctl.aiotask
     async def pulse(self, *args, **kwargs):
         if self.log:
-            self.log.info(f"[pulse] {args} {kwargs} pulse")
+            self.log.info(f"[as_mqtt.service.pulse] {args} {kwargs} pulse")
         await self.anm.pulse(*args, **kwargs)
 
     @aioctl.aiotask
@@ -137,6 +156,14 @@ class MQTTService(Service):
             )
             self.n_pub += 1
             await asyncio.sleep(30)
+
+    @aioctl.aiotask
+    async def disconnect(self, *args, **kwargs):
+        if self.client:
+            await self.client.disconnect()
+        self.sslctx = None
+        self.client = None
+        gc.collect()
 
 
 service = MQTTService("as_mqtt")
