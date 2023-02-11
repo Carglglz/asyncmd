@@ -27,7 +27,7 @@ class OTAService(Service):
         self.buf = bytearray(BLOCKLEN)
         self._tmp_buf = b""
         self.buflen = 0
-        self.read_size = BLOCKLEN
+        self.read_size = 512
         self._key = f"SSL_key{binascii.hexlify(unique_id()).decode()}.der"
         self._cert = f"SSL_certificate{binascii.hexlify(unique_id()).decode()}.der"
         self._cadata = "ROOT_CA_cert.pem"
@@ -80,7 +80,7 @@ class OTAService(Service):
         self._total_blocks = blocks
         self._start_ota = True
         self._bg = bg
-        self._tmp_buf = bytearray(self.read_size)
+        self._tmp_buf = bytearray(self.kwargs.get("read_size", self.read_size))
 
     async def do_ota(self):
         nb = 0
@@ -173,7 +173,7 @@ class OTAService(Service):
         return f"{mm}:{ss}"
 
     @aioctl.aiotask
-    async def task(self, tls=False, hostname=None, log=None, read_size=BLOCKLEN):
+    async def task(self, tls=False, hostname=None, log=None, read_size=512):
         self.log = log
 
         while not self._start_ota:
