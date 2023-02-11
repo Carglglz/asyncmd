@@ -187,6 +187,24 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 sys.print_exception(e)
 
 
+def unload(name):
+    global _SERVICES_GROUP, _SERVICES_STATUS
+    import aioctl
+
+    try:
+        aioctl.stop(f"{name}.service*")
+        aioctl.delete(f"{name}.service*")
+        if name in _SERVICES_GROUP:
+            uns = _SERVICES_GROUP.pop(name)
+            if uns in _SERVICES_STATUS["loaded"]:
+                _SERVICES_STATUS["loaded"].remove(uns)
+            elif uns in _SERVICES_STATUS["failed"]:
+                _SERVICES_STATUS["failed"].remove(uns)
+            return True
+    except Exception as e:
+        sys.print_exception(e)
+
+
 def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True):
     import aioctl
 
