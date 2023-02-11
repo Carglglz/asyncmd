@@ -9,6 +9,7 @@ import binascii
 import gc
 from machine import unique_id
 import time
+import sys
 
 
 BLOCKLEN = const(4096)  # data bytes in a flash block
@@ -47,7 +48,7 @@ class OTAService(Service):
         self.kwargs = {
             "tls": False,
             "hostname": None,
-            "read_size": BLOCKLEN,
+            "read_size": self.read_size,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
         }
@@ -112,12 +113,12 @@ class OTAService(Service):
                     self.sha.update(self.buf)
                     if self.buflen == BLOCKLEN:
                         self.part.writeblocks(self.block, self.buf)
-                    # if debug:
                     self.block += 1
                     idx = 0
                     self._progress = self.block / self._total_blocks
+                    # print(f"{self._progress * 100:.1f} %", end="\r")
                     if self.log:
-                        if (self._progress * 100 % 25) == 0.0:
+                        if int(self.block % (self._total_blocks / 4)) == 0:
                             try:
                                 self.log.info(
                                     f"[{self.name}.service] OTA:"
@@ -200,6 +201,9 @@ class OTAService(Service):
         if self.log:
             self.log.info(f"[{self.name}.service] OTA update [ \033[92mOK\x1b[0m ]")
         self._start_ota = False
+        self.a_writer.close()
+        await self.a_writer.wait_closed()
+        self.sslctx = None
         return res
 
 
