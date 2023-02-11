@@ -170,11 +170,14 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
             try:
                 from services import modules
 
+                end = "py"
                 if f"{name}_service.py" not in modules:
-                    return False
+                    end = "mpy"
+                    if f"{name}_service.mpy" not in modules:
+                        return False
                 else:
                     _tmp = __import__(f"{name}_service", [], [], ["service"])
-                    _tmp.service.path = f"./aioservices/services/{name}_service.py"
+                    _tmp.service.path = f"./aioservices/services/{name}_service.{end}"
                     _SERVICES_GROUP[name] = _tmp.service
                     load(
                         name,

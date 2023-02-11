@@ -4,10 +4,22 @@ from . import *
 from aioclass import Service
 
 _SERVICES_CONFIG = "services.config"
-__modules__ = [srv for srv in os.listdir(__path__) if srv.endswith("_service.py")]
+__modules__ = {
+    srv
+    for srv in os.listdir(__path__)
+    if srv.endswith("_service.py") or srv.endswith("_service.mpy")
+}
 __services__ = {}
 __failed__ = {}
 # print(__modules__)
+
+
+def getserv(script):
+    return script.replace("_service.py", "").replace("_service.mpy", "")
+
+
+def getmod(script):
+    return script.replace(".py", "").replace(".mpy", "")
 
 
 def get_config(name=None):
@@ -32,21 +44,21 @@ _current_config = get_config()
 
 for _srv in __modules__:
     # print(f'services.{_srv.replace(".py", "")}')
-    if _current_config and _srv.replace("_service.py", "") in _current_config:
-        if not _current_config[_srv.replace("_service.py", "")]["enabled"]:
+    if _current_config and getserv(_srv) in _current_config:
+        if not _current_config[getserv(_srv)]["enabled"]:
             # print(f"not loading {_srv}")
             continue
     try:
-        _tmp = __import__(f'services.{_srv.replace(".py", "")}', [], [], ["service"])
+        _tmp = __import__(f"services.{getmod(_srv)}", [], [], ["service"])
         _tmp.service.path = f"{__path__}/{_srv}"
-        __services__[_srv.replace(".py", "")] = _tmp.service
+        __services__[getmod(_srv)] = _tmp.service
     except Exception as e:
-        _fs = Service(_srv.replace("_service.py", ""))
+        _fs = Service(getserv(_srv))
         _fs.path = f"{__path__}/{_srv}"
         _fs.info = e
         _fs.loaded = False
-        __failed__[_srv.replace("_service.py", "")] = _fs
-        __services__[_srv.replace(".py", "")] = _fs
+        __failed__[getserv(_srv)] = _fs
+        __services__[getmod(_srv)] = _fs
 
 
 modules = __modules__
