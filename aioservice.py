@@ -263,7 +263,10 @@ def config(name, enable, *args, **kwargs):
         if args:
             _service_config[name]["args"] = args
         if kwargs:
-            _service_config[name]["kwargs"] = kwargs
+            if "kwargs" in _service_config[name]:
+                _service_config[name]["kwargs"].update(**kwargs)
+            else:
+                _service_config[name]["kwargs"] = kwargs
     else:  # create
         _service_config = {}
         _service_config[name] = {}
