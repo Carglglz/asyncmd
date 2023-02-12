@@ -66,13 +66,13 @@ def aiotask(f):
         on_error = kwargs.get("on_error")
         on_stop = kwargs.get("on_stop")
         _id = kwargs.get("_id")
-        if on_error:
+        if on_error or "on_error" in kwargs:
             kwargs.pop("on_error")
-        if on_stop:
+        if on_stop or "on_stop" in kwargs:
             kwargs.pop("on_stop")
-        if _id:
+        if _id or "_id" in kwargs:
             kwargs.pop("_id")
-        else:
+        if not _id:
             _id = f.__name__
         try:
             result = await f(*args, **kwargs)
