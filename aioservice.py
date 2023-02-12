@@ -171,21 +171,21 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 from services import modules
 
                 end = "py"
-                if f"{name}_service.py" not in modules:
+                if f"{name}_service.{end}" not in modules:
                     end = "mpy"
-                    if f"{name}_service.mpy" not in modules:
-                        return False
-                else:
-                    _tmp = __import__(f"{name}_service", [], [], ["service"])
-                    _tmp.service.path = f"./aioservices/services/{name}_service.{end}"
-                    _SERVICES_GROUP[name] = _tmp.service
-                    load(
-                        name,
-                        debug=True,
-                        log=_SERVICE_LOGGER,
-                        debug_log=True,
-                        config=config,
-                    )
+                if f"{name}_service.{end}" not in modules:
+                    return False
+
+                _tmp = __import__(f"{name}_service", [], [], ["service"])
+                _tmp.service.path = f"./aioservices/services/{name}_service.{end}"
+                _SERVICES_GROUP[name] = _tmp.service
+                load(
+                    name,
+                    debug=True,
+                    log=_SERVICE_LOGGER,
+                    debug_log=True,
+                    config=config,
+                )
             except Exception as e:
                 sys.print_exception(e)
 
