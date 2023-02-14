@@ -230,19 +230,104 @@ def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True)
                 aioctl.add(aioschedule.schedule_loop)
 
 
-def boot(debug=True, log=None, debug_log=False, config=True):
-    global _SERVICES_GROUP
+async def boot(debug=True, log=None, debug_log=False, config=True):
+    import aioctl
+    import uasyncio as asyncio
 
-    for service in _SERVICES_GROUP.values():
-        if hasattr(service, "type"):
-            if service.type == "core.service":
-                load(
-                    service.name,
-                    debug=debug,
-                    log=log,
-                    debug_log=debug_log,
-                    config=config,
-                )
+    core_services = [
+        srv for srv in _SERVICES_GROUP.values() if srv.type == "core.service"
+    ]
+    core_hp_services = []
+    core_lp_services = []
+    # check if any requirement for core.service
+    serv_rq = [srv for srv in core_services if "require" in srv.kwargs]
+    serv_core = [srv for srv in core_services if srv not in serv_rq]
+    # true -> from aioclass import PQeue
+    if serv_rq:
+        from aioclass import PQueue
+
+        # -> add core services
+        # -> psolve
+        # -> get a priority core hp list, load core_lp
+        pq = PQueue()
+        pq.add(*serv_core, *serv_rq)
+        pl, hp, lp = pq.psolve()
+
+        if debug:
+            print("[ \033[92mOK\x1b[0m ] Priority core services solved... ")
+            print("[ Booting ] Order: ", end="")
+            for s, p in pl:
+                print(f"--> {s} ", end="")
+            print("")
+        if debug_log and log:
+            log.info(
+                "[aioservice] [ \033[92mOK\x1b[0m ] Priority "
+                + " core services solved..."
+            )
+            _boot_ord = "[ Booting ] Order: "
+            for s, p in pl:
+                _boot_ord += f"--> {s} "
+
+            log.info(_boot_ord)
+
+        core_hp_services = hp
+        core_lp_services = lp
+    else:
+        core_lp_services = serv_core
+
+    # -> await core_hp serialy
+    # -> gather core_lp concurrently
+    # false ->
+    # -> all are core_lp
+    for service in core_hp_services:
+        load(
+            service.name,
+            debug=debug,
+            log=log,
+            debug_log=debug_log,
+            config=config,
+        )
+
+        if debug:
+            print(f"[ \033[92mOK\x1b[0m ] Booting {service.name}.service... ")
+        if debug_log and log:
+            log.info(
+                "[aioservice] [ \033[92mOK\x1b[0m ] Booting "
+                + f"{service.name}.service..."
+            )
+        res = await aioctl.group().tasks[f"{service.name}.service"].task
+        if res:
+            if not issubclass(res.__class__, Exception):
+                if debug:
+                    print("[ \033[92mOK\x1b[0m ] " + f"{service.name}.service {res} ")
+                if debug_log and log:
+                    log.info(
+                        "[aioservice] [ \033[92mOK\x1b[0m ] "
+                        + f"{service.name}.service {res}"
+                    )
+            else:
+                if debug:
+                    print(
+                        f"[ \u001b[31;1mERROR\u001b[0m ] {service.name}:",
+                        end="",
+                    )
+                    print(f" Error: {res.__class__.__name__}")
+                if debug_log and log:
+                    _err = f"{service.name}:"
+                    _err += f" Error: {res.__class__.__name__}"
+                    log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
+
+    for service in core_lp_services:
+        load(
+            service.name,
+            debug=debug,
+            log=log,
+            debug_log=debug_log,
+            config=config,
+        )
+
+    await asyncio.gather(*aioctl.tasks())
+    asyncio.new_event_loop()
 
 
 def config(name, enable, *args, **kwargs):

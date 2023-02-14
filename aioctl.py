@@ -180,7 +180,7 @@ def group():
 
 def tasks():
     global _AIOCTL_GROUP
-    return [task.task for task in _AIOCTL_GROUP.tasks.values()]
+    return [task.task for task in _AIOCTL_GROUP.tasks.values() if not task.task.done()]
 
 
 def tasks_match(patt):
