@@ -1,7 +1,7 @@
 import uasyncio as asyncio
 import aioctl
 from aioclass import Service
-import time
+import sys
 
 
 class WatcherService(Service):
@@ -19,11 +19,22 @@ class WatcherService(Service):
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
+    def __call__(self):
+        self.display_report()
+
     def show(self):
         _stat_1 = f"   # ERRORS: {self.err_count} "
         _stat_2 = f"   Report: {self.err_report}"
         return "Stats", f"{_stat_1}{_stat_2}"  # return Tuple, "Name",
         # "info" to display
+
+    def display_report(self):
+        for _serv, rep in self.err_report.items():
+            print(f"--> {_serv}:")
+            for err_name, err in rep.items():
+                print(f"    - {err_name} : {err['count']}; Traceback: ")
+                sys.print_exception(err["err"])
+            print("<", "-" * 80, ">")
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:

@@ -56,13 +56,17 @@ class MicrodotService(Service):
         )
 
         # init webserver app
-
+        self.log = None
         self.app = Microdot()
         self.app.set_config(f"{self.name}.service", None, 0)
 
         @self.app.route("/")
         async def index(request):
             return send_file("static/index.html")
+
+        @self.app.route("/favicon.ico")
+        async def favicon(request):
+            return send_file("static/favicon.ico")
 
         @self.app.route("/static/<path:path>")
         async def static(request, path):
@@ -105,8 +109,11 @@ class MicrodotService(Service):
         return "Stats", f"   Requests: {self.app.request_counter}"
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
+        # self.app awaits self.app.server.wait_closed which
+        # consumes Cancelled error so this does not run
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
+            # aioctl.add(self.app.shutdown)
         return
 
     def on_error(self, e, *args, **kwargs):
@@ -119,9 +126,9 @@ class MicrodotService(Service):
         self.log = log
         self.app.log = log
         await self.app.start_server(host=host, port=port, debug=debug, ssl=self.sslctx)
+        # if this consumes Cancelled Error but still want to run on_stop
+        # callback raise Cancelled Error or run on_stop here
+        self.on_stop()
 
 
 service = MicrodotService("microdot")
-
-
-# app.run(host="192.168.1.84", port=4443, debug=True, ssl=sslctx, tasks=[repl])
