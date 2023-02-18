@@ -326,7 +326,8 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
             config=config,
         )
 
-    await asyncio.gather(*aioctl.tasks())
+    if core_lp_services:
+        await asyncio.gather(*aioctl.tasks())
     asyncio.new_event_loop()
 
 
