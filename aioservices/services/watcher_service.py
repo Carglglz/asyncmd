@@ -2,6 +2,7 @@ import uasyncio as asyncio
 import aioctl
 from aioclass import Service
 import sys
+import machine
 
 
 class WatcherService(Service):
@@ -12,7 +13,11 @@ class WatcherService(Service):
         self.enabled = True
         self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
         self.args = [30]
-        self.kwargs = {"on_stop": self.on_stop, "on_error": self.on_error}
+        self.kwargs = {
+            "on_stop": self.on_stop,
+            "on_error": self.on_error,
+            "max_errors": 0,
+        }
         self.err_count = 0
         self.err_report = {}
         self.log = None
@@ -47,7 +52,6 @@ class WatcherService(Service):
         return e
 
     def update_report(self, name, res):
-
         if name not in self.err_report:
             self.err_report[name] = {res.__class__.__name__: {"count": 1, "err": res}}
         else:
@@ -57,7 +61,7 @@ class WatcherService(Service):
                 self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
 
     @aioctl.aiotask
-    async def task(self, sleep, log=None):
+    async def task(self, sleep, max_errors=0, log=None):
         self.log = log
         await asyncio.sleep(10)
         while True:
@@ -76,6 +80,8 @@ class WatcherService(Service):
                         self.log.info(f"[{self.name}.service] Restarting Task {name}")
                     aioctl.start(name)
             await asyncio.sleep(sleep)
+            if self.err_count > max_errors and max_errors > 0:
+                machine.reset()
 
 
 service = WatcherService("watcher")
