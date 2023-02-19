@@ -4,19 +4,19 @@
 Inspired by [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl), 
 mpy-aiotools is an asyncio based set of tools to help with the development of asynchronous applications implemented in MicroPython.
 
-Asyncio is ideal for running multiple tasks concurrently\*, however an easy way to 
-interactively track/inspect the asyncio event loop and its running tasks was lacking
+Asyncio is ideal for running multiple tasks concurrently[^1], however an easy way to 
+interactively track or inspect the asyncio event loop and its running tasks was lacking
 until the introduction of [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl).
 
 This set of tools builds upon this *aiorepl* capacity to interact with tasks running in the event loop, running
 blocking or non-blocking (async) functions.
 
-mpy-aiotools is intended to be flexible and extensible i.e. minium requirement is aioctl.py
+mpy-aiotools is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
 and then every script builds upon *aioctl* functionality.
 
 #### Features
 
-* Create async tasks that can be controlled/tracked/managed/debugged or profiled --> `aioctl.py`
+* Create async tasks that can be controlled, tracked, managed, debugged or profiled --> `aioctl.py`
 
 
     Create a task that can be stopped or restarted, inspect its result/return value, 
@@ -28,10 +28,10 @@ and then every script builds upon *aioctl* functionality.
 
 * Asynchronous RAM logging --> `aiolog.py`
     
-    Create a "ring buffered stream" to log tasks output indefinitely. It 
+    Create a "ring buffered stream"[^2] to log tasks output indefinitely. It 
     allocates a predefined amount of RAM and rotates automatically so it never allocates
     more RAM than the one predefined. 
-    Also allows to "cat"+"grep" or async follow+grep its content.
+    Also allows to `cat`, `cat | grep` or `tail -F `, `tail -F | grep`, i.e. interactively inspect its content.
     
     e.g. `2015-01-01 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
 
@@ -50,7 +50,7 @@ and then every script builds upon *aioctl* functionality.
     ```
 
 
-* Asynchronous services* --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
+* Asynchronous services[^3] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
 
     Create a service that can have one or more tasks, install/list/get status of services, load/unload, config services 
     as enabled or disabled or service main task args and keyword args, get the traceback of services that failed to load, init/boot services 
@@ -85,24 +85,15 @@ and then every script builds upon *aioctl* functionality.
     2015-01-01 00:35:20 [pyb] [INFO] [hello.service] LED 2 toggled!
     ```
 
------
-> \* **NOTE** 
-*Multiple tasks concurrently where timing precision is only needed to be held up to a certain degree
-which can vary with the number of tasks running and the amount of time they
-take to run and how frequent they are scheduled*
-----
-
-> \* **NOTE 2**: *Inspiration comes obviously from Linux [systemd](https://github.com/systemd/systemd) specially `sysctl` and `journalctl`.*
 
 ## Install
 
-For `aioctl.py`, `aioschedule.py`, `ailog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device*
+For `aioctl.py`, `aioschedule.py`, `ailog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^4]
 
-\*(better if compiled i.e. `.mpy` using `mpy-cross` to save memory)
 
 For `aioservices/services` make the directories first and then upload  `aioservices/services/__init__.py` (or directly sync `aioservices`)
 
-Then to install a service upload it to this directory or use 
+Then to install a service upload it to this directory or to root directory and use 
 e.g. 
 
 ```  
@@ -111,16 +102,118 @@ e.g.
 
 This set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory.
 
----
-> \* **NOTE 3**: `aiolog` stream class needs a logger class the only writes to the stream (not print, see # for context).
-
----
 
 
 ## Example
-Simple example demonstrating @aioctl.aiotask decorator
+This basic example demonstrates how to use `@aioctl.aiotask` decorator to create
+a traceable task
 
-More examples in examples/README.md
+e.g. `async_blink.py`
+
+```python
+from machine import Pin
+import uasyncio as asyncio
+import aiorepl
+import aioctl
+
+# Define a task
+
+@aioctl.aiotask
+async def blink(pin, sleep=5):
+    led = Pin(pin, Pin.OUT)
+    while True:
+        led.on()
+        await asyncio.sleep_ms(500)
+        led.off()
+        await asyncio.sleep(sleep)
+
+
+async def main():
+    print("Starting tasks...")
+    # Add tasks
+    aioctl.add(blink, 2, sleep=5)
+    aioctl.add(aiorepl.task, name="repl")
+    
+    # await tasks
+    await asyncio.gather(*aioctl.tasks())
+
+
+asyncio.run(main())
+```
+To run, copy and paste in paste mode or upload the script to the device then
+```
+>>> import async_blink
+Starting tasks...
+Starting asyncio REPL
+--> import aioctl
+--> aioctl.status()
+● repl: status: running since 2015-01-01 11:27:11; 38 s ago
+● blink: status: running since 2015-01-01 11:27:11; 38 s ago
+
+# Enable aioctl debug mode
+--> aioctl.debug()
+debug mode: True
+--> aioctl.status()
+● repl: status: running since 2015-01-01 11:27:11; 00:01:01 ago
+    Task: <Taskctl object at 2000c9d0>
+    ┗━► args: ()
+    ┗━► kwargs: {}
+● blink: status: running since 2015-01-01 11:27:11; 00:01:01 ago
+    Task: <Taskctl object at 2000c7d0>
+    ┗━► args: (2,)
+    ┗━► kwargs: { 'sleep': 5 }
+
+# Stop blink task
+--> aioctl.stop("blink")
+True
+--> aioctl.status()
+● repl: status: running since 2015-01-01 11:27:11; 00:01:25 ago
+    Task: <Taskctl object at 2000c9d0>
+    ┗━► args: ()
+    ┗━► kwargs: {}
+● blink: status: done @ 2015-01-01 11:28:33; 3 s ago --> result:
+    Task: <Taskctl object at 2000c7d0>
+    ┗━► runtime: 00:01:22
+    ┗━► args: (2,)
+    ┗━► kwargs: { 'sleep': 5 }
+
+# Change sleep kwarg
+--> aioctl.group().tasks["blink"].kwargs.update(sleep=3)
+
+# Start again
+--> aioctl.start("blink")
+True
+--> aioctl.status()
+● repl: status: running since 2015-01-01 11:27:11; 00:06:35 ago
+    Task: <Taskctl object at 2000c9d0>
+    ┗━► args: ()
+    ┗━► kwargs: {}
+● blink: status: running since 2015-01-01 11:33:43; 3 s ago
+    Task: <Taskctl object at 20016110>
+    ┗━► args: (2,)
+    ┗━► kwargs: { 'sleep': 3 }
+
+# Add another blink task
+--> aioctl.add(blink, 3, sleep=6)
+--> aioctl.status()
+● blink_1: status: running since 2015-01-01 11:40:56; 11 s ago
+    Task: <Taskctl object at 20015350>
+    ┗━► args: (3,)
+    ┗━► kwargs: { 'sleep': 6 }
+● repl: status: running since 2015-01-01 11:27:11; 00:13:56 ago
+    Task: <Taskctl object at 2000c9d0>
+    ┗━► args: ()
+    ┗━► kwargs: {}
+● blink: status: running since 2015-01-01 11:37:48; 00:03:19 ago
+    Task: <Taskctl object at 20010070>
+    ┗━► args: (2,)
+    ┗━► kwargs: { 'sleep': 3 }
+
+```
+
+See more examples in examples/README.md to know how to add async logging,
+callbacks, debugging errors, get results, scheduling and finally `aioservice` 
+implementation.
 
 ## Tools
 
@@ -164,8 +257,18 @@ Set of examples of increasing complexity to show the capabilities
 of these tools.
 
 
+### Notes 
 
+[^1]: Runnnig 
+*multiple tasks concurrently where timing precision is only needed to be held up to a certain degree
+which can vary with the number of tasks running , the amount of time they
+take to run and how frequent they are scheduled*
 
+[^2]: *`aiolog` stream class needs a logger class the only writes to the stream (not print, see [ #10402 ](https://github.com/micropython/micropython/issues/10402) for context).*
+
+[^3]: *Inspiration comes obviously from Linux [systemd](https://github.com/systemd/systemd) specially `sysctl` and `journalctl`.*
+
+[^4]: *Better if compiled to `.mpy` using `mpy-cross` to save memory*
 
 
 
