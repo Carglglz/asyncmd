@@ -8,14 +8,28 @@ class AioStream(io.StringIO):
         super().__init__(alloc_size)
         self._max_size = alloc_size
         self._write = super().write
+        self._comp = False
 
     def write(self, sdata):
         if self.tell() + len(sdata) > self._max_size:
             self.seek(0)
+            self._comp = True
         self._write(sdata)
 
     def cat(self, grep=""):
         index = self.tell()
+        if self._comp:
+            self.readline()
+        if grep:
+            for line in self:
+                if line and "*" in grep and self._grep(grep, line):
+                    print(line, end="")
+                elif grep in line:
+                    print(line, end="")
+        else:
+            for line in self:
+                print(line, end="")
+
         self.seek(0)
         # read and grep for regex
         if grep:
