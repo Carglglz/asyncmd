@@ -28,10 +28,10 @@ and then every script builds upon *aioctl* functionality.
 
 * Asynchronous RAM logging --> `aiolog.py`
     
-    Create a "ring buffered stream"[^2] to log tasks output indefinitely. It 
+    Create a "ring buffer stream"[^2] to log tasks output indefinitely. It 
     allocates a predefined amount of RAM and rotates automatically so it never allocates
     more RAM than the one predefined. 
-    Also allows to `cat`, `cat | grep` or `tail -F `, `tail -F | grep`, i.e. interactively inspect its content.
+    Also allows to interactively inspect its content same as `cat`, `cat | grep` or `tail -F `, `tail -F | grep`.
     
     e.g. `2015-01-01 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
 
@@ -53,7 +53,7 @@ and then every script builds upon *aioctl* functionality.
 * Asynchronous services[^3] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
 
     Create a service that can have one or more tasks, install/list/get status of services, load/unload, config services 
-    as enabled or disabled or service main task args and keyword args, get the traceback of services that failed to load, init/boot services 
+    as enabled or disabled, config service main task args and keyword args, get the traceback of services that failed to load, init/boot services 
     following a priority depending of another service dependency...
 
     e.g. 
@@ -240,7 +240,7 @@ implementation.
 
 ### app
 
-#### aio- mqtt, neopixels, webserver
+#### async_modules: mqtt, neopixels, webserver, requests, mip
 
 Async based classes of MQTT client, neopixels animations and a WebServer
 based on Microdot
@@ -250,7 +250,6 @@ based on Microdot
 
 Logging module compatible with `AioStream` class from `aiolog.py`
 
-
 ## Examples 
 
 Set of examples of increasing complexity to show the capabilities
@@ -259,12 +258,12 @@ of these tools.
 
 ### Notes 
 
-[^1]: Runnnig 
+[^1]: *Runnnig* 
 *multiple tasks concurrently where timing precision is only needed to be held up to a certain degree
 which can vary with the number of tasks running , the amount of time they
 take to run and how frequent they are scheduled*
 
-[^2]: *`aiolog` stream class needs a logger class the only writes to the stream (not print, see [ #10402 ](https://github.com/micropython/micropython/issues/10402) for context).*
+[^2]: *`aiolog` stream class needs a logger class that only writes to the stream (not print, see [ #10402 ](https://github.com/micropython/micropython/issues/10402) for context).*
 
 [^3]: *Inspiration comes obviously from Linux [systemd](https://github.com/systemd/systemd) specially `sysctl` and `journalctl`.*
 
