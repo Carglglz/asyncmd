@@ -120,6 +120,7 @@ class WPASupplicantService(Service):
     ):
         self.log = log
         self.restart_services = restart_services
+        self.ssid = self.wlan.config("ssid")
         if not self.check_network():
             connected = await self.setup_network(
                 timeout=timeout, hostname=hostname, notify=True
