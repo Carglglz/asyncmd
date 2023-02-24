@@ -96,7 +96,8 @@ class MIPService(Service):
             sys.print_exception(e, sys.stdout)
             return
 
-    async def check_packages(self):
+    async def check_packages(self, _debug=False):
+        async_mip._DEBUG = _debug
         for pk, info in self.packages.items():
             if self.log:
                 self.log.info(f"[{self.name}.service] Fetching package {pk}...")
@@ -124,7 +125,8 @@ class MIPService(Service):
                 if self.log:
                     self.log.info(f"[{self.name}.service] Package {pk} up to date")
 
-    async def update(self):
+    async def update(self, _debug=False):
+        async_mip._DEBUG = _debug
         reset = False
         for pk, info in self.packages_to_update.items():
             if self.log:

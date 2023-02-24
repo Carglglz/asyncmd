@@ -7,6 +7,7 @@ import sys
 
 _PACKAGE_INDEX = const("https://micropython.org/pi/v2")
 _CHUNK_SIZE = 128
+_DEBUG = False
 
 
 # This implements os.makedirs(os.dirname(path))
@@ -78,14 +79,16 @@ def _rewrite_url(url, branch=None):
 
 
 async def _download_file(url, dest):
-    print(url)
+    if _DEBUG:
+        print(url)
     response = await arequests.get(url)
     try:
         if response.status_code != 200:
-            print("Error", response.status_code, "requesting", url)
+            if _DEBUG:
+                print("Error", response.status_code, "requesting", url)
             return False
-
-        print("Copying:", dest)
+        if _DEBUG:
+            print("Copying:", dest)
         _ensure_path_exists(dest)
         with open(dest, "wb") as f:
             await _chunk(response.raw, f.write)
@@ -99,7 +102,8 @@ async def _install_json(package_json_url, index, target, version, mpy):
     response = await arequests.get(_rewrite_url(package_json_url, version))
     try:
         if response.status_code != 200:
-            print("Package not found:", package_json_url)
+            if _DEBUG:
+                print("Package not found:", package_json_url)
             return False
 
         package_json = await response.json()
@@ -108,16 +112,19 @@ async def _install_json(package_json_url, index, target, version, mpy):
     for target_path, short_hash in package_json.get("hashes", ()):
         fs_target_path = target + "/" + target_path
         if _check_exists(fs_target_path, short_hash):
-            print("Exists:", fs_target_path)
+            if _DEBUG:
+                print("Exists:", fs_target_path)
         else:
             file_url = "{}/file/{}/{}".format(index, short_hash[:2], short_hash)
             if not await _download_file(file_url, fs_target_path):
-                print("File not found: {} {}".format(target_path, short_hash))
+                if _DEBUG:
+                    print("File not found: {} {}".format(target_path, short_hash))
                 return False
     for target_path, url in package_json.get("urls", ()):
         fs_target_path = target + "/" + target_path
         if not await _download_file(_rewrite_url(url, version), fs_target_path):
-            print("File not found: {} {}".format(target_path, url))
+            if _DEBUG:
+                print("File not found: {} {}".format(target_path, url))
             return False
     for dep, dep_version in package_json.get("deps", ()):
         if not await _install_package(dep, index, target, dep_version, mpy):
@@ -132,7 +139,8 @@ async def _install_package(package, index, target, version, mpy):
         or package.startswith("github:")
     ):
         if package.endswith(".py") or package.endswith(".mpy"):
-            print("Downloading {} to {}".format(package, target))
+            if _DEBUG:
+                print("Downloading {} to {}".format(package, target))
             return await _download_file(
                 _rewrite_url(package, version), target + "/" + package.rsplit("/")[-1]
             )
@@ -141,13 +149,17 @@ async def _install_package(package, index, target, version, mpy):
                 if not package.endswith("/"):
                     package += "/"
                 package += "package.json"
-            print("Installing {} to {}".format(package, target))
+            if _DEBUG:
+                print("Installing {} to {}".format(package, target))
     else:
         if not version:
             version = "latest"
-        print(
-            "Installing {} ({}) from {} to {}".format(package, version, index, target)
-        )
+        if _DEBUG:
+            print(
+                "Installing {} ({}) from {} to {}".format(
+                    package, version, index, target
+                )
+            )
 
         mpy_version = (
             sys.implementation._mpy & 0xFF
@@ -169,17 +181,20 @@ async def install(package, index=None, target=None, version=None, mpy=True):
                 target = p
                 break
         else:
-            print("Unable to find lib dir in sys.path")
+            if _DEBUG:
+                print("Unable to find lib dir in sys.path")
             return
 
     if not index:
         index = _PACKAGE_INDEX
 
     if await _install_package(package, index.rstrip("/"), target, version, mpy):
-        print("Done")
+        if _DEBUG:
+            print("Done")
         return True
     else:
-        print("Package may be partially installed")
+        if _DEBUG:
+            print("Package may be partially installed")
 
 
 async def _fetch_json(package_json_url, index, target, version, mpy):
@@ -187,7 +202,8 @@ async def _fetch_json(package_json_url, index, target, version, mpy):
     package_json = {}
     try:
         if response.status_code != 200:
-            print("Package not found:", package_json_url)
+            if _DEBUG:
+                print("Package not found:", package_json_url)
             return False
 
         package_json = await response.json()
@@ -206,17 +222,21 @@ async def _fetch_package(package, index, target, version, mpy):
             if not package.endswith("/"):
                 package += "/"
             package += "package.json"
-        print("Fetching {} ...".format(package))
+
+        if _DEBUG:
+            print("Fetching {} ...".format(package))
     else:
         if not version:
             version = "latest"
-        print(
-            "Fetching {} ({}) from {} ...".format(
-                package,
-                version,
-                index,
+
+        if _DEBUG:
+            print(
+                "Fetching {} ({}) from {} ...".format(
+                    package,
+                    version,
+                    index,
+                )
             )
-        )
 
         mpy_version = (
             sys.implementation._mpy & 0xFF
@@ -238,7 +258,8 @@ async def fetch(package, index=None, target=None, version=None, mpy=True):
                 target = p
                 break
         else:
-            print("Unable to find lib dir in sys.path")
+            if _DEBUG:
+                print("Unable to find lib dir in sys.path")
             return
 
     if not index:
@@ -246,7 +267,9 @@ async def fetch(package, index=None, target=None, version=None, mpy=True):
 
     pack = await _fetch_package(package, index.rstrip("/"), target, version, mpy)
     if pack:
-        print("Done")
+        if _DEBUG:
+            print("Done")
     else:
-        print("Package may be partially installed")
+        if _DEBUG:
+            print("Package may be partially installed")
     return pack
