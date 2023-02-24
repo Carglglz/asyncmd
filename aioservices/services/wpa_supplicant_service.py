@@ -16,10 +16,11 @@ except Exception:
 class WPASupplicantService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "WPA Supplicant Service v1.0"
+        self.version = "1.0"
+        self.info = f"WPA Supplicant Service v{self.version}"
         self.type = "schedule.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "timeout": 10,

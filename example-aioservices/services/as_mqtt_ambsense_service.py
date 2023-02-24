@@ -1,3 +1,4 @@
+import time
 import ssl as _ssl
 from aioclass import Service
 import aioctl
@@ -38,10 +39,11 @@ class MQTTService(Service):
 
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Async MQTT BME280 client v1.0"
+        self.version = "1.0"
+        self.info = f"Async MQTT BME280 client v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
         self.args = [NAME]
         self.kwargs = {
             "server": "0.0.0.0",
@@ -60,6 +62,7 @@ class MQTTService(Service):
         self.sensor = None
         self.n_msg = 0
         self.n_pub = 0
+        self.td = 0
         self.id = NAME
         self.i2c = I2C(1, scl=Pin(22), sda=Pin(21))
 
@@ -104,7 +107,9 @@ class MQTTService(Service):
     def show(self):
         return (
             "Stats",
-            f"   Messages: Received: {self.n_msg}, Published: " + f"{self.n_pub}",
+            f"   Messages: Received: {self.n_msg}, Published: "
+            + f"{self.n_pub}"
+            + f" Delta HS: {self.td} s",
         )
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
@@ -185,7 +190,10 @@ class MQTTService(Service):
             ssl_params={"server_hostname": hostname},
         )
         self.client.set_callback(self.on_receive)
+        t0 = time.ticks_ms()
         await self.client.connect()
+
+        self.td = time.ticks_diff(time.ticks_ms(), t0) / 1e3
         # Subscribe
         # await self.client.subscribe(b"homeassistant/sensor/esphome/state")
         # await self.client.subscribe(b"homeassistant/sensor/esphome/pulse")

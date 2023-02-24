@@ -8,10 +8,13 @@ import machine
 class WatcherService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Watcher Service v1.0 - Restarts services on failed state"
+        self.version = "1.0"
+        self.info = (
+            f"Watcher Service v{self.version} - Restarts services on failed state"
+        )
         self.type = "runtime.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
         self.args = [30]
         self.kwargs = {
             "on_stop": self.on_stop,

@@ -21,10 +21,11 @@ except Exception:
 class NetworkService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Network Setup Service v1.0"
+        self.version = "1.0"
+        self.info = f"Network Setup Service v{self.version}"
         self.type = "core.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "timeout": 10,

@@ -18,10 +18,11 @@ BLOCKLEN = const(4096)  # data bytes in a flash block
 class OTAService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Async OTA client v1.0"
+        self.version = "1.0"
+        self.info = f"Async OTA client v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
         self.part = Partition(Partition.RUNNING).get_next_update()
         self.sha = hashlib.sha256()
         self.block = 0
