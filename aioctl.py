@@ -137,6 +137,8 @@ class Taskctl:
         self.kwargs = kwargs
         self.since = time.time()
         self.done_at = None
+        self.schedule = None
+        self.cancelled = False
         self._is_service = False
         self.service = None
         if _SERVICE:
@@ -180,7 +182,11 @@ def group():
 
 def tasks():
     global _AIOCTL_GROUP
-    return [task.task for task in _AIOCTL_GROUP.tasks.values() if not task.task.done()]
+    return [
+        task.task
+        for task in _AIOCTL_GROUP.tasks.values()
+        if not task.task.done() and not task.cancelled
+    ]
 
 
 def tasks_match(patt):
@@ -392,6 +398,12 @@ def start(name):
         args = _AIOCTL_GROUP.tasks[name].args
         kwargs = _AIOCTL_GROUP.tasks[name].kwargs
         kwargs["name"] = name
+        if _SCHEDULE:
+            _sch = _AIOCTL_GROUP.tasks[name].schedule
+            if _sch:
+                aioschedule.schedule(name, **_sch)
+                _AIOCTL_GROUP.tasks[name].schedule = None
+                return True
         _AIOCTL_GROUP.tasks.pop(name)
         try:
             add(coro, *args, **kwargs)
@@ -408,7 +420,7 @@ def start(name):
         return False
 
 
-def stop(name=None):
+def stop(name=None, stop_sch=True):
     global _AIOCTL_GROUP
     if not name:
         return stop_all()
@@ -416,6 +428,11 @@ def stop(name=None):
         if name in _AIOCTL_GROUP.tasks:
             if not _AIOCTL_GROUP.tasks[name].task.done():
                 _AIOCTL_GROUP.tasks[name].task.cancel()
+                _AIOCTL_GROUP.tasks[name].cancelled = True
+
+            if _SCHEDULE and stop_sch:
+                if name in aioschedule.group().keys():
+                    group().tasks[name].schedule = aioschedule.group().pop(name)
 
             _AIOCTL_GROUP.results[name] = _AIOCTL_GROUP.tasks[name].task.data
         else:

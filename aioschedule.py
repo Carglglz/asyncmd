@@ -99,6 +99,9 @@ async def schedule_loop(alog=None):
         else:
             if aioctl.group().tasks[c_task].task.done():
                 aioctl.start(c_task)
+
+        if group()[c_task]["start_in"] > 0:
+            _AIOCTL_SCHEDULE_GROUP[c_task]["_start_in"] = group()[c_task]["start_in"]
         _AIOCTL_SCHEDULE_GROUP[c_task]["start_in"] = -1
         _AIOCTL_SCHEDULE_GROUP[c_task]["last"] = time.time()
         _AIOCTL_SCHEDULE_GROUP[c_task]["last_dt"] = time.localtime()
@@ -107,7 +110,7 @@ async def schedule_loop(alog=None):
     for _sch_task in _AIOCTL_SCHEDULE_GROUP.keys():
         if alog:
             alog.info(f"stoping {_sch_task}")
-        aioctl.stop(_sch_task)
+        aioctl.stop(_sch_task, stop_sch=False)
     t0 = time.time()
     _AIOCTL_SCHEDULE_T0 = t0
     while True:
@@ -187,7 +190,6 @@ def status_sc(name, debug=False):
 
         print(f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}")
         if debug:
-
             print(f"    ┗━► schedule opts: {_sch_str}")
     else:
         if debug:
