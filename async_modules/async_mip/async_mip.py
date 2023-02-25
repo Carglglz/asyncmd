@@ -111,7 +111,7 @@ async def _install_json(package_json_url, index, target, version, mpy):
         await response.close()
     for target_path, short_hash in package_json.get("hashes", ()):
         fs_target_path = target + "/" + target_path
-        if _check_exists(fs_target_path, short_hash):
+        if await _check_exists(fs_target_path, short_hash):
             if _DEBUG:
                 print("Exists:", fs_target_path)
         else:

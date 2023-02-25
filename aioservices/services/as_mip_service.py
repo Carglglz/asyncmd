@@ -113,6 +113,7 @@ class MIPService(Service):
                 self.packages_to_update[pk] = {
                     "url": info["url"],
                     "version": pack["version"],
+                    "service": info.get("service"),
                 }
                 self.new_packages = True
 
@@ -131,7 +132,11 @@ class MIPService(Service):
         for pk, info in self.packages_to_update.items():
             if self.log:
                 self.log.info(f"[{self.name}.service] Installing Package {pk}")
-            installed = await async_mip.install(info["url"])
+            _target = None
+            is_service = info.get("service")
+            if is_service:
+                _target = "."
+            installed = await async_mip.install(info["url"], target=_target)
             if installed:
                 self.updated_packages.update([pk])
                 self.packages[pk] = info
