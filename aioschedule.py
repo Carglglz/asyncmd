@@ -187,8 +187,8 @@ def status_sc(name, debug=False):
                     _next = time.mktime(start_in) - time.time()
                 else:
                     _next = _AIOCTL_SCHEDULE_T0 + start_in - time.time()
-
-        print(f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}")
+        if repeat:
+            print(f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}")
         if debug:
             print(f"    ┗━► schedule opts: {_sch_str}")
     else:
