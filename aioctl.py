@@ -146,6 +146,10 @@ class Taskctl:
                 if issubclass(args[0].__class__, Service):
                     self._is_service = True
                     self.service = args[0]
+                    self._is_parent = f"{self.service.name}.service" == name
+                    self._is_child = f"{self.service.name}.service" != name
+                    if self._is_child:
+                        self.service._child_tasks += [name]
 
 
 class TaskGroup:
@@ -253,7 +257,10 @@ def status(name=None, log=True, debug=False):
                 )
                 _dot = "\u001b[31;1m●\u001b[0m"
             if debug:
-                if _AIOCTL_GROUP.tasks[name]._is_service:
+                if (
+                    _AIOCTL_GROUP.tasks[name]._is_service
+                    and _AIOCTL_GROUP.tasks[name]._is_parent
+                ):
                     c_task = _AIOCTL_GROUP.tasks[name]
                     print(f"{_dot} {name} - {c_task.service.info}")
                     print(f"    Loaded: {c_task.service}")
@@ -261,7 +268,10 @@ def status(name=None, log=True, debug=False):
                     print(f"@ {_done_at} --> result: " + f"{data}")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
-
+                    if c_task.service._child_tasks:
+                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
+                        for _ctsk in c_task.service._child_tasks:
+                            print(f"    ┗━► {_ctsk}")
                     if hasattr(c_task.service, "show"):
                         _show = c_task.service.show()
                         print(f"    {_show[0]}:  {_show[1]}")
@@ -308,7 +318,10 @@ def status(name=None, log=True, debug=False):
                 _since_str = aioschedule.get_datetime(_since_str)
                 _since_str += f"; {aioschedule.tmdelta_fmt(_since_delta)}"
             if debug:
-                if _AIOCTL_GROUP.tasks[name]._is_service:
+                if (
+                    _AIOCTL_GROUP.tasks[name]._is_service
+                    and _AIOCTL_GROUP.tasks[name]._is_parent
+                ):
                     c_task = _AIOCTL_GROUP.tasks[name]
                     print(f"{_dot} {name} - {c_task.service.info}")
                     print(f"    Loaded: {c_task.service}")
@@ -316,6 +329,10 @@ def status(name=None, log=True, debug=False):
                     print(f"since {_since_str} ago")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
+                    if c_task.service._child_tasks:
+                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
+                        for _ctsk in c_task.service._child_tasks:
+                            print(f"    ┗━► {_ctsk}")
 
                     if hasattr(c_task.service, "show"):
                         _show = c_task.service.show()
