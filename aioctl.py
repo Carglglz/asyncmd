@@ -149,7 +149,7 @@ class Taskctl:
                     self._is_parent = f"{self.service.name}.service" == name
                     self._is_child = f"{self.service.name}.service" != name
                     if self._is_child:
-                        self.service._child_tasks += [name]
+                        self.service._child_tasks.add(name)
 
 
 class TaskGroup:
@@ -225,7 +225,7 @@ def delete(*args):
                 print(f"Task {name} not found in {list(_AIOCTL_GROUP.tasks.keys())}")
 
 
-def status(name=None, log=True, debug=False):
+def status(name=None, log=True, debug=False, indent="    "):
     global _AIOCTL_GROUP, _AIOCTL_LOG, _SCHEDULE, _DEBUG
     if _DEBUG:
         debug = _DEBUG
@@ -268,13 +268,16 @@ def status(name=None, log=True, debug=False):
                     print(f"@ {_done_at} --> result: " + f"{data}")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
-                    if c_task.service._child_tasks:
-                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
-                        for _ctsk in c_task.service._child_tasks:
-                            print(f"    ┗━► {_ctsk}")
                     if hasattr(c_task.service, "show"):
                         _show = c_task.service.show()
                         print(f"    {_show[0]}:  {_show[1]}")
+
+                    if c_task.service._child_tasks:
+                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
+                        for _ctsk in c_task.service._child_tasks:
+                            print("        ┗━► ", end="")
+                            status(_ctsk, log=False, debug=True, indent=" " * 16)
+                        print("    " + "━" * 60)
                 else:
                     print(f"{_dot} {name}: status: {_status} ", end="")
                     print(f"@ {_done_at} --> result: " + f"{data}")
@@ -284,23 +287,23 @@ def status(name=None, log=True, debug=False):
                 print(f"@ {_done_at} --> result: " + f"{data}")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"    Task: {c_task}")
+                print(f"{indent}Task: {c_task}")
                 if _done_at:
                     _delta_runtime = (
                         group().tasks[name].done_at - group().tasks[name].since
                     )
                     if _SCHEDULE:
                         _delta_runtime = aioschedule.tmdelta_fmt(_delta_runtime)
-                    print(f"    ┗━► runtime: {_delta_runtime}")
+                    print(f"{indent}┗━► runtime: {_delta_runtime}")
 
                 if _SCHEDULE:
                     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                         aioschedule.status_sc(name, debug=debug)
-                print(f"    ┗━► args: {c_task.args}")
-                print("    ┗━► kwargs:", end="")
-                pprint_dict(c_task.kwargs, ind=len("    ┗━► kwargs: "))
+                print(f"{indent}┗━► args: {c_task.args}")
+                print(f"{indent}┗━► kwargs:", end="")
+                pprint_dict(c_task.kwargs, ind=len(f"{indent}┗━► kwargs: "))
                 if traceback(name, rtn=True):
-                    print("    ┗━► traceback: ", end="")
+                    print(f"{indent}┗━► traceback: ", end="")
                     traceback(name)
                     print("")
             if _SCHEDULE and not debug:
@@ -329,14 +332,18 @@ def status(name=None, log=True, debug=False):
                     print(f"since {_since_str} ago")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
-                    if c_task.service._child_tasks:
-                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
-                        for _ctsk in c_task.service._child_tasks:
-                            print(f"    ┗━► {_ctsk}")
 
                     if hasattr(c_task.service, "show"):
                         _show = c_task.service.show()
                         print(f"    {_show[0]}:  {_show[1]}")
+
+                    if c_task.service._child_tasks:
+                        print(f"    CTasks: {len(c_task.service._child_tasks)}")
+                        for _ctsk in c_task.service._child_tasks:
+                            print("        ┗━► ", end="")
+                            status(_ctsk, log=False, debug=True, indent=" " * 16)
+                        print("    " + "━" * 60)
+
                 else:
                     print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
                     print(f"since {_since_str} ago")
@@ -346,13 +353,13 @@ def status(name=None, log=True, debug=False):
                 print(f"since {_since_str} ago")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"    Task: {c_task}")
+                print(f"{indent}Task: {c_task}")
                 if _SCHEDULE:
                     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                         aioschedule.status_sc(name, debug=debug)
-                print(f"    ┗━► args: {c_task.args}")
-                print("    ┗━► kwargs:", end="")
-                pprint_dict(c_task.kwargs, ind=len("    ┗━► kwargs: "))
+                print(f"{indent}┗━► args: {c_task.args}")
+                print(f"{indent}┗━► kwargs:", end="")
+                pprint_dict(c_task.kwargs, ind=len(f"{indent}┗━► kwargs: "))
             if _SCHEDULE and not debug:
                 if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                     aioschedule.status_sc(name, debug=debug)

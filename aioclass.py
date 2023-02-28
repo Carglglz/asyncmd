@@ -7,7 +7,7 @@ class Service:
         self.docs = ""
         self.enabled = False  # preset
         self.loaded = True
-        self._child_tasks = []
+        self._child_tasks = set()
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
