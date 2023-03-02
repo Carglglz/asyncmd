@@ -310,7 +310,15 @@ def status(name=None, log=True, debug=False, indent="    "):
                 if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                     aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
-                _AIOCTL_LOG.cat(grep=f"[{name}]")
+                if (
+                    _AIOCTL_GROUP.tasks[name]._is_service
+                    and _AIOCTL_GROUP.tasks[name]._is_parent
+                ):
+                    c_task = _AIOCTL_GROUP.tasks[name]
+                    _ctsks = [f"*\[{_ctsk}\]*" for _ctsk in c_task.service._child_tasks]
+                    _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
+                else:
+                    _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
         else:
             _dot = "\033[92m●\x1b[0m"
@@ -364,7 +372,15 @@ def status(name=None, log=True, debug=False, indent="    "):
                 if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                     aioschedule.status_sc(name, debug=debug)
             if log and _AIOCTL_LOG:
-                _AIOCTL_LOG.cat(grep=f"[{name}]")
+                if (
+                    _AIOCTL_GROUP.tasks[name]._is_service
+                    and _AIOCTL_GROUP.tasks[name]._is_parent
+                ):
+                    c_task = _AIOCTL_GROUP.tasks[name]
+                    _ctsks = [f"*\[{_ctsk}\]*" for _ctsk in c_task.service._child_tasks]
+                    _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
+                else:
+                    _AIOCTL_LOG.cat(grep=f"[{name}]")
                 print("<" + "-" * 80 + ">")
     else:
         if "*" in name:

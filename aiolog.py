@@ -22,10 +22,15 @@ class AioStream(io.StringIO):
             self.readline()
         if grep:
             for line in self:
-                if line and "*" in grep and self._grep(grep, line):
+                if (
+                    line
+                    and ("*" in grep or isinstance(grep, list))
+                    and self._grep(grep, line)
+                ):
                     print(line, end="")
-                elif grep in line:
-                    print(line, end="")
+                elif isinstance(grep, str):
+                    if grep in line:
+                        print(line, end="")
         else:
             for line in self:
                 print(line, end="")
@@ -34,10 +39,16 @@ class AioStream(io.StringIO):
         # read and grep for regex
         if grep:
             for line in self:
-                if line and "*" in grep and self._grep(grep, line):
+                if (
+                    line
+                    and ("*" in grep or isinstance(grep, list))
+                    and self._grep(grep, line)
+                ):
                     print(line, end="")
-                elif grep in line:
-                    print(line, end="")
+
+                elif isinstance(grep, str):
+                    if grep in line:
+                        print(line, end="")
                 if self.tell() >= index:
                     self.seek(index)
                     return
@@ -50,9 +61,16 @@ class AioStream(io.StringIO):
         self.seek(index)
 
     def _grep(self, patt, line):
-        pattrn = re.compile(patt.replace(".", r"\.").replace("*", ".*") + "$")
+        if isinstance(patt, list):
+            pass
+        else:
+            patt = [patt]
+        _pattlst = (
+            re.compile(_patt.replace(".", r"\.").replace("*", ".*") + "$")
+            for _patt in patt
+        )
         try:
-            return pattrn.match(line)
+            return any(_pattrn.match(line) for _pattrn in _pattlst)
         except Exception:
             return None
 
