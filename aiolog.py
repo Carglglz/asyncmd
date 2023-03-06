@@ -8,13 +8,25 @@ class AioStream(io.StringIO):
         super().__init__(alloc_size)
         self._max_size = alloc_size
         self._write = super().write
+        self._tmp = io.StringIO(100)
+        self._lw = 0
         self._comp = False
 
     def write(self, sdata):
-        if self.tell() + len(sdata) > self._max_size:
-            self.seek(0)
-            self._comp = True
-        self._write(sdata)
+        if sdata.endswith("\n"):
+            if self.tell() + len(sdata) + self._tmp.tell() >= self._max_size:
+                # clean
+                self._write(" " * ((self._max_size - self.tell()) - 1))
+                self._write("\n")
+                # rotate
+                self.seek(0)
+                self._comp = True
+            self._tmp.seek(0)
+            self._write(self._tmp.read(self._lw))
+            self._tmp.seek(0)
+            self._write(sdata)
+        else:
+            self._lw = self._tmp.write(sdata)
 
     def cat(self, grep=""):
         index = self.tell()
@@ -33,7 +45,8 @@ class AioStream(io.StringIO):
                         print(line, end="")
         else:
             for line in self:
-                print(line, end="")
+                if line.strip():
+                    print(line, end="")
 
         self.seek(0)
         # read and grep for regex
@@ -54,7 +67,8 @@ class AioStream(io.StringIO):
                     return
         else:
             for line in self:
-                print(line, end="")
+                if line.strip():
+                    print(line, end="")
                 if self.tell() >= index:
                     self.seek(index)
                     return
@@ -119,7 +133,7 @@ class AioStream(io.StringIO):
 
                     else:
                         for line in self:
-                            if line:
+                            if line.strip():
                                 print(line, end="")
 
                             if self.tell() == current_index:
@@ -129,7 +143,7 @@ class AioStream(io.StringIO):
                             self.seek(0)
                             init_index = 0
                             for line in self:
-                                if line:
+                                if line.strip():
                                     print(line, end="")
 
                                 if self.tell() == current_index:
