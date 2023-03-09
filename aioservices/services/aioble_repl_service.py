@@ -108,7 +108,7 @@ class AiobleREPLService(Service):
     def __init__(self, name):
         super().__init__(name)
         self.version = "1.0"
-        self.info = f"Aioble UART v{self.version}"
+        self.info = f"Aioble REPL v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
@@ -118,6 +118,8 @@ class AiobleREPLService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "echo": True,
+            "main": True,
+            "ble_services": [],
         }
         # Register GATT server.
         self.appearance = const(128)
@@ -156,28 +158,31 @@ class AiobleREPLService(Service):
             bluetooth.UUID(0x2A26),
             read=True,
         )
-        aioble.register_services(self.uart_service, self.devinfo_service)
-        aioble.core.ble.gatts_set_buffer(
-            self.uart_rx_characteristic._value_handle, 512, True
-        )
-        aioble.core.ble.gatts_set_buffer(self.uart_tx_characteristic._value_handle, 512)
-        self.app_char.write(struct.pack("h", self.appearance))
-        self.manufact_char.write(bytes("Espressif Incorporated", "utf8"))
-        self.modeln_char.write(bytes(self._MODEL_NUMBER, "utf8"))
-        self.firmware_char.write(bytes(self._FIRMWARE_REV, "utf8"))
+        self.ble_services = [self.uart_service, self.devinfo_service]
         self._rx_buffer = bytearray()
         self._tx_buffer = bytearray()
         self._tx_available = True
         self._rx_handler = None
+        self._echo = True
         self.connected_device = None
         self.connection = None
         self.stream = None
+
+    def setup(self):
+        aioble.core.ble.gatts_set_buffer(
+            self.uart_rx_characteristic._value_handle, 512, True
+        )
+        aioble.core.ble.gatts_set_buffer(self.uart_tx_characteristic._value_handle, 512)
+
+        self.app_char.write(struct.pack("h", self.appearance))
+        self.manufact_char.write(bytes("Espressif Incorporated", "utf8"))
+        self.modeln_char.write(bytes(self._MODEL_NUMBER, "utf8"))
+        self.firmware_char.write(bytes(self._FIRMWARE_REV, "utf8"))
 
     def show(self):
         return ("Stats", f"   Device: {self.connected_device}")
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
-        self.connected_device = None
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
 
@@ -207,7 +212,7 @@ class AiobleREPLService(Service):
                 self.uart_tx_characteristic.write(data)
                 if self.connection:
                     await self.uart_tx_characteristic.indicate(self.connection)
-                if self.log:
+                if self.log and self._echo:
                     self.log.info(f"[{self.name}.service] TX: {data}")
                 self._tx_available = True
                 break
@@ -231,10 +236,36 @@ class AiobleREPLService(Service):
     # Serially wait for connections. Don't advertise while a central is
     # connected.
     @aioctl.aiotask
-    async def task(self, adv_name, adv_interval=250_000, echo=True, log=None):
+    async def task(
+        self,
+        adv_name,
+        adv_interval=250_000,
+        main=True,
+        ble_services=[],
+        echo=True,
+        log=None,
+    ):
         self.stream = BLEUARTStream(self)
-
+        self._echo = echo
         self.log = log
+        if ble_services:
+            # wait to get secondary ble_services to register
+            for _ble_serv in ble_services:
+                while _ble_serv not in aioctl.group().tasks:
+                    await asyncio.sleep_ms(200)
+                self.ble_services += (
+                    aioctl.group().tasks[_ble_serv].service.ble_services
+                )
+
+        if self.log:
+            self.log.info(
+                f"[{self.name}.service] Registering services {self.ble_services}"
+            )
+
+        aioble.register_services(*self.ble_services)
+
+        self.setup()
+
         try:
             aioble.core.ble.config(gap_name=adv_name, mtu=515, rxbuf=512)
         except Exception:
@@ -257,7 +288,6 @@ class AiobleREPLService(Service):
                 else:
                     print("Connection from", connection.device)
 
-                self.connected_device = connection.device
                 self.connection = connection
 
                 if "aioble_uart.service.rx" in aioctl.group().tasks:
@@ -284,10 +314,11 @@ class AiobleREPLService(Service):
                 )
                 if self.log:
                     self.log.info(f"[{self.name}.service] RX/TX tasks enabled")
+                self.connected_device = connection.device
                 os.dupterm(self.stream)
                 await connection.disconnected(timeout_ms=None)
-                self.connected_device = None
                 self.connection = None
+                self.connected_device = None
 
                 if self.log:
                     self.log.info(f"[{self.name}.service] Device disconnected")
@@ -299,7 +330,7 @@ class AiobleREPLService(Service):
             conn_write = await self.uart_rx_characteristic.written()
             if conn_write:
                 data = self.uart_rx_characteristic.read()
-                if self.log:
+                if self.log and self._echo:
                     self.log.info(
                         f"[{self.name}.service.rx] DATA {data} from {conn_write.device}"
                     )

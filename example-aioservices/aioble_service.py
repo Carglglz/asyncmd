@@ -4,6 +4,7 @@ from micropython import const
 import uasyncio as asyncio
 import aioble
 import bluetooth
+import random
 import struct
 import os
 import sys
@@ -15,10 +16,13 @@ except Exception:
     NAME = "esp-mpy"
 
 
-class AiobleUARTService(Service):
-    _UART_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-    _UART_TX = bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-    _UART_RX = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+class AiobleService(Service):
+    # org.bluetooth.service.environmental_sensing
+    _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
+    # org.bluetooth.characteristic.temperature
+    _ENV_SENSE_TEMP_UUID = bluetooth.UUID(0x2A6E)
+    # org.bluetooth.characteristic.gap.appearance.xml
+    _ADV_APPEARANCE_GENERIC_THERMOMETER = const(768)
 
     # How frequently to send advertising beacons.
     _ADV_INTERVAL_MS = 250_000
@@ -26,8 +30,7 @@ class AiobleUARTService(Service):
     # org.bluetooth.service.device_information
     _DEV_INF_SERV_UUID = bluetooth.UUID(0x180A)
 
-    # org.bluetooth.characteristic.gap.appearance.xml
-    # _ADV_APPEARANCE_GENERIC_COMPUTER = const(128)
+    # org.bluetooth.characteristic.gap.appearance
 
     # _MANUFACT_ESPRESSIF = const(741)
 
@@ -38,7 +41,7 @@ class AiobleUARTService(Service):
     def __init__(self, name):
         super().__init__(name)
         self.version = "1.0"
-        self.info = f"Aioble UART v{self.version}"
+        self.info = f"Aioble Temp Sensor v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
@@ -47,21 +50,17 @@ class AiobleUARTService(Service):
             "adv_interval": self._ADV_INTERVAL_MS,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
-            "echo": True,
         }
         # Register GATT server.
-        self.appearance = const(128)
-        self.uart_service = aioble.Service(self._UART_UUID)
+        self.appearance = const(768)
+        self.temp_service = aioble.Service(self._ENV_SENSE_UUID)
         self.devinfo_service = aioble.Service(self._DEV_INF_SERV_UUID)
-        self.uart_tx_characteristic = aioble.Characteristic(
-            self.uart_service,
-            self._UART_TX,
-            read=False,
+        self.temp_characteristic = aioble.Characteristic(
+            self.temp_service,
+            self._ENV_SENSE_TEMP_UUID,
+            read=True,
             notify=True,
             indicate=True,
-        )
-        self.uart_rx_characteristic = aioble.Characteristic(
-            self.uart_service, self._UART_RX, write=True
         )
 
         self.app_char = aioble.Characteristic(
@@ -86,24 +85,20 @@ class AiobleUARTService(Service):
             bluetooth.UUID(0x2A26),
             read=True,
         )
-        aioble.register_services(self.uart_service, self.devinfo_service)
-        aioble.core.ble.gatts_set_buffer(
-            self.uart_rx_characteristic._value_handle, 512, True
-        )
-        aioble.core.ble.gatts_set_buffer(self.uart_tx_characteristic._value_handle, 512)
+        aioble.register_services(self.temp_service, self.devinfo_service)
         self.app_char.write(struct.pack("h", self.appearance))
         self.manufact_char.write(bytes("Espressif Incorporated", "utf8"))
         self.modeln_char.write(bytes(self._MODEL_NUMBER, "utf8"))
         self.firmware_char.write(bytes(self._FIRMWARE_REV, "utf8"))
-        self._rx_buffer = bytearray()
-        self._tx_available = True
+        self.t = 0
         self.connected_device = None
         self.connection = None
 
     def show(self):
-        return ("Stats", f"   Device: {self.connected_device}")
+        return ("Stats", f"   Device: {self.connected_device}, Temp: {self.t}")
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
+        self.connected_device = None
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
 
@@ -114,55 +109,24 @@ class AiobleUARTService(Service):
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
 
-    def any(self):
-        return len(self._rx_buffer)
-
-    def read(self, sz=None):
-        if not sz:
-            sz = len(self._rx_buffer)
-        result = self._rx_buffer[0:sz]
-        self._rx_buffer = self._rx_buffer[sz:]
-        return result
-
-    async def write(self, data):
-        while True:
-            try:
-                self.uart_tx_characteristic.write(data)
-                if self.connection:
-                    await self.uart_tx_characteristic.indicate(self.connection)
-                if self.log:
-                    self.log.info(f"[{self.name}.service] TX: {data}")
-                self._tx_available = True
-                break
-            except Exception:
-                self._tx_available = False
-                await asyncio.slee_ms(200)
-
-    def rx_handler(self):
-        if self.log:
-            self.log.info(
-                f"[{self.name}.service.rx] RX: {self.read().decode().strip()}"
-            )
-        else:
-            print(f"RX: {self.read().decode().strip()}")
+    # Helper to encode the temperature characteristic encoding
+    # (sint16, hundredths of a degree).
+    def _encode_temperature(self, temp_deg_c):
+        return struct.pack("<h", int(temp_deg_c * 100))
 
     # Serially wait for connections. Don't advertise while a central is
     # connected.
     @aioctl.aiotask
-    async def task(self, adv_name, adv_interval=250_000, echo=True, log=None):
+    async def task(self, adv_name, adv_interval=250_000, log=None):
         self.log = log
-        try:
-            aioble.core.ble.config(gap_name=adv_name, mtu=515, rxbuf=512)
-        except Exception:
-            # MICROPY_PY_BLUETOOTH_USE_SYNC_EVENTS
-            aioble.core.ble.config(gap_name=adv_name, mtu=515)
+        aioble.core.ble.config(gap_name=adv_name)
         while True:
             if self.log:
                 self.log.info(f"[{self.name}.service] Advertising services...")
             async with await aioble.advertise(
                 adv_interval,
                 name=adv_name,
-                services=[self._UART_UUID],
+                services=[self._ENV_SENSE_UUID],
                 appearance=self.appearance,
             ) as connection:
                 if self.log:
@@ -173,45 +137,41 @@ class AiobleUARTService(Service):
                 else:
                     print("Connection from", connection.device)
 
-                if "aioble_uart.service.rx" in aioctl.group().tasks:
-                    aioctl.delete("aioble_uart.service.rx")
-                aioctl.add(
-                    self.rx,
-                    self,
-                    name="aioble_uart.service.rx",
-                    _id="aioble_uart.service.rx",
-                    on_stop=self.on_stop,
-                    on_error=self.on_error,
-                    echo=echo,
-                )
-                if self.log:
-                    self.log.info(f"[{self.name}.service] RX task enabled")
-
                 self.connected_device = connection.device
                 self.connection = connection
 
+                if "aioble.service.sense" in aioctl.group().tasks:
+                    aioctl.delete("aioble.service.sense")
+                aioctl.add(
+                    self.sense,
+                    self,
+                    name="aioble.service.sense",
+                    _id="aioble.service.sense",
+                    on_stop=self.on_stop,
+                    on_error=self.on_error,
+                )
+                if self.log:
+                    self.log.info(f"[{self.name}.service] Sensing task enabled")
                 await connection.disconnected(timeout_ms=None)
-
                 self.connected_device = None
                 self.connection = None
 
                 if self.log:
                     self.log.info(f"[{self.name}.service] Device disconnected")
 
+    # This would be periodically polling a hardware sensor.
     @aioctl.aiotask
-    async def rx(self, *args, **kwargs):
+    async def sense(self, *args, **kwargs):
+        self.t = 24.5
         while True:
-            conn_write = await self.uart_rx_characteristic.written()
-            if conn_write:
-                data = self.uart_rx_characteristic.read()
-                if self.log:
-                    self.log.info(
-                        f"[{self.name}.service.rx] DATA {data} from {conn_write.device}"
-                    )
-                self._rx_buffer += data
-                self.rx_handler()
-                if kwargs.get("echo"):
-                    await self.write(data)
+            self.temp_characteristic.write(self._encode_temperature(self.t))
+            if self.connection:
+                await self.temp_characteristic.indicate(self.connection)
+            if self.log:
+                self.log.info(f"[{self.name}.service.sense] Temperature: {self.t} C")
+
+            self.t += random.uniform(-0.5, 0.5)
+            await asyncio.sleep_ms(5000)
 
 
-service = AiobleUARTService("aioble_uart")
+service = AiobleService("aioble")
