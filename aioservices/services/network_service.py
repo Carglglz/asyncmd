@@ -142,8 +142,8 @@ class NetworkService(Service):
             self.webrepl_setup,
             self,
             sslconf=ssl_config.SSL.ssl,
-            name="webrepl.setup.service",
-            _id="webrepl.setup.service",
+            name=f"{self.name}.service.webrepl",
+            _id=f"{self.name}.service.webrepl",
         )
 
         for i in range(10):
