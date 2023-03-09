@@ -38,6 +38,8 @@ class AiobleTempService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "main": None,
+            "appearance": None,
+            "indicate": True,
         }
         # Register GATT server.
         self.appearance = const(768)
@@ -78,8 +80,18 @@ class AiobleTempService(Service):
     # Serially wait for connections. Don't advertise while a central is
     # connected.
     @aioctl.aiotask
-    async def task(self, adv_name, main=None, adv_interval=250_000, log=None):
+    async def task(
+        self,
+        adv_name,
+        main=None,
+        adv_interval=250_000,
+        appearance=None,
+        indicate=True,
+        log=None,
+    ):
         self.log = log
+        if appearance:
+            self.appearance = const(appearance)
         if not main:
             aioble.register_services(self.temp_service)
             aioble.core.ble.config(gap_name=adv_name)
@@ -112,6 +124,7 @@ class AiobleTempService(Service):
                         _id="aioble_temp.service.sense",
                         on_stop=self.on_stop,
                         on_error=self.on_error,
+                        indicate=indicate,
                     )
                     if self.log:
                         self.log.info(f"[{self.name}.service] Sensing task enabled")
@@ -143,6 +156,7 @@ class AiobleTempService(Service):
                     _id="aioble_temp.service.sense",
                     on_stop=self.on_stop,
                     on_error=self.on_error,
+                    indicate=indicate,
                 )
                 if self.log:
                     self.log.info(f"[{self.name}.service] Sensing task enabled")
@@ -161,7 +175,8 @@ class AiobleTempService(Service):
         while True:
             self.temp_characteristic.write(self._encode_temperature(self.t))
             if self.connection:
-                await self.temp_characteristic.indicate(self.connection)
+                if kwargs.get("indicate"):
+                    await self.temp_characteristic.indicate(self.connection)
             if self.log:
                 self.log.info(f"[{self.name}.service.sense] Temperature: {self.t} C")
 
