@@ -103,13 +103,13 @@ class AiobleTempService(Service):
                     self.connected_device = connection.device
                     self.connection = connection
 
-                    if "aioble.service.sense" in aioctl.group().tasks:
-                        aioctl.delete("aioble.service.sense")
+                    if "aioble_temp.service.sense" in aioctl.group().tasks:
+                        aioctl.delete("aioble_temp.service.sense")
                     aioctl.add(
                         self.sense,
                         self,
-                        name="aioble.service.sense",
-                        _id="aioble.service.sense",
+                        name="aioble_temp.service.sense",
+                        _id="aioble_temp.service.sense",
                         on_stop=self.on_stop,
                         on_error=self.on_error,
                     )
