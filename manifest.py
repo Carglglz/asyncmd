@@ -1,0 +1,6 @@
+module("aioctl.py", opt=3)
+module("aioschedule.py", opt=3)
+module("aiolog.py", opt=3)
+module("aiorepl.py", opt=3)
+module("aioclass.py", opt=3)
+module("aioservice.py", opt=3)
