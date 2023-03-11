@@ -1,0 +1,8 @@
+{
+  "urls": [
+	  ["aioservices/services/aioble_service.py", "github:carglglz/mpy-aiotools/aioservices/services/aioble_service.py"],
+
+  ],
+  "deps":[],
+  "version": "1.0"
+}

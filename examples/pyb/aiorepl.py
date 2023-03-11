@@ -5,7 +5,13 @@ import re
 import sys
 import time
 import uasyncio as asyncio
-import _aiorepl
+
+_AIOREPL = False
+try:
+    import _aiorepl
+    _AIOREPL = True
+except Exception:
+    pass
 
 # Import statement (needs to be global, and does not return).
 _RE_IMPORT = re.compile("^import ([^ ]+)( as ([^ ]+))?")
@@ -211,44 +217,46 @@ async def task(g=None, prompt=">>> ", shutdown_on_exit=True, exit_cb=None):
                                 sys.stdout.write("\x1B[D"*len(cmd[cursor:] + " "))
                     elif c == 0x09:
                         # Tab autocompletion
-
-                        ret = _aiorepl.autocomplete(cmd[:cursor])
-                        if isinstance(ret, int):
-                            if ret == 0:
-                                continue
-                            else:
-                                # redraw line
-                                sys.stdout.write(prompt)
-                                sys.stdout.write(cmd)
-                        elif isinstance(ret, str):
-                            if cursor == len(cmd):
-                                cmd += ret
-                                cursor = len(cmd)
-                                sys.stdout.write(ret)
-                            else:
-                                sys.stdout.write(ret + cmd[cursor:])
-                                sys.stdout.write("\x1B[D"*len(cmd[cursor:]))
-                                cmd = cmd[:cursor] + ret + cmd[cursor:]
-                                cursor += len(ret)
+                        if _AIOREPL:
+                            ret = _aiorepl.autocomplete(cmd[:cursor])
+                            if isinstance(ret, int):
+                                if ret == 0:
+                                    continue
+                                else:
+                                    # redraw line
+                                    sys.stdout.write(prompt)
+                                    sys.stdout.write(cmd)
+                            elif isinstance(ret, str):
+                                if cursor == len(cmd):
+                                    cmd += ret
+                                    cursor = len(cmd)
+                                    sys.stdout.write(ret)
+                                else:
+                                    sys.stdout.write(ret + cmd[cursor:])
+                                    sys.stdout.write("\x1B[D"*len(cmd[cursor:]))
+                                    cmd = cmd[:cursor] + ret + cmd[cursor:]
+                                    cursor += len(ret)
                     elif c == 0x01:
                         # Ctrl-A --> Raw REPL
                         if not cmd:
                             res = await raw_repl(s, g)
-                            sys.stdout.write(_aiorepl.banner_name)
-                            sys.stdout.write("; " + _aiorepl.banner_machine)
-                            sys.stdout.write("\r\n")
-                            sys.stdout.write('Type "help()" for more information.\r\n')
+                            if _AIOREPL:
+                                sys.stdout.write(_aiorepl.banner_name)
+                                sys.stdout.write("; " + _aiorepl.banner_machine)
+                                sys.stdout.write("\r\n")
+                                sys.stdout.write('Type "help()" for more information.\r\n')
                             break
                         else:
                             sys.stdout.write("\x1B[D"*len(cmd[:cursor]))
                             cursor = 0
                     elif c == 0x02:
                         # Ctrl-B
-                        sys.stdout.write("\r\n")
-                        sys.stdout.write(_aiorepl.banner_name)
-                        sys.stdout.write("; " + _aiorepl.banner_machine)
-                        sys.stdout.write("\r\n")
-                        sys.stdout.write('Type "help()" for more information.\r\n')
+                        if _AIOREPL:
+                            sys.stdout.write("\r\n")
+                            sys.stdout.write(_aiorepl.banner_name)
+                            sys.stdout.write("; " + _aiorepl.banner_machine)
+                            sys.stdout.write("\r\n")
+                            sys.stdout.write('Type "help()" for more information.\r\n')
 
                         break
                     elif c == 0x03:

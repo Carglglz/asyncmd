@@ -28,10 +28,10 @@ and then every script builds upon *aioctl* functionality.
 
 * Asynchronous **RAM logging** --> `aiolog.py`
     
-    Create a "ring buffer stream"[^2] to log tasks output indefinitely. It 
+    Create a "ring buffer stream" to log tasks output indefinitely. It 
     allocates a predefined amount of RAM and rotates automatically so it never allocates
     more RAM than the one predefined. 
-    Also allows to interactively inspect its content same as `cat`, `cat | grep` or `tail -F `, `tail -F | grep`.
+    Also allows to interactively inspect its content the same way as using `cat`, `cat | grep` or `tail -F `, `tail -F | grep`.
     
     e.g. `2015-01-01 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
 
@@ -49,7 +49,7 @@ and then every script builds upon *aioctl* functionality.
     ```
 
 
-* Asynchronous **services**[^3] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
+* Asynchronous **services**[^2] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
 
     Create a service that can have one or more tasks, install/list/get status of services, load/unload, config services 
     as enabled or disabled, config service main task args and keyword args, get the traceback of services that failed to load, init/boot services 
@@ -88,7 +88,7 @@ and then every script builds upon *aioctl* functionality.
 ## Install
 
 ### Manual
-For `aioctl.py`, `aioschedule.py`, `aiolog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^4]
+For `aioctl.py`, `aioschedule.py`, `aiolog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^3]
 
 
 For `aioservices/services` make the directories first and then upload  `aioservices/services/__init__.py` (or directly sync `aioservices`)
@@ -115,14 +115,14 @@ For simple installation .i.e only `aioctl.py`
 
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools/package/simple.json")
+>>> mip.install("github:Carglglz/mpy-aiotools/aioctl.py")
 ```
 
 To install services using `mip`
 
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools/services/all.json", target=".")
+>>> mip.install("github:Carglglz/mpy-aiotools/services/base.json", target=".")
 
 # or only network (core network, wpa_supplicant)
 
@@ -136,7 +136,7 @@ To install services using `mip`
 
 
 Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory.
-
+See [MicroPython manifest files](https://docs.micropython.org/en/latest/reference/manifest.html#manifest)
 
 
 ## Example
@@ -271,7 +271,6 @@ implementation.
 
 ### [async_modules](async_modules/)
     
--  mqtt, neopixels, webserver, requests, mip
 
 ## Examples
 
@@ -290,11 +289,10 @@ of these tools.
 which can vary with the number of tasks running , the amount of time they
 take to run and how frequent they are scheduled*
 
-[^2]: *`aiolog` stream class needs a logger class that only writes to the stream (not print, see [ #10402 ](https://github.com/micropython/micropython/issues/10402) for context).*
+[^2]: *Inspiration comes from Linux [systemd](https://github.com/systemd/systemd) specially `systemctl` and `journalctl`.*
 
-[^3]: *Inspiration comes from Linux [systemd](https://github.com/systemd/systemd) specially `systemctl` and `journalctl`.*
+[^3]: *Better if compiled to `.mpy` using `mpy-cross` to save memory, see [mpy-cross](https://docs.micropython.org/en/latest/reference/glossary.html#term-cross-compiler)*
 
-[^4]: *Better if compiled to `.mpy` using `mpy-cross` to save memory, see *
 
 
 

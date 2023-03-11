@@ -1,0 +1,14 @@
+{
+  "urls": [
+	  ["lib/aioctl.py", "github:carglglz/mpy-aiotools/aioctl.py"],
+	  ["lib/aioschedule.py", "github:carglglz/mpy-aiotools/aioschedule.py"],
+	  ["lib/aiolog.py", "github:carglglz/mpy-aiotools/aiolog.py"],
+	  ["lib/aioclass.py", "github:carglglz/mpy-aiotools/aioclass.py"],
+	  ["lib/aioservice.py", "github:carglglz/mpy-aiotools/aioservice.py"],
+	  ["aioservices/services/__init__.py", "github:carglglz/mpy-aiotools/aioservices/services/__init__.py"],
+
+  ],
+  "deps":[ "logging", "time", "aiorepl"
+  ],
+  "version": "1.0"
+}
