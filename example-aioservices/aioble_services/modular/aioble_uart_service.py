@@ -94,12 +94,12 @@ class AiobleUARTService(Service):
                 if self.connection:
                     await self.uart_tx_characteristic.indicate(self.connection)
                 if self.log:
-                    self.log.info(f"[{self.name}.service] TX: {data}")
+                    self.log.info(f"[{self.name}.service] TX: {data.decode()}")
                 self._tx_available = True
                 break
             except Exception:
                 self._tx_available = False
-                await asyncio.slee_ms(200)
+                await asyncio.sleep_ms(200)
 
     def rx_handler(self):
         if self.log:
