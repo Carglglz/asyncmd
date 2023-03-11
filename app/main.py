@@ -1,7 +1,8 @@
-import wss_repl
-from machine import Pin
-from hostname import NAME
-import upylog
+try:
+    from hostname import NAME
+except Exception:
+    NAME = "mpy"
+import logging
 import sys
 from aiolog import streamlog
 import aioctl
@@ -9,16 +10,17 @@ import aioctl
 
 aioctl.set_log(streamlog)
 # Logger
-upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
-log = upylog.getLogger(
-    f"{sys.platform}@{NAME}",
-    log_to_file=False,
-    rotate=5000,
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=streamlog,
 )
-log.setLogfileLevel("ERROR")
-# LED
-led = Pin(2, Pin.OUT)
-log.info(f"Device Ready at {log.get_datetime()}")
+
+log = logging.getLogger(f"{sys.platform}@{NAME}")
+
+log.info("Device Ready")
+
 
 try:
     import app
