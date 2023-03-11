@@ -7,8 +7,7 @@ from machine import unique_id
 from binascii import hexlify
 import sys
 from ntptime import settime
-import wss_repl
-import ssl_config
+import webrepl
 from machine import Pin
 import uptime
 
@@ -141,7 +140,6 @@ class NetworkService(Service):
         aioctl.add(
             self.webrepl_setup,
             self,
-            sslconf=ssl_config.SSL.ssl,
             name=f"{self.name}.service.webrepl",
             _id=f"{self.name}.service.webrepl",
         )
@@ -158,7 +156,7 @@ class NetworkService(Service):
 
     @aioctl.aiotask
     async def webrepl_setup(self, *args, **kwargs):
-        wss_repl.start(ssl=kwargs.get("sslconf"))
+        webrepl.start()
         if self.log:
             self.log.info(f"[{self.name}.service] WebREPL setup done")
         return "WEBREPL: ENABLED"

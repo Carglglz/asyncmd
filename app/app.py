@@ -7,7 +7,7 @@ import aioservice
 async def _main(logger):
     await aioservice.boot(log=logger, debug_log=True)
     print("starting tasks...")
-    aioctl.add(aiorepl.repl)
+    aioctl.add(aiorepl.task, name="repl")
     print(">>> ")
     aioservice.init(log=logger, debug_log=True)
     print(">>> ")
