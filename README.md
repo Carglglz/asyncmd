@@ -88,7 +88,7 @@ and then every script builds upon *aioctl* functionality.
 ## Install
 
 ### Manual
-For `aioctl.py`, `aioschedule.py`, `ailog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^4]
+For `aioctl.py`, `aioschedule.py`, `aiolog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^4]
 
 
 For `aioservices/services` make the directories first and then upload  `aioservices/services/__init__.py` (or directly sync `aioservices`)
@@ -110,8 +110,6 @@ To install `mpy-aiotools` using `mip`
 >>> import mip
 >>> mip.install("github:Carglglz/mpy-aiotools", target=".")
 ```
-This includes all the tools + logger `upylog.py`
-
 
 For simple installation .i.e only `aioctl.py`
 
@@ -247,8 +245,8 @@ True
 
 ```
 
-See more [examples](examples/README.md) to know how to add async logging,
-callbacks, debugging errors, get results, scheduling and finally some [examples](examples-aioservices/README.md) of `aioservice`
+See more [examples](examples/) to know how to add async logging,
+callbacks, debugging errors, get results, scheduling and finally some [examples](example-aioservices/) of `aioservice`
 implementation.
 
 ## Docs
@@ -269,25 +267,20 @@ implementation.
 ### [aioservices](docs/aioservices.md)
 
 
-### [app](app/README.md)
+### [app](app/)
 
-### [async_modules](async_modules/README.md)
+### [async_modules](async_modules/)
     
 -  mqtt, neopixels, webserver, requests, mip
-
-### logger
-
-[Logging module](logger/README.md) compatible with `AioStream` class from `aiolog.py`
-
 
 ## Examples
 
 Set of examples of increasing complexity to show the capabilities
 of these tools.
 
-- aiotasks --> [examples](examples/README.md)
+- aiotasks --> [examples](examples)
 
-- aioservices --> [examples-aioservices](examples-aioservice/README.md)
+- aioservices --> [examples-aioservices](example-aioservice/)
 
 
 ### Notes
@@ -301,7 +294,7 @@ take to run and how frequent they are scheduled*
 
 [^3]: *Inspiration comes from Linux [systemd](https://github.com/systemd/systemd) specially `systemctl` and `journalctl`.*
 
-[^4]: *Better if compiled to `.mpy` using `mpy-cross` to save memory*
+[^4]: *Better if compiled to `.mpy` using `mpy-cross` to save memory, see *
 
 
 
