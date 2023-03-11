@@ -1,15 +1,21 @@
 from aiolog import streamlog
 import pyb
 import random
-import upylog
+import logging
 import aiorepl
 import uasyncio as asyncio
 import aioctl
+import sys
 
-upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
-log = upylog.getLogger(
-    "pyb", log_to_file=False, rotate=1000
-)  # This log to file 'error.log';
+# Logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=streamlog,
+)
+
+log = logging.getLogger(sys.platform)
 
 
 aioctl.set_log(streamlog)

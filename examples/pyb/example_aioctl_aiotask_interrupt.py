@@ -1,16 +1,22 @@
 from aiolog import streamlog
 import pyb
 import random
-import upylog
-import aiorepl
+import aiorepl  # requires aiorepl from mpy-aiotools repo
 import uasyncio as asyncio
 import aioctl
+import logging
 import sys
 
-upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
-log = upylog.getLogger(
-    "pybV1.1", log_to_file=False, rotate=1000
-)  # This log to file 'error.log';
+
+# Logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=streamlog,
+)
+
+log = logging.getLogger(sys.platform)
 
 
 state = 20
@@ -29,7 +35,7 @@ sw.callback(start_aiorepl_cb)
 
 
 def toggle_sysprint():
-    upylog._stream = sys.stderr
+    log.handlers[0].stream = sys.stderr
 
 
 @aioctl.aiotask
@@ -48,7 +54,7 @@ async def start_aiorepl():
                 aioctl.add(dbg_repl, name="repl")
             else:
                 if aioctl.group().tasks["repl"].task.done():
-                    upylog._stream = streamlog
+                    log.handlers[0].stream = streamlog
                     aioctl.start("repl")
                 else:
                     print("aiorepl is running...")

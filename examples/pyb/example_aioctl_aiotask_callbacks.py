@@ -1,20 +1,25 @@
 from aiolog import streamlog
 import pyb
 import random
-import upylog
 import aiorepl
 import uasyncio as asyncio
 import aioctl
+import logging
+import sys
 
-upylog.basicConfig(level="INFO", format="TIME_LVL_MSG", stream=streamlog)
-log = upylog.getLogger(
-    "pyb", log_to_file=False, rotate=1000
-)  # This log to file 'error.log';
+
+# Logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=streamlog,
+)
+
+log = logging.getLogger(sys.platform)
 
 
 aioctl.set_log(streamlog)
-
-tasks = []
 
 
 @aioctl.aiotask
@@ -31,7 +36,6 @@ async def task_led(n, t, alog=log):
 
 
 def _stop_cb(n, t, alog=log):
-
     pyb.LED(n).off()
     alog.info(f"[task_led_{n}] stopped")
     return random.random()
