@@ -1,22 +1,22 @@
 
 # Tools for MicroPython Async Development
 
-Inspired by [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl), 
+Inspired by [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl),
 mpy-aiotools is an asyncio based set of tools to help with the development of asynchronous applications implemented in MicroPython.
 
 Asyncio is ideal for running multiple tasks concurrently[^1], however an easy way to 
-interactively track or inspect the asyncio event loop and its running tasks was lacking
-until the introduction of [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl).
+**interactively** inspect running tasks in the event loop was not available
+until the introduction of [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl),
+an asynchronous MicroPython REPL.
 
-This set of tools builds upon this *aiorepl* capacity to interact with tasks running in the event loop, running
-blocking or non-blocking (async) functions.
+This set of tools builds upon this *aiorepl* capacity to interact with tasks running in the event loop.
 
-mpy-aiotools is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
+**mpy-aiotools** is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
 and then every script builds upon *aioctl* functionality.
 
 #### Features
 
-* Create async tasks that can be controlled, tracked, managed, debugged or profiled --> `aioctl.py`
+* Create async **traceable tasks** that can be controlled, tracked, managed, debugged or profiled --> `aioctl.py`
 
 
     Create a task that can be stopped or restarted, inspect its result/return value, 
@@ -26,7 +26,7 @@ and then every script builds upon *aioctl* functionality.
     
     e.g. ``● hello_task: status: running since 2015-01-01 00:00:19; 4 s ago``
 
-* Asynchronous RAM logging --> `aiolog.py`
+* Asynchronous **RAM logging** --> `aiolog.py`
     
     Create a "ring buffer stream"[^2] to log tasks output indefinitely. It 
     allocates a predefined amount of RAM and rotates automatically so it never allocates
@@ -36,7 +36,7 @@ and then every script builds upon *aioctl* functionality.
     e.g. `2015-01-01 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
 
 
-* Asynchronous scheduling --> `aioschedule.py`
+* Asynchronous **scheduling** --> `aioschedule.py`
 
     Create a task and run it in `s` seconds (*from event loop start or task creation*) or at a time `(timetuple)` and repeat every `n` seconds. 
     This has a "scheduler task loop" that checks every second its schedule and runs a scheduled task when the time is due.
@@ -45,12 +45,11 @@ and then every script builds upon *aioctl* functionality.
     
     ```
     ● world_task: status: done @ 2015-01-01 00:12:44; 48 s ago --> result:
-         
     ┗━► schedule: last @ 2015-01-01 00:12:39 --> next in 37 s
     ```
 
 
-* Asynchronous services[^3] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
+* Asynchronous **services**[^3] --> `aioservice.py`, `aioclass.py`, `aioservices/services`, `services.config`
 
     Create a service that can have one or more tasks, install/list/get status of services, load/unload, config services 
     as enabled or disabled, config service main task args and keyword args, get the traceback of services that failed to load, init/boot services 
@@ -66,7 +65,7 @@ and then every script builds upon *aioctl* functionality.
     [ ERROR ] Service: dofail.service from ./aioservices/services/dofail_service.mpy not loaded: Error: ZeroDivisionError
     ```
     
-    As a bonus enabling debug mode in `aioctl` gives the full service status
+    Finally to inspect a task or service enabling debug mode in `aioctl` gives the full service/task status
     
     ```
     ● hello.service - Hello example runner v1.0
@@ -88,6 +87,7 @@ and then every script builds upon *aioctl* functionality.
 
 ## Install
 
+### Manual
 For `aioctl.py`, `aioschedule.py`, `ailog.py`, `aioservice.py` and `aioclass.py` just upload the scripts to the device[^4]
 
 
@@ -97,10 +97,47 @@ Then to install a service upload it to this directory or to root directory and u
 e.g. 
 
 ```  
+ >>> import aioservice
  >>> aioservice.install("myserv_service.py")
 ```
+### Using MIP
+See [MIP](https://docs.micropython.org/en/latest/reference/packages.html)
 
-This set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory.
+*Note that Network-capable boards must be already connected to WiFi/LAN and have internet access* 
+
+To install `mpy-aiotools` using `mip`
+```
+>>> import mip
+>>> mip.install("github:Carglglz/mpy-aiotools", target=".")
+```
+This includes all the tools + logger `upylog.py`
+
+
+For simple installation .i.e only `aioctl.py`
+
+```
+>>> import mip
+>>> mip.install("github:Carglglz/mpy-aiotools/package/simple.json")
+```
+
+To install services using `mip`
+
+```
+>>> import mip
+>>> mip.install("github:Carglglz/mpy-aiotools/services/all.json", target=".")
+
+# or only network (core network, wpa_supplicant)
+
+>>> mip.install("github:Carglglz/mpy-aiotools/services/network.json", target=".")
+
+# or develop (watcher, as_mip, unittest)
+
+>>> mip.install("github:Carglglz/mpy-aiotools/services/develop.json", target=".")
+```
+
+
+
+Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory.
 
 
 
@@ -133,7 +170,6 @@ async def main():
     # Add tasks
     aioctl.add(blink, 2, sleep=5)
     aioctl.add(aiorepl.task, name="repl")
-    
     # await tasks
     await asyncio.gather(*aioctl.tasks())
 
@@ -211,61 +247,59 @@ True
 
 ```
 
-See more examples in examples/README.md to know how to add async logging,
-callbacks, debugging errors, get results, scheduling and finally `aioservice` 
+See more [examples](examples/README.md) to know how to add async logging,
+callbacks, debugging errors, get results, scheduling and finally some [examples](examples-aioservices/README.md) of `aioservice`
 implementation.
 
-## Tools
+## Docs
 
-### aioctl --> tools/aioctl.md
-
-
-
-### aiolog
+### [aioctl](docs/aioctl.md)
 
 
 
-### aioschedule
+### [aiolog](docs/aiolog.md)
 
 
-
-### aioservice
-
-
-### aioclass
+### [aioschedule](docs/aioschedule.md)
 
 
-### aioservices
+### [aioservice](docs/aioservice.md)
 
 
-### app
+### [aioservices](docs/aioservices.md)
 
-#### async_modules: mqtt, neopixels, webserver, requests, mip
 
-Async based classes of MQTT client, neopixels animations and a WebServer
-based on Microdot
+### [app](app/README.md)
 
+### [async_modules](async_modules/README.md)
+    
+-  mqtt, neopixels, webserver, requests, mip
 
 ### logger
 
-Logging module compatible with `AioStream` class from `aiolog.py`
+[Logging module](logger/README.md) compatible with `AioStream` class from `aiolog.py`
 
-## Examples 
+
+## Examples
 
 Set of examples of increasing complexity to show the capabilities
 of these tools.
 
+- aiotasks --> [examples](examples/README.md)
 
-### Notes 
+- aioservices --> [examples-aioservices](examples-aioservice/README.md)
 
-[^1]: *Runnnig* 
+
+### Notes
+
+[^1]: *Runnnig*
 *multiple tasks concurrently where timing precision is only needed to be held up to a certain degree
 which can vary with the number of tasks running , the amount of time they
 take to run and how frequent they are scheduled*
 
 [^2]: *`aiolog` stream class needs a logger class that only writes to the stream (not print, see [ #10402 ](https://github.com/micropython/micropython/issues/10402) for context).*
 
-[^3]: *Inspiration comes obviously from Linux [systemd](https://github.com/systemd/systemd) specially `sysctl` and `journalctl`.*
+[^3]: *Inspiration comes from Linux [systemd](https://github.com/systemd/systemd) specially `systemctl` and `journalctl`.*
 
 [^4]: *Better if compiled to `.mpy` using `mpy-cross` to save memory*
 
