@@ -122,15 +122,19 @@ To install services using `mip`
 
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools/services/base.json", target=".")
+>>> mip.install("github:Carglglz/mpy-aiotools/services", target=".")
 
 # or only network (core network, wpa_supplicant)
 
->>> mip.install("github:Carglglz/mpy-aiotools/services/network.json", target=".")
+>>> mip.install("github:Carglglz/mpy-aiotools/services/network", target=".")
 
 # or develop (watcher, as_mip, unittest)
 
->>> mip.install("github:Carglglz/mpy-aiotools/services/develop.json", target=".")
+>>> mip.install("github:Carglglz/mpy-aiotools/services/develop", target=".")
+
+# or ble 
+
+>>> mip.install("github:Carglglz/mpy-aiotools/services/ble", target=".")
 ```
 
 

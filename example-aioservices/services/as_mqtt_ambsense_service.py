@@ -1,4 +1,3 @@
-import time
 import ssl as _ssl
 from aioclass import Service
 import aioctl
@@ -9,8 +8,7 @@ import random
 import gc
 from machine import Pin, I2C
 import socket
-
-# from bme280 import BME280
+from bme280 import BME280
 from hostname import NAME
 
 
@@ -39,11 +37,10 @@ class MQTTService(Service):
 
     def __init__(self, name):
         super().__init__(name)
-        self.version = "1.0"
-        self.info = f"Async MQTT BME280 client v{self.version}"
+        self.info = "Async MQTT BME280 client v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
         self.args = [NAME]
         self.kwargs = {
             "server": "0.0.0.0",
@@ -55,6 +52,7 @@ class MQTTService(Service):
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "i2c": (22, 21),
         }
 
         self.sslctx = False
@@ -62,17 +60,17 @@ class MQTTService(Service):
         self.sensor = None
         self.n_msg = 0
         self.n_pub = 0
-        self.td = 0
         self.id = NAME
-        self.i2c = I2C(1, scl=Pin(22), sda=Pin(21))
+        self.i2c = None
 
     def setup(self):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
-        self.sensor = FakeBME280(i2c=self.i2c)
+        self.sensor = BME280(i2c=self.i2c)
         self._cfg_temp = {"topic": self._CONFIG_TOPIC.format(NAME + "T"), "payload": ""}
         self._cfg_hum = {"topic": self._CONFIG_TOPIC.format(NAME + "H"), "payload": ""}
         self._cfg_pr = {"topic": self._CONFIG_TOPIC.format(NAME + "P"), "payload": ""}
         self._stat_t = self._STATE_TOPIC.format(NAME)
+
         self._cfg_temp["payload"] = json.dumps(
             dict(
                 device_class="temperature",
@@ -107,9 +105,7 @@ class MQTTService(Service):
     def show(self):
         return (
             "Stats",
-            f"   Messages: Received: {self.n_msg}, Published: "
-            + f"{self.n_pub}"
-            + f" Delta HS: {self.td} s",
+            f"   Messages: Received: {self.n_msg}, Published: " + f"{self.n_pub}",
         )
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
@@ -171,8 +167,11 @@ class MQTTService(Service):
         keepalive=300,
         debug=True,
         log=None,
+        i2c=(22, 21),
     ):
         self.log = log
+
+        self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
         self.setup()
         if ssl:
             if not self.sslctx:
@@ -190,10 +189,7 @@ class MQTTService(Service):
             ssl_params={"server_hostname": hostname},
         )
         self.client.set_callback(self.on_receive)
-        t0 = time.ticks_ms()
         await self.client.connect()
-
-        self.td = time.ticks_diff(time.ticks_ms(), t0) / 1e3
         # Subscribe
         # await self.client.subscribe(b"homeassistant/sensor/esphome/state")
         # await self.client.subscribe(b"homeassistant/sensor/esphome/pulse")
