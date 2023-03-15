@@ -115,7 +115,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
     else:
         if name in _SERVICES_GROUP.keys():
             service = _SERVICES_GROUP[name]
-            if config:
+            if config and name not in failed_services:
                 _serv_config = get_config(name)
                 if _serv_config:
                     if "args" in _serv_config:
@@ -153,6 +153,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
             )
             if aioctl._SCHEDULE:
                 if hasattr(service, "schedule"):
+                    aioctl.stop(f"{service.name}.service", stop_sch=False)
                     import aioschedule
 
                     aioschedule.schedule(f"{service.name}.service", **service.schedule)
