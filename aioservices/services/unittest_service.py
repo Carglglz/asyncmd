@@ -40,12 +40,13 @@ class UnittestService(Service):
         self.debug = False
         self.log = None
 
-    def __call__(self):
+    def __call__(self, stream=sys.stdout):
         for test_file, test in self.test_result.items():
             if test.wasSuccessful():
                 print(
                     f"[{self.name}.service] {test_file}: "
-                    + f"OK {self._CHECK} @ run: {test.testsRun} "
+                    + f"OK {self._CHECK} @ run: {test.testsRun} ",
+                    file=stream,
                 )
 
             else:
@@ -53,7 +54,8 @@ class UnittestService(Service):
                     f"[{self.name}.service] {test_file}: "
                     + f"{test.failuresNum} tests FAILED {self._XF}"
                     + f" @ run: {test.testsRun}, errors: {test.errorsNum}"
-                    + f", failures: {test.failuresNum}"
+                    + f", failures: {test.failuresNum}",
+                    file=stream,
                 )
 
     def show(self):
@@ -62,6 +64,25 @@ class UnittestService(Service):
             f"Run: {self._testsRun}, Errors: {self._errorsNum}"
             + f", Failures: {self._failuresNum}",
         )
+
+    def report(self, stream=sys.stdout):
+        self.__call__(stream=stream)
+
+        for test_file, test in self.test_result.items():
+            self.printErrorList(test.errors, file=stream)
+            self.printErrorList(test.failures, file=stream)
+
+    def printErrorList(self, lst, file=sys.stdout):
+        sep = "----------------------------------------------------------------------"
+        for c, e in lst:
+            detail = " ".join((str(i) for i in c))
+            print(
+                "===================================================================",
+                file=file,
+            )
+            print(f"FAIL: {detail}", file=file)
+            print(sep, file=file)
+            print(e, file=file)
 
     def mod_match(self, patt, test):
         if "/" in patt:

@@ -12,7 +12,8 @@ import io
 class DevOpService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Device Operation Controller v1.0"
+        self.version = "1.0"
+        self.info = f"Device Operation Controller v{self.version}"
         self.type = "schedule.service"
         self.enabled = True
         self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
@@ -43,7 +44,7 @@ class DevOpService(Service):
         self._bootconfigured = False
         self._reports = None
         self.log = None
-        self._rpb = io.StringIO(1000)
+        self._rpb = io.StringIO(1500)
 
         # current mode: devmode , next: bootmode
 
@@ -268,9 +269,8 @@ class DevOpService(Service):
                             done_at = time.localtime(done_at)
                             done_at = aioctl.aioschedule.get_datetime(done_at)
                         if hasattr(_serv, "report"):
-                            self._rpb.write(
-                                f"{_rpserv};{done_at} {_OK}\n{_serv.report()}\n"
-                            )
+                            self._rpb.write(f"{_rpserv};{done_at} {_OK}\n")
+                            _serv.report(self._rpb)
                         else:
                             res = aioctl.result(_rpserv)
                             if issubclass(res.__class__, Exception):
@@ -312,7 +312,8 @@ class DevOpService(Service):
                     if debug and self.log:
                         self.log.info(f"[{self.name}.service] Saving reports..")
                     with open(f".{self.devmode}", "w") as rp:
-                        rp.write(self._rpb.read())
+                        for line in self._rpb:
+                            rp.write(line)
 
         if reset:
             if self.devmode in reset:
