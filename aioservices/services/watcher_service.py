@@ -27,8 +27,8 @@ class WatcherService(Service):
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
-    def __call__(self):
-        self.display_report()
+    def __call__(self, stream=sys.stdout):
+        self.display_report(stream=stream)
 
     def show(self):
         _stat_1 = f"   # ERRORS: {self.err_count} "
@@ -36,13 +36,17 @@ class WatcherService(Service):
         return "Stats", f"{_stat_1}{_stat_2}"  # return Tuple, "Name",
         # "info" to display
 
-    def display_report(self):
+    def report(self, stream=sys.stdout):
+        self.__call__(stream=stream)
+        print(*self.show(), file=stream, sep=": ")
+
+    def display_report(self, stream=sys.stdout):
         for _serv, rep in self.err_report.items():
-            print(f"--> {_serv}:")
+            print(f"--> {_serv}:", file=stream)
             for err_name, err in rep.items():
-                print(f"    - {err_name} : {err['count']}; Traceback: ")
-                sys.print_exception(err["err"])
-            print("<", "-" * 80, ">")
+                print(f"    - {err_name} : {err['count']}; Traceback: ", file=stream)
+                sys.print_exception(err["err"], file=stream)
+            print("<", "-" * 80, ">", file=stream)
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:

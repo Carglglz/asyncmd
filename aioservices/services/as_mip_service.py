@@ -32,9 +32,9 @@ class MIPService(Service):
         self.updated_packages = set()
         # Populate packages from packages.config if not pased as argument
 
-    def __call__(self):
+    def __call__(self, stream=sys.stdout):
         for pk, info in self.packages.items():
-            print(f"{pk} v{info['version']}: {info['url']}")
+            print(f"{pk} v{info['version']}: {info['url']}", file=stream)
 
     def show(self):
         if not self.new_packages:
@@ -45,6 +45,10 @@ class MIPService(Service):
                 f"{len(self.packages_to_update)} can be updated: "
                 + ", ".join((p for p in self.packages_to_update.keys())),
             )
+
+    def report(self, stream=sys.stdout):
+        self.__call__(stream=stream)
+        print(*self.show(), file=stream, sep=": ")
 
     def check_version(self, new, current):
         va = new.split(".")
