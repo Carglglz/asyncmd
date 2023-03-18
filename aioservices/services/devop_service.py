@@ -48,6 +48,9 @@ class DevOpService(Service):
 
         # current mode: devmode , next: bootmode
 
+    def __call__(self, stream=sys.stdout):
+        print(self.get_report(), file=stream)
+
     def config(self, name, enable, *args, **kwargs):
         _exists = False
         try:
