@@ -176,19 +176,30 @@ def status_sc(name, debug=False):
         _schedule = _AIOCTL_SCHEDULE_GROUP[name]
         _sch_str = ", ".join([f"{k}={v}" for k, v in _schedule.items()])
         _next = None
+        start_in = None
         if last:
             last = get_datetime(last)
             if repeat:
                 _next = repeat - (time.time() - _last_tm)
         else:
             start_in = _AIOCTL_SCHEDULE_GROUP[name].get("start_in")
-            if start_in:
+            if start_in < 0:
+                start_in = None
+            if start_in > 0:
                 if isinstance(start_in, tuple):
                     _next = time.mktime(start_in) - time.time()
                 else:
                     _next = _AIOCTL_SCHEDULE_T0 + start_in - time.time()
         if repeat:
-            print(f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}")
+            if last:
+                print(
+                    f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}"
+                )
+            else:
+                print(f"    ┗━► schedule: next in {tmdelta_fmt(_next)}")
+        elif start_in:
+            print(f"    ┗━► schedule: starts in {tmdelta_fmt(_next)}")
+
         if debug:
             print(f"    ┗━► schedule opts: {_sch_str}")
     else:
