@@ -240,8 +240,8 @@ def status(name=None, log=True, debug=False, indent="    "):
             _done_at = group().tasks[name].done_at
             _dot = "●"
             if group().tasks[name].cancelled:
-                _status = "stopped"
-                _dot = f"\u001b[33;1m{_dot}\u001b[0m"
+                _status = "\u001b[33;1mstopped\u001b[0m"
+                _dot = "\u001b[33;1m●\u001b[0m"
             if _SCHEDULE:
                 if _done_at:
                     _done_at = time.localtime(_done_at)
@@ -249,7 +249,19 @@ def status(name=None, log=True, debug=False, indent="    "):
                     _done_delta = time.time() - group().tasks[name].done_at
                     _done_at += f"; {aioschedule.tmdelta_fmt(_done_delta)} ago"
                 if name in aioschedule.group():
-                    _dot = f"\u001b[36m{_dot}\u001b[0m"
+                    if aioschedule.group()[name]["start_in"] != -1:
+                        _status = "scheduled"
+                        _dot = "\u001b[36m●\u001b[0m"
+                        if _done_at is None:
+                            _done_at = aioschedule.get_datetime(
+                                time.localtime(
+                                    aioschedule._AIOCTL_SCHEDULE_T0
+                                    + aioschedule.group()[name]["start_in"]
+                                )
+                            )
+                    if aioschedule.group()[name]["repeat"]:
+                        _status = f"scheduled - {_status}"
+                        _dot = "\u001b[36m●\u001b[0m"
             data = _AIOCTL_GROUP.results[name]
             if issubclass(data.value.__class__, Exception):
                 _err = "ERROR"

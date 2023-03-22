@@ -193,12 +193,17 @@ def status_sc(name, debug=False):
         if repeat:
             if last:
                 print(
-                    f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}"
+                    f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}",
+                    end="",
                 )
+                print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
             else:
-                print(f"    ┗━► schedule: next in {tmdelta_fmt(_next)}")
+                print(f"    ┗━► schedule: next in {tmdelta_fmt(_next)}", end="")
+                print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
+
         elif start_in:
-            print(f"    ┗━► schedule: starts in {tmdelta_fmt(_next)}")
+            print(f"    ┗━► schedule: starts in {tmdelta_fmt(_next)}", end="")
+            print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
 
         if debug:
             print(f"    ┗━► schedule opts: {_sch_str}")
