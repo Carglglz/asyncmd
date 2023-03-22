@@ -82,6 +82,7 @@ def aiotask(f):
         except asyncio.CancelledError:
             if _id in group().tasks.keys():
                 group().tasks[_id].done_at = time.time()
+                group().tasks[_id].cancelled = True
             if callable(on_stop):
                 return on_stop(*args, **kwargs)
             return on_stop
@@ -137,6 +138,7 @@ class Taskctl:
         self.kwargs = kwargs
         self.since = time.time()
         self.done_at = None
+        self.cancelled = False
         self.schedule = None
         self.cancelled = False
         self._is_service = False
@@ -237,6 +239,9 @@ def status(name=None, log=True, debug=False, indent="    "):
             _status = "done"
             _done_at = group().tasks[name].done_at
             _dot = "●"
+            if group().tasks[name].cancelled:
+                _status = "stopped"
+                _dot = f"\u001b[33;1m{_dot}\u001b[0m"
             if _SCHEDULE:
                 if _done_at:
                     _done_at = time.localtime(_done_at)
