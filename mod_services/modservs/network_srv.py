@@ -9,7 +9,6 @@ import sys
 from ntptime import settime
 import webrepl
 from machine import Pin
-import uptime
 
 try:
     from hostname import NAME
@@ -30,13 +29,14 @@ class NetworkService(Service):
             "timeout": 10,
             "hostname": NAME,
             "notify": True,
+            "led": 2,
         }
         self.wlan = network.WLAN(network.STA_IF)
         self.net_status = "Disconnected"
         self.ssid = ""
         self.wlan.active(True)
         self.ap = None
-        self.led = Pin(2, Pin.OUT)
+        self.led = None
         self.log = None
 
     def show(self):
@@ -126,14 +126,16 @@ class NetworkService(Service):
         self.ssid = ap_config["ssid"]
 
     @aioctl.aiotask
-    async def task(self, timeout=10, hostname=NAME, notify=True, log=None):
+    async def task(self, timeout=10, hostname=NAME, notify=True, log=None, led=None):
         self.log = log
+        if led:
+            self.led = Pin(led, Pin.OUT)
+
         connected = await self.setup_network(
             timeout=timeout, hostname=hostname, notify=True
         )
         if connected:
             settime()
-            uptime.settime()
         else:
             await self.setup_ap()
 
@@ -158,7 +160,8 @@ class NetworkService(Service):
     async def webrepl_setup(self, *args, **kwargs):
         webrepl.start()
         if self.log:
-            self.log.info(f"[{self.name}.service] WebREPL setup done")
+            self.log.info(f"[{self.name}.service.webrepl] WebREPL setup done")
+
         return "WEBREPL: ENABLED"
 
 
