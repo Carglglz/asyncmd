@@ -45,7 +45,7 @@ class WatcherService(Service):
             print(f"--> {_serv}:", file=stream)
             for err_name, err in rep.items():
                 print(f"    - {err_name} : {err['count']}; Traceback: ", file=stream)
-                sys.print_exception(err["err"], file=stream)
+                sys.print_exception(err["err"], stream)
             print("<", "-" * 80, ">", file=stream)
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
