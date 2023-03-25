@@ -4,6 +4,7 @@ import uasyncio as asyncio
 import sys
 import time
 import re
+import io
 
 _SCHEDULE = False
 try:
@@ -321,7 +322,7 @@ def status(name=None, log=True, debug=False, indent="    "):
                 pprint_dict(c_task.kwargs, ind=len(f"{indent}┗━► kwargs: "))
                 if traceback(name, rtn=True):
                     print(f"{indent}┗━► traceback: ", end="")
-                    traceback(name)
+                    traceback(name, indent=indent + " " * 14)
                     print("")
             if _SCHEDULE and not debug:
                 if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
@@ -527,7 +528,7 @@ def log(grep=""):
         return _AIOCTL_LOG.cat(grep=grep)
 
 
-def traceback(name=None, rtn=False):
+def traceback(name=None, rtn=False, indent=""):
     if not name:
         return traceback_all()
     if "*" in name:
@@ -539,7 +540,15 @@ def traceback(name=None, rtn=False):
         if rtn:
             return True
         print(f"{name}: Traceback")
-        sys.print_exception(_tb)
+        if indent:
+            ibuff = io.StringIO(150)
+
+            sys.print_exception(_tb, ibuff)
+            ibuff.seek(0)
+            for line in ibuff:
+                print(f"{indent}{line}", end="")
+        else:
+            sys.print_exception(_tb)
     else:
         if rtn:
             return False
