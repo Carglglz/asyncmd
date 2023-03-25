@@ -1,9 +1,9 @@
 {
   "urls": [
-	  ["aioservices/services/watcher_service.py", "github:carglglz/mpy-aiotools/aioservices/services/watcher_service.py"],
-	  ["aioservices/services/network_service.py", "github:carglglz/mpy-aiotools/aioservices/services/network_service.py"],
-	  ["aioservices/services/wpa_supplicant_service.py", "github:carglglz/mpy-aiotools/aioservices/services/wpa_supplicant_service.py"],
-	  ["aioservices/services/as_ota_service.py", "github:carglglz/mpy-aiotools/aioservices/services/as_ota_service.py"],
+	  ["aioservices/services/watcher_service.py", "github:carglglz/asyncmd/aioservices/services/watcher_service.py"],
+	  ["aioservices/services/network_service.py", "github:carglglz/asyncmd/aioservices/services/network_service.py"],
+	  ["aioservices/services/wpa_supplicant_service.py", "github:carglglz/asyncmd/aioservices/services/wpa_supplicant_service.py"],
+	  ["aioservices/services/as_ota_service.py", "github:carglglz/asyncmd/aioservices/services/as_ota_service.py"],
 
   ],
   "deps":[],

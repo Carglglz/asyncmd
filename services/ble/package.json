@@ -1,6 +1,6 @@
 {
   "urls": [
-	  ["aioservices/services/aioble_service.py", "github:carglglz/mpy-aiotools/aioservices/services/aioble_service.py"],
+	  ["aioservices/services/aioble_service.py", "github:carglglz/asyncmd/aioservices/services/aioble_service.py"],
 
   ],
   "deps":[],

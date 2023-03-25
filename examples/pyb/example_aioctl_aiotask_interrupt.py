@@ -1,7 +1,7 @@
 from aiolog import streamlog
 import pyb
 import random
-import aiorepl  # requires aiorepl from mpy-aiotools repo
+import aiorepl  # requires aiorepl from asyncmd repo
 import uasyncio as asyncio
 import aioctl
 import logging

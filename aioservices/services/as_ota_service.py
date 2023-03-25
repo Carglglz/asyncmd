@@ -22,7 +22,7 @@ class OTAService(Service):
         self.info = f"Async OTA client v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.part = Partition(Partition.RUNNING).get_next_update()
         self.sha = hashlib.sha256()
         self.block = 0

@@ -15,7 +15,7 @@ class MIPService(Service):
         self.info = f"MIP updater Service v{self.version}"
         self.type = "schedule.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "autoupdate": True,

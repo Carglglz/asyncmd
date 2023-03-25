@@ -44,7 +44,7 @@ class AiobleService(Service):
         self.info = f"Aioble Temp Sensor v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [NAME]
         self.kwargs = {
             "adv_interval": self._ADV_INTERVAL_MS,

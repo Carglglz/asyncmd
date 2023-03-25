@@ -22,7 +22,7 @@ class UnittestService(Service):
         self.info = f"Unittest Service v{self.version}"
         self.type = "schedule.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {"testdir": "tests", "modules": ["./lib"], "debug": False}
         self.schedule = {"start_in": 20, "repeat": 60}

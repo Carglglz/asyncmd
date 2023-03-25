@@ -1,10 +1,10 @@
 {
   "urls": [
-	  ["aioservices/services/watcher_service.py", "github:carglglz/mpy-aiotools/aioservices/services/watcher_service.py"],
-	  ["aioservices/services/as_mip_service.py", "github:carglglz/mpy-aiotools/aioservices/services/as_mip_service.py"],
-	  ["aioservices/services/unittest_service.py", "github:carglglz/mpy-aiotools/aioservices/services/unittest_service.py"],
-	  ["lib/async_mip.py", "github:carglglz/mpy-aiotools/async_modules/async_mip/async_mip.py"],
-	  ["lib/async_urequests.py", "github:carglglz/mpy-aiotools/async_modules/async_urequests/async_urequests.py"],
+	  ["aioservices/services/watcher_service.py", "github:carglglz/asyncmd/aioservices/services/watcher_service.py"],
+	  ["aioservices/services/as_mip_service.py", "github:carglglz/asyncmd/aioservices/services/as_mip_service.py"],
+	  ["aioservices/services/unittest_service.py", "github:carglglz/asyncmd/aioservices/services/unittest_service.py"],
+	  ["lib/async_mip.py", "github:carglglz/asyncmd/async_modules/async_mip/async_mip.py"],
+	  ["lib/async_urequests.py", "github:carglglz/asyncmd/async_modules/async_urequests/async_urequests.py"],
 
 
   ],

@@ -14,7 +14,7 @@ class WatcherService(Service):
         )
         self.type = "runtime.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [30]
         self.kwargs = {
             "on_stop": self.on_stop,

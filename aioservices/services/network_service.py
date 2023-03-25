@@ -24,7 +24,7 @@ class NetworkService(Service):
         self.info = f"Network Setup Service v{self.version}"
         self.type = "core.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-aiotools/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "timeout": 10,
