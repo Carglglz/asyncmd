@@ -2,7 +2,7 @@
 # Tools for MicroPython Async Development
 
 Inspired by [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl),
-mpy-aiotools is an asyncio based set of tools to help with the development of asynchronous applications implemented in MicroPython.
+asyncmd is an asyncio based set of tools to help with the development of asynchronous applications implemented in MicroPython.
 
 Asyncio is ideal for running multiple tasks concurrently[^1], however an easy way to 
 **interactively** inspect running tasks in the event loop was not available
@@ -11,7 +11,7 @@ an asynchronous MicroPython REPL.
 
 This set of tools builds upon this *aiorepl* capacity to interact with tasks running in the event loop.
 
-**mpy-aiotools** is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
+**asyncmd** is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
 and then every script builds upon *aioctl* functionality.
 
 #### Features
@@ -24,7 +24,7 @@ and then every script builds upon *aioctl* functionality.
     Also allows to add a custom name/id to the task, or run a callback function when the task is stopped
     or throws an error. 
     
-    e.g. ``● hello_task: status: running since 2015-01-01 00:00:19; 4 s ago``
+    e.g. ``● hello_task: status: running since 2023-03-16 00:00:19; 4 s ago``
 
 * Asynchronous **RAM logging** --> `aiolog.py`
     
@@ -33,7 +33,7 @@ and then every script builds upon *aioctl* functionality.
     more RAM than the one predefined. 
     Also allows to interactively inspect its content the same way as using `cat`, `cat | grep` or `tail -F `, `tail -F | grep`.
     
-    e.g. `2015-01-01 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
+    e.g. `2023-03-16 00:00:19 [pyb] [INFO] [hello_task] LED 3 toggled!`
 
 
 * Asynchronous **scheduling** --> `aioschedule.py`
@@ -44,8 +44,8 @@ and then every script builds upon *aioctl* functionality.
     e.g. 
     
     ```
-    ● world_task: status: done @ 2015-01-01 00:12:44; 48 s ago --> result:
-    ┗━► schedule: last @ 2015-01-01 00:12:39 --> next in 37 s
+    ● world_task: status: done @ 2023-03-16 00:12:44; 48 s ago --> result:
+    ┗━► schedule: last @ 2023-03-16 00:12:39 --> next in 37 s
     ```
 
 
@@ -70,9 +70,9 @@ and then every script builds upon *aioctl* functionality.
     ```
     ● hello.service - Hello example runner v1.0
         Loaded: Service: hello.service from ./aioservices/services/hello_service.mpy
-        Active: (active) running since 2015-01-01 00:35:00; 00:02:31 ago
+        Active: (active) running since 2023-03-16 00:35:00; 00:02:31 ago
         Type: runtime.service
-        Docs: https://github.com/Carglglz/mpy-aiotools/blob/main/README.md
+        Docs: https://github.com/Carglglz/asyncmd/blob/main/README.md
         Stats:     Temp: 25.79095 C   Loop info: exec time: 5 ms; # loops: 186
         Task: <Taskctl object at 20003010>
         ┗━► args: (Service: hello.service from ./aioservices/services/hello_service.mpy, 3, 10)
@@ -80,8 +80,8 @@ and then every script builds upon *aioctl* functionality.
                       '_id': 'hello.service',
                       'log': <Logger object at 20008010>,
                       'on_stop': <bound_method> }
-    2015-01-01 00:35:10 [pyb] [INFO] [hello.service] LED 3 toggled!
-    2015-01-01 00:35:20 [pyb] [INFO] [hello.service] LED 2 toggled!
+    2023-03-16 00:35:10 [pyb] [INFO] [hello.service] LED 3 toggled!
+    2023-03-16 00:35:20 [pyb] [INFO] [hello.service] LED 2 toggled!
     ```
 
 
@@ -105,42 +105,42 @@ See [MIP](https://docs.micropython.org/en/latest/reference/packages.html)
 
 *Note that Network-capable boards must be already connected to WiFi/LAN and have internet access* 
 
-To install `mpy-aiotools` using `mip`
+To install `asyncmd` using `mip`
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools", target=".")
+>>> mip.install("github:Carglglz/asyncmd", target=".")
 ```
 
 For simple installation .i.e only `aioctl.py`
 
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools/aioctl.py")
+>>> mip.install("github:Carglglz/asyncmd/aioctl.py")
 ```
 
 To install services using `mip`
 
 ```
 >>> import mip
->>> mip.install("github:Carglglz/mpy-aiotools/services", target=".")
+>>> mip.install("github:Carglglz/asyncmd/services", target=".")
 
 # or only network (core network, wpa_supplicant)
 
->>> mip.install("github:Carglglz/mpy-aiotools/services/network", target=".")
+>>> mip.install("github:Carglglz/asyncmd/services/network", target=".")
 
 # or develop (watcher, as_mip, unittest)
 
->>> mip.install("github:Carglglz/mpy-aiotools/services/develop", target=".")
+>>> mip.install("github:Carglglz/asyncmd/services/develop", target=".")
 
 # or ble 
 
->>> mip.install("github:Carglglz/mpy-aiotools/services/ble", target=".")
+>>> mip.install("github:Carglglz/asyncmd/services/ble", target=".")
 ```
 
 
 
-Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory.
-See [MicroPython manifest files](https://docs.micropython.org/en/latest/reference/manifest.html#manifest)
+Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory. To freeze services, see `mod_services`. To learn more about freezing packages/modules see
+[MicroPython manifest files](https://docs.micropython.org/en/latest/reference/manifest.html#manifest)
 
 
 ## Example
@@ -185,18 +185,18 @@ Starting tasks...
 Starting asyncio REPL
 --> import aioctl
 --> aioctl.status()
-● repl: status: running since 2015-01-01 11:27:11; 38 s ago
-● blink: status: running since 2015-01-01 11:27:11; 38 s ago
+● repl: status: running since 2023-03-16 11:27:11; 38 s ago
+● blink: status: running since 2023-03-16 11:27:11; 38 s ago
 
 # Enable aioctl debug mode
 --> aioctl.debug()
 debug mode: True
 --> aioctl.status()
-● repl: status: running since 2015-01-01 11:27:11; 00:01:01 ago
+● repl: status: running since 2023-03-16 11:27:11; 00:01:01 ago
     Task: <Taskctl object at 2000c9d0>
     ┗━► args: ()
     ┗━► kwargs: {}
-● blink: status: running since 2015-01-01 11:27:11; 00:01:01 ago
+● blink: status: running since 2023-03-16 11:27:11; 00:01:01 ago
     Task: <Taskctl object at 2000c7d0>
     ┗━► args: (2,)
     ┗━► kwargs: { 'sleep': 5 }
@@ -205,11 +205,11 @@ debug mode: True
 --> aioctl.stop("blink")
 True
 --> aioctl.status()
-● repl: status: running since 2015-01-01 11:27:11; 00:01:25 ago
+● repl: status: running since 2023-03-16 11:27:11; 00:01:25 ago
     Task: <Taskctl object at 2000c9d0>
     ┗━► args: ()
     ┗━► kwargs: {}
-● blink: status: done @ 2015-01-01 11:28:33; 3 s ago --> result:
+● blink: status: done @ 2023-03-16 11:28:33; 3 s ago --> result:
     Task: <Taskctl object at 2000c7d0>
     ┗━► runtime: 00:01:22
     ┗━► args: (2,)
@@ -222,11 +222,11 @@ True
 --> aioctl.start("blink")
 True
 --> aioctl.status()
-● repl: status: running since 2015-01-01 11:27:11; 00:06:35 ago
+● repl: status: running since 2023-03-16 11:27:11; 00:06:35 ago
     Task: <Taskctl object at 2000c9d0>
     ┗━► args: ()
     ┗━► kwargs: {}
-● blink: status: running since 2015-01-01 11:33:43; 3 s ago
+● blink: status: running since 2023-03-16 11:33:43; 3 s ago
     Task: <Taskctl object at 20016110>
     ┗━► args: (2,)
     ┗━► kwargs: { 'sleep': 3 }
@@ -234,15 +234,15 @@ True
 # Add another blink task
 --> aioctl.add(blink, 3, sleep=6)
 --> aioctl.status()
-● blink_1: status: running since 2015-01-01 11:40:56; 11 s ago
+● blink_1: status: running since 2023-03-16 11:40:56; 11 s ago
     Task: <Taskctl object at 20015350>
     ┗━► args: (3,)
     ┗━► kwargs: { 'sleep': 6 }
-● repl: status: running since 2015-01-01 11:27:11; 00:13:56 ago
+● repl: status: running since 2023-03-16 11:27:11; 00:13:56 ago
     Task: <Taskctl object at 2000c9d0>
     ┗━► args: ()
     ┗━► kwargs: {}
-● blink: status: running since 2015-01-01 11:37:48; 00:03:19 ago
+● blink: status: running since 2023-03-16 11:37:48; 00:03:19 ago
     Task: <Taskctl object at 20010070>
     ┗━► args: (2,)
     ┗━► kwargs: { 'sleep': 3 }
