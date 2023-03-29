@@ -4,7 +4,7 @@
 
 ## `aioctl.aiotask`
 
-This is a decorator that can be used to define a traceable asyncio task. This decorator adds name and time traceability plus event callbacks in case of the task being cancelled (stopped) or if the task raise an error. e.g.
+This is a decorator that can be used to define a traceable asyncio task. This decorator adds name and time traceability plus event callbacks in case of the task being cancelled (stopped) or if the task raises an error. e.g.
 ````
 @aioctl.aiotask
 async def blink():
@@ -35,12 +35,12 @@ This function returns the status of all tasks managed by `aioctl`. The status ca
 - `"running"`: The task is currently running. Indicated visually with a green dot
 - `"stopped"`: The task has been (cancelled) stopped. Indicated visually with a yellow dot
 - `"done"`: The task has completed successfully. Indicated visually with a dot (font color)
-- `"error"`: The task has raised an exception.Indicated visually with a red dot
-- `"scheduled"`: The task is scheduled to run in the future.Indicated visually with a blue dot
+- `"error"`: The task has raised an exception. Indicated visually with a red dot
+- `"scheduled"`: The task is scheduled to run in the future. Indicated visually with a blue dot
 - `"scheduled - done"`: The task completed successfully and will run again in the future. Indicated visually with a blue dot
 
 It also displays tasks state timestamps, and result if any.
-If debug mode is enabled, displays args and kwargs too.
+If debug mode is enabled, displays `args`  and `kwargs` too.
 If `aioctl` log is set it also shows the log entries with the name of the task (.i.e `cat | grep`).
 If the task is scheduled, it shows the schedule (last time, next time, in seconds and formatted time tuple)
 
@@ -48,7 +48,7 @@ It takes the following arguments:
 
 - `name`: Name of the task (accepts `*` wildcard), or None in which case will show all tasks.
 - `log`: To show log entries, by default is `True`.
-- `debug`: To show args/kwargs, by default is False. Debug mode overrides this if Debug mode is `True`. 
+- `debug`: To show `args/kwargs`, by default is False. Debug mode overrides this if Debug mode is `True`. 
 
 
 ## `aioctl.debug()`
@@ -57,7 +57,7 @@ This method toggles debug mode for `aioctl`. When debug mode is enabled, additio
 
 ## `aioctl.group()`
 
-This method returns an instance of an `aioctl` task group. The task group can be used to manage/modify or inspect tasks internals .e.g args/kwargs
+This method returns an instance of an `aioctl` task group. The task group can be used to manage/modify or inspect tasks internals .e.g `args/kwargs`
 or other properties.
 
 ## `aioctl.delete()`

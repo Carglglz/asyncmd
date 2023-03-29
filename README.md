@@ -45,7 +45,7 @@ and then every script builds upon *aioctl* functionality.
     
     ```
     ● world_task: status: done @ 2023-03-16 00:12:44; 48 s ago --> result:
-    ┗━► schedule: last @ 2023-03-16 00:12:39 --> next in 37 s
+    ┗━► schedule: last @ 2023-03-16 00:12:39 --> next in 37 s  @ 2023-03-16 00:13:16
     ```
 
 
@@ -209,7 +209,7 @@ True
     Task: <Taskctl object at 2000c9d0>
     ┗━► args: ()
     ┗━► kwargs: {}
-● blink: status: done @ 2023-03-16 11:28:33; 3 s ago --> result:
+● blink: status: stopped @ 2023-03-16 11:28:33; 3 s ago --> result:
     Task: <Taskctl object at 2000c7d0>
     ┗━► runtime: 00:01:22
     ┗━► args: (2,)
