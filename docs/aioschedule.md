@@ -21,8 +21,8 @@ import aioschedule
 
 @aioschedule.schedule_task(start_in=10, repeat=60) # decorators should be used in this order
 @aioctl.aiotask
-async def my_task(name):
-    print(f"Hello, {name}!")
+async def my_task(var):
+    print(f"Hello, {var}!")
     ....
 ```
 Which will schedule the task to start in 10 seconds from event loop start and
@@ -40,8 +40,8 @@ import time
 
 
 @aioctl.aiotask
-async def my_task():
-    print("Hello, world!")
+async def my_task(var):
+    print("Hello, {var}!")
 
 aioctl.add(my_task, "Foo", name="greeting")
 
