@@ -283,7 +283,7 @@ of these tools.
 
 - aiotasks --> [examples](examples)
 
-- aioservices --> [examples-aioservices](example-aioservice/)
+- aioservices --> [examples-aioservices](example-aioservices)
 
 
 ### Notes
