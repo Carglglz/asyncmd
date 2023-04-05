@@ -58,7 +58,7 @@ def time_str(uptime_tuple):
     up_str_2 = f"{upt[0]}:{upt[1]}:{upt[2]}"
     if uptime_tuple[0] > 0:
         return up_str_1 + up_str_2
-    elif uptime_tuple[-2] > 0:
+    elif uptime_tuple[-2] > 0 or uptime_tuple[-3] > 0:
         return up_str_2
     return f"{uptime_tuple[-1]} s"
 
