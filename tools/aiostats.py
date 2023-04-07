@@ -2,6 +2,13 @@ import aioctl
 import aioschedule
 import uasyncio as asyncio
 import sys
+from machine import unique_id
+from binascii import hexlify
+
+try:
+    from hostname import NAME
+except Exception:
+    NAME = f"{sys.platform}-{hexlify(unique_id())}"
 
 
 async def display(taskm="*"):
@@ -74,7 +81,7 @@ async def display(taskm="*"):
 def task_status(name):
     _status = "running"
     if name not in aioctl.group().tasks:
-        return "done"
+        return "unknown"
     if aioctl.group().tasks[name].task.done():
         _status = "done"
         if aioctl.group().tasks[name].cancelled:
@@ -84,12 +91,10 @@ def task_status(name):
                 _status = "scheduled"
             if aioschedule.group()[name]["repeat"]:
                 _status = f"scheduled - {_status}"
-        if name not in aioctl.group().results:
-            return "done"
-        data = aioctl.group().results[name]
-        if hasattr(data, "value"):
-            if issubclass(data.value.__class__, Exception):
-                _status = "error"
+        data = aioctl.result(name)
+
+        if issubclass(data.__class__, Exception):
+            _status = "error"
 
     return _status
 
@@ -141,3 +146,39 @@ def logtail(grep="", log=aioctl._AIOCTL_LOG):
                 return last_line
     log.seek(index)
     return last_line
+
+
+# stats/metrics --> like aioctl.status but dict/parseable format -->
+# forward/export data to external services
+# stats.service (alternative to using aiorepl for remote/automate debugging)
+# {service}.stats() --> name, info, state, ts, runtime, type, ctasks, custom_stats,
+# schedule, args, kwargs, log
+# --> json api exporting aioctl status + metrics data.
+# --> mqtt publisher exporting aioctl status + metrics data.
+# --> time series database (influx) publisher --> aioctl status + metrics data
+
+
+def stats(taskm="*"):
+    _stats = {}
+    for task in aioctl.tasks_match(taskm):
+        task_stats = {
+            "status": task_status(task),
+            "result": aioctl.result(task),
+            "done_at": aioctl.group().tasks[task].done_at,
+            "since": aioctl.group().tasks[task].since,
+            "service": aioctl.group().tasks[task]._is_service,
+        }
+        if issubclass(task_stats["result"].__class__, Exception):
+            task_stats["result"] = (
+                f"{task_stats['result'].__class__.__name__}:"
+                + f"{task_stats['result'].value}"
+            )
+        if task_stats["service"]:
+            if hasattr(aioctl.group().tasks[task].service, "stats"):
+                task_stats["stats"] = aioctl.group().tasks[task].service.stats()
+            else:
+                task_stats["stats"] = None
+
+        _stats[task] = task_stats
+    _stats["hostname"] = NAME
+    return _stats
