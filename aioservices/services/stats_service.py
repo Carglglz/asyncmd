@@ -4,13 +4,17 @@ import uasyncio as asyncio
 import aiostats
 import re
 import json
+import sys
+import micropython
+import os
+import gc
 
 
 class JSONAPIService(Service):
     def __init__(self, name):
         super().__init__(name)
         self.version = "1.0"
-        self.info = f"Stats JSON API  v{self.version}"
+        self.info = f"Stats JSON API v{self.version}"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
@@ -34,21 +38,95 @@ class JSONAPIService(Service):
         )  # fragment              # NOQA
         self.routes = {}
 
-    def pre_route(self, writer):
-        async def _func(writer):
-            await self.send_stats(writer)
+    def _szfmt(self, filesize):
+        _kB = 1000
+        if filesize < _kB:
+            sizestr = str(filesize) + " by"
+        elif filesize < _kB**2:
+            sizestr = "%0.1f kB" % (filesize / _kB)
+        elif filesize < _kB**3:
+            sizestr = "%0.1f MB" % (filesize / _kB**2)
+        else:
+            sizestr = "%0.1f GB" % (filesize / _kB**3)
+        return sizestr
 
-        return _func
+    def _df(self):
+        size_info = os.statvfs("")
+        self._total_b = size_info[0] * size_info[2]
+        self._used_b = (size_info[0] * size_info[2]) - (size_info[0] * size_info[3])
+        self._free_b = size_info[0] * size_info[3]
 
-    # b'/': pre_route('/www/page.htm'),
-    # b'/static/jquery.js': pre_route('/www/jquery-3.5.1.min.js')}
+    def _taskinfo(self):
+        self._tasks_total = len(aioctl.tasks_match("*"))
+        self._services_total = len(aioctl.tasks_match("*.service"))
+        self._ctasks_total = len(aioctl.tasks_match("*.service.*"))
 
-    def route(self, location, writer):
-        self.routes[location] = self.pre_route(writer)
+    def show(self):
+        self._df()
+        return (
+            "Stats",
+            (
+                f"   Requests: {self.n_msg}"
+                + f"\n    Fs(/): total: {self._szfmt(self._total_b)}, used:"
+                + f" {self._szfmt(self._used_b)}, free: {self._szfmt(self._free_b)}"
+                + f"\n    Mem: total: {self._szfmt(gc.mem_free() + gc.mem_alloc())}, "
+                + f"used: {self._szfmt(gc.mem_alloc())}, "
+                + f"free: {self._szfmt(gc.mem_free())}"
+            ),
+        )
+
+    def stats(self):
+        # fs,mem,tasks,firmware
+        self._df()
+        self._taskinfo()
+        gc.collect()
+        return {
+            "fstotal": self._total_b,
+            "fsfree": self._free_b,
+            "fsused": self._used_b,
+            "mtotal": gc.mem_free() + gc.mem_alloc(),
+            "mfree": gc.mem_free(),
+            "mused": gc.mem_alloc(),
+            "tasks": self._tasks_total,
+            "services": self._services_total,
+            "ctasks": self._ctasks_total,
+            "requests": self.n_msg,
+            "firmware": sys.version,
+            "machine": sys.implementation._machine,
+            "platform": sys.platform,
+        }
+
+    def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
+        # self.app awaits self.app.server.wait_closed which
+        # consumes Cancelled error so this does not run
+        if self.log:
+            self.log.info(f"[{self.name}.service] stopped")
+            # aioctl.add(self.app.shutdown)
+
+        return
+
+    def on_error(self, e, *args, **kwargs):
+        if self.log:
+            self.log.error(f"[{self.name}.service] Error callback {e}")
+        return e
+
+    # def pre_route(self, writer):
+    #     async def _func(writer):
+    #         await self.send_stats(writer)
+
+    #     return _func
+
+    # # b'/': pre_route('/www/page.htm'),
+    # # b'/static/jquery.js': pre_route('/www/jquery-3.5.1.min.js')}
+
+    # def route(self, location, writer):
+    #     self.routes[location] = self.pre_route(writer)
 
     async def send_stats(self, writer):
         _stats = json.dumps(aiostats.stats("*.service")).encode("utf-8")
         writer.write(b"HTTP/1.1 200 OK\r\n")
+        if self.log:
+            self.log.info(f"[{self.name}.service] HTTP/1.1 200 OK")
         writer.write(b"Content-Type: application/json\r\n")
         writer.write(f"Content-Length: {len(_stats)}\r\n".encode("utf-8"))
         writer.write(b"\r\n")
@@ -61,7 +139,7 @@ class JSONAPIService(Service):
     async def handle_connection(self, reader, writer):
         req = await reader.readline()
         if self.log:
-            self.log.info(f"[{self.name}.service] {req}")
+            self.log.info(f"[{self.name}.service] {req.decode().strip()}")
         try:
             method, uri, proto = req.split(b" ")
             m = re.match(self.url_pat, uri)
@@ -82,40 +160,10 @@ class JSONAPIService(Service):
                 self.log.debug(f"[{self.name}.service] {h}")
 
         if self.log:
-            self.log.info(f"[{self.name}.service]route: {route_req.decode('utf-8')}")
+            self.log.debug(f"[{self.name}.service] route: {route_req.decode('utf-8')}")
         await self.send_stats(writer)
         self.n_msg += 1
-        # test = route_req in self.routes
-        # print("Route found?: {}".format(test))
-
-        # if route_req in self.routes:
-        #     await routes[route_req](writer)
-        # else:
-        #     writer.write(b"HTTP/1.0 404 Not Found\r\n")
-        #     writer.write(b"\r\n")
-        #     await writer.drain()
-        #     writer.close()
-        #     await writer.wait_closed()
-
-    def show(self):
-        return (
-            "Stats",
-            f"   Requests: {self.n_msg}",
-        )
-
-    def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
-        # self.app awaits self.app.server.wait_closed which
-        # consumes Cancelled error so this does not run
-        if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
-            # aioctl.add(self.app.shutdown)
-
-        return
-
-    def on_error(self, e, *args, **kwargs):
-        if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
-        return e
+        gc.collect()
 
     @aioctl.aiotask
     async def task(
