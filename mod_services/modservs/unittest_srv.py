@@ -65,6 +65,26 @@ class UnittestService(Service):
             + f", Failures: {self._failuresNum}",
         )
 
+    def stats(self):
+        _stats_tests = {
+            "run": self._testsRun,
+            "errors": self._errorsNum,
+            "failures": self._failuresNum,
+            "test": {},
+        }
+        for test_file, test in self.test_result.items():
+            if test.wasSuccessful():
+                _stats_tests["test"][test_file] = {"status": "OK", "run": test.testsRun}
+
+            else:
+                _stats_tests["test"][test_file] = {
+                    "status": "FAIL",
+                    "run": test.testsRun,
+                    "errors": test.errorsNum,
+                    "failures": test.failuresNum,
+                }
+        return _stats_tests
+
     def report(self, stream=sys.stdout):
         self.__call__(stream=stream)
 
