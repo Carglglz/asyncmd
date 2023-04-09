@@ -175,8 +175,8 @@ class DevOpService(Service):
                         self._stats_report[rp] = json.load(_rp)
                 except Exception:
                     pass
-            self._stats_report["devmode"] = self.devmode
-            self._stats_report["bootmode"] = self.bootmode
+        self._stats_report["devmode"] = self.devmode
+        self._stats_report["bootmode"] = self.bootmode
 
         return self._stats_report
 
