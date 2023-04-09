@@ -125,7 +125,8 @@ class JSONAPIService(Service):
         writer.write(f"Content-Length: {len_b}\r\n".encode("utf-8"))
         writer.write(b"\r\n")
         await writer.drain()
-        writer.write(self._stat_buff.read(len_b))
+        for i in range(0, len_b, 512):
+            writer.write(self._stat_buff.read(512))
         await writer.drain()
         writer.close()
         await writer.wait_closed()
