@@ -36,6 +36,9 @@ class WatcherService(Service):
         return "Stats", f"{_stat_1}{_stat_2}"  # return Tuple, "Name",
         # "info" to display
 
+    def stats(self):
+        return {"errors": self.err_count, "report": self.err_report}
+
     def report(self, stream=sys.stdout):
         self.__call__(stream=stream)
         print(*self.show(), file=stream, sep=": ")
