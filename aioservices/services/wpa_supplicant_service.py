@@ -49,6 +49,10 @@ class WPASupplicantService(Service):
         else:
             return "Network Status", "Disconnected"
 
+    def stats(self):
+        if self.wlan.isconnected():
+            return {"rssi": self.wlan.status("rssi"), "ssid": self.ssid}
+
     def check_network(self):
         if self.wlan.isconnected():
             self.net_status = f"Connected to {self.ssid}"
