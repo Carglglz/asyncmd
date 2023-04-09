@@ -43,6 +43,7 @@ class DevOpService(Service):
         self._cycle = []
         self._bootconfigured = False
         self._reports = None
+        self._stats_report = {}
         self.log = None
         self._rpb = io.StringIO(1500)
 
@@ -166,6 +167,22 @@ class DevOpService(Service):
 
         return self._reports
 
+    def get_stats_report(self):
+        if not self._stats_report:
+            for rp in self.kwargs["report"]:
+                try:
+                    with open(f".{rp}.stats", "r") as _rp:
+                        self._stats_report[rp] = json.load(_rp)
+                except Exception:
+                    pass
+            self._stats_report["devmode"] = self.devmode
+            self._stats_report["bootmode"] = self.bootmode
+
+        return self._stats_report
+
+    def stats(self):
+        return self.get_stats_report()
+
     def show(self):
         _stat_1 = f"   Dev Mode: {self.devmode} "
         _stat_2 = f"   Next: Boot mode: {self.bootmode}"
@@ -264,18 +281,26 @@ class DevOpService(Service):
         if report:
             if self.devmode in report:
                 _OK = "[ \033[92mOK\x1b[0m ]"
+                stats_report = {}
                 for _rpserv in report[self.devmode]:
                     if _rpserv in aioctl.group().tasks:
+                        stats_report[_rpserv] = {"status": "OK", "info": "loaded"}
                         _serv = aioctl.group().tasks[_rpserv].service
                         done_at = aioctl.group().tasks[_rpserv].done_at
                         if done_at:
                             done_at = time.localtime(done_at)
                             done_at = aioctl.aioschedule.get_datetime(done_at)
+                            stats_report[_rpserv]["done_at"] = done_at
+
+                        if hasattr(_serv, "stats"):
+                            stats_report[_rpserv]["stats"] = _serv.stats()
+
                         if hasattr(_serv, "report"):
                             self._rpb.write(f"{_rpserv};{done_at} {_OK}\n")
                             _serv.report(self._rpb)
                         else:
                             res = aioctl.result(_rpserv)
+
                             if issubclass(res.__class__, Exception):
                                 _res = (
                                     "[ \u001b[31;1mERROR\u001b[0m ] @"
@@ -283,9 +308,15 @@ class DevOpService(Service):
                                 )
                                 self._rpb.write(f"{_rpserv};{done_at} {_OK}\n{_res}\n")
                                 sys.print_exception(res, self._rpb)
+
+                                stats_report[_rpserv][
+                                    "result"
+                                ] = f"{res.__class__.__name__}: {res}"
                             else:
                                 self._rpb.write(f"{_rpserv};{done_at} {_OK}\n{res}")
                                 self._rpb.write("\n")
+
+                                stats_report[_rpserv]["result"] = res
                     else:
                         # not in tasks so failed to load?
                         import aioservice
@@ -305,10 +336,20 @@ class DevOpService(Service):
                                 if issubclass(_serv.info.__class__, Exception):
                                     sys.print_exception(_serv.info, self._rpb)
 
+                                stats_report[_rpserv] = {
+                                    "status": "ERROR",
+                                    "info": _serv.info.__class__.__name__,
+                                }
+
                         else:
                             self._rpb.write(
                                 f"{_rpserv};[ \u001b[31;1mERROR\u001b[0m ] Not Found \n"
                             )
+
+                            stats_report[_rpserv] = {
+                                "status": "ERROR",
+                                "info": "Not Found",
+                            }
 
                 if self._rpb.tell():
                     self._rpb.seek(0)
@@ -317,6 +358,9 @@ class DevOpService(Service):
                     with open(f".{self.devmode}", "w") as rp:
                         for line in self._rpb:
                             rp.write(line)
+                    if stats_report:
+                        with open(f".{self.devmode}.stats", "w") as rpst:
+                            json.dump(stats_report, rpst)
 
         if reset:
             if self.devmode in reset:
@@ -353,7 +397,7 @@ class DevOpService(Service):
                 aioctl.stop(service)
 
         if self.log and kwargs.get("debug"):
-            self.log.info(f"[{self.name}.service] Rebooting in now")
+            self.log.info(f"[{self.name}.service] Rebooting now")
 
         await asyncio.sleep(1)
         machine.reset()
