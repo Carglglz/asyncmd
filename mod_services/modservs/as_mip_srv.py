@@ -50,6 +50,21 @@ class MIPService(Service):
         self.__call__(stream=stream)
         print(*self.show(), file=stream, sep=": ")
 
+    def stats(self):
+        _stats_packages = {
+            "update_n": len(self.packages_to_update),
+            "packages_n": len(self.packages),
+            "packages": self.packages,
+            "update": self.packages_to_update,
+        }
+
+        if not self.new_packages:
+            _stats_packages["status"] = "up to date"
+        else:
+            _stats_packages["status"] = "outdated"
+
+        return _stats_packages
+
     def check_version(self, new, current):
         va = new.split(".")
         vb = current.split(".")
