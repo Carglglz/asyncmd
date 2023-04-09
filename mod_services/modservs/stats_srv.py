@@ -5,9 +5,9 @@ import aiostats
 import re
 import json
 import sys
-import micropython
 import os
 import gc
+import io
 
 
 class JSONAPIService(Service):
@@ -37,6 +37,7 @@ class JSONAPIService(Service):
             + r"(#(.*))?"  # query                 # NOQA
         )  # fragment              # NOQA
         self.routes = {}
+        self._stat_buff = io.BytesIO(2000)
 
     def _szfmt(self, filesize):
         _kB = 1000
@@ -110,60 +111,59 @@ class JSONAPIService(Service):
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
 
-    # def pre_route(self, writer):
-    #     async def _func(writer):
-    #         await self.send_stats(writer)
-
-    #     return _func
-
-    # # b'/': pre_route('/www/page.htm'),
-    # # b'/static/jquery.js': pre_route('/www/jquery-3.5.1.min.js')}
-
-    # def route(self, location, writer):
-    #     self.routes[location] = self.pre_route(writer)
-
     async def send_stats(self, writer):
-        _stats = json.dumps(aiostats.stats("*.service")).encode("utf-8")
+        self._stat_buff.seek(0)
+        len_b = self._stat_buff.write(
+            json.dumps(aiostats.stats("*.service")).encode("utf-8")
+        )
+
+        self._stat_buff.seek(0)
         writer.write(b"HTTP/1.1 200 OK\r\n")
         if self.log:
             self.log.info(f"[{self.name}.service] HTTP/1.1 200 OK")
         writer.write(b"Content-Type: application/json\r\n")
-        writer.write(f"Content-Length: {len(_stats)}\r\n".encode("utf-8"))
+        writer.write(f"Content-Length: {len_b}\r\n".encode("utf-8"))
         writer.write(b"\r\n")
         await writer.drain()
-        writer.write(_stats)
+        writer.write(self._stat_buff.read(len_b))
         await writer.drain()
         writer.close()
         await writer.wait_closed()
 
     async def handle_connection(self, reader, writer):
-        req = await reader.readline()
-        if self.log:
-            self.log.info(f"[{self.name}.service] {req.decode().strip()}")
         try:
-            method, uri, proto = req.split(b" ")
-            m = re.match(self.url_pat, uri)
-            route_req = m.group(5)
+            req = await reader.readline()
+            if self.log:
+                self.log.info(f"[{self.name}.service] {req.decode().strip()}")
+            try:
+                method, uri, proto = req.split(b" ")
+                m = re.match(self.url_pat, uri)
+                route_req = m.group(5)
+            except Exception as e:
+                if self.log:
+                    self.log.warning(f"[{self.name}.service] Malformed request: {req}")
+                    self.log.error(f"[{self.name}.service] {e}")
+                writer.close()
+                await writer.wait_closed()
+                return
+
+            while True:
+                h = await reader.readline()
+                if h == b"" or h == b"\r\n":
+                    break
+                if self.log:
+                    self.log.debug(f"[{self.name}.service] {h}")
+
+            if self.log:
+                self.log.debug(
+                    f"[{self.name}.service] route: {route_req.decode('utf-8')}"
+                )
+            await self.send_stats(writer)
+            self.n_msg += 1
+            gc.collect()
         except Exception as e:
-            if self.log:
-                self.log.warning(f"[{self.name}.service] Malformed request: {req}")
-                self.log.error(f"[{self.name}.service] {e}")
-            writer.close()
-            await writer.wait_closed()
-            return
-
-        while True:
-            h = await reader.readline()
-            if h == b"" or h == b"\r\n":
-                break
-            if self.log:
-                self.log.debug(f"[{self.name}.service] {h}")
-
-        if self.log:
-            self.log.debug(f"[{self.name}.service] route: {route_req.decode('utf-8')}")
-        await self.send_stats(writer)
-        self.n_msg += 1
-        gc.collect()
+            self.on_error(e)
+            gc.collect()
 
     @aioctl.aiotask
     async def task(
