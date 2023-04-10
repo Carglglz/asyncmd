@@ -37,7 +37,7 @@ class JSONAPIService(Service):
             + r"(#(.*))?"  # query                 # NOQA
         )  # fragment              # NOQA
         self.routes = {}
-        self._stat_buff = io.BytesIO(2000)
+        self._stat_buff = io.StringIO(2000)
 
     def _szfmt(self, filesize):
         _kB = 1000
@@ -113,10 +113,9 @@ class JSONAPIService(Service):
 
     async def send_stats(self, writer):
         self._stat_buff.seek(0)
-        len_b = self._stat_buff.write(
-            json.dumps(aiostats.stats("*.service")).encode("utf-8")
-        )
 
+        json.dump(aiostats.stats("*.service"), self._stat_buff)
+        len_b = self._stat_buff.tell()
         self._stat_buff.seek(0)
         writer.write(b"HTTP/1.1 200 OK\r\n")
         if self.log:
@@ -126,7 +125,7 @@ class JSONAPIService(Service):
         writer.write(b"\r\n")
         await writer.drain()
         for i in range(0, len_b, 512):
-            writer.write(self._stat_buff.read(512))
+            writer.write(self._stat_buff.read(512).encode("utf-8"))
         await writer.drain()
         writer.close()
         await writer.wait_closed()
