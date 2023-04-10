@@ -251,6 +251,7 @@ class DevOpService(Service):
                                 f"[{self.name}.service] {service}.service disabled"
                             )
                         self.disable(service)
+                await asyncio.sleep_ms(100)
 
             if debug and self.log:
                 self.log.info(f"[{self.name}.service] Current Dev Mode: {self.devmode}")

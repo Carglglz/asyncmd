@@ -223,7 +223,7 @@ class UnittestService(Service):
             if testdir not in sys.path:
                 sys.path.append(testdir)
             if log:
-                log.info(f"[{self.name}.service] Checking tests...")
+                self.log.info(f"[{self.name}.service] Checking tests...")
             self.shasum(testdir)
             if modules:
                 if isinstance(modules, list):
@@ -234,20 +234,23 @@ class UnittestService(Service):
             self.runtests()
 
             if log:
+                await asyncio.sleep_ms(100)
                 if self._ctests:
                     self._testsRun = 0
                     self._errorsNum = 0
                     self._failuresNum = 0
-                    log.info(
+                    self.log.info(
                         f"[{self.name}.service] Ran {len(self._ctests)}"
                         + f" test files --> Total {self.result.testsRun} tests"
                     )
 
                     if self.result.wasSuccessful():
                         if self.log:
-                            log.info(f"[{self.name}.service] Tests OK {self._CHECK}")
+                            self.log.info(
+                                f"[{self.name}.service] Tests OK {self._CHECK}"
+                            )
                     else:
-                        log.info(
+                        self.log.info(
                             f"[{self.name}.service] {self.result.failuresNum}"
                             + f" tests FAILED {self._XF}"
                         )
@@ -258,18 +261,19 @@ class UnittestService(Service):
                         self._failuresNum += test.failuresNum
                         if test.wasSuccessful():
                             if self.log:
-                                log.info(
+                                self.log.info(
                                     f"[{self.name}.service] {test_file}: "
                                     + f"OK {self._CHECK}"
                                 )
                         else:
                             if self.log:
-                                log.info(
+                                self.log.info(
                                     f"[{self.name}.service] {test_file}: "
                                     + f"{test.failuresNum} FAILED {self._XF}"
                                 )
+                        await asyncio.sleep_ms(100)
                 else:
-                    log.info(f"[{self.name}.service] Tests up to date")
+                    self.log.info(f"[{self.name}.service] Tests up to date")
 
                 if all(t.wasSuccessful() for t in self.test_result.values()):
                     return self._PASS
