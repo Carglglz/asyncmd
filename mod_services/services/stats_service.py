@@ -1,1 +1,1 @@
-from stats_srv import service
+from stats_service import service

@@ -1,1 +1,1 @@
-from network_srv import service
+from network_service import service

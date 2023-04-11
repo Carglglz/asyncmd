@@ -1,1 +1,1 @@
-from watcher_srv import service
+from watcher_service import service

@@ -1,1 +1,1 @@
-from wpa_supplicant_srv import service
+from wpa_supplicant_service import service

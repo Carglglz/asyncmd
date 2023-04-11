@@ -1,1 +1,1 @@
-from unittest_srv import service
+from unittest_service import service

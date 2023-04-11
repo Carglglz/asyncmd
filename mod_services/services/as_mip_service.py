@@ -1,1 +1,1 @@
-from as_mip_srv import service
+from as_mip_service import service

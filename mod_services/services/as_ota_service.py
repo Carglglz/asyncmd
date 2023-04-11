@@ -1,1 +1,1 @@
-from as_ota_srv import service
+from as_ota_service import service

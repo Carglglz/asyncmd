@@ -1,1 +1,1 @@
-from devop_srv import service
+from devop_service import service
