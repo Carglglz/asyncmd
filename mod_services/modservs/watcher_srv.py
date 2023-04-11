@@ -37,7 +37,10 @@ class WatcherService(Service):
         # "info" to display
 
     def stats(self):
-        return {"errors": self.err_count, "report": self.err_report}
+        return {
+            "errors": self.err_count,
+            "report": {k: list(v) for k, v in self.err_report.items()},
+        }
 
     def report(self, stream=sys.stdout):
         self.__call__(stream=stream)
