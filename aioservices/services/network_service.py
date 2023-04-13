@@ -7,7 +7,6 @@ from machine import unique_id
 from binascii import hexlify
 import sys
 from ntptime import settime
-import webrepl
 from machine import Pin
 
 try:
@@ -30,6 +29,7 @@ class NetworkService(Service):
             "hostname": NAME,
             "notify": True,
             "led": 2,
+            "webrepl_on": True,
         }
         self.wlan = network.WLAN(network.STA_IF)
         self.net_status = "Disconnected"
@@ -126,7 +126,15 @@ class NetworkService(Service):
         self.ssid = ap_config["ssid"]
 
     @aioctl.aiotask
-    async def task(self, timeout=10, hostname=NAME, notify=True, log=None, led=None):
+    async def task(
+        self,
+        timeout=10,
+        hostname=NAME,
+        notify=True,
+        log=None,
+        led=None,
+        webrepl_on=True,
+    ):
         self.log = log
         if led:
             self.led = Pin(led, Pin.OUT)
@@ -139,12 +147,13 @@ class NetworkService(Service):
         else:
             await self.setup_ap()
 
-        aioctl.add(
-            self.webrepl_setup,
-            self,
-            name=f"{self.name}.service.webrepl",
-            _id=f"{self.name}.service.webrepl",
-        )
+        if webrepl_on:
+            aioctl.add(
+                self.webrepl_setup,
+                self,
+                name=f"{self.name}.service.webrepl",
+                _id=f"{self.name}.service.webrepl",
+            )
 
         for i in range(10):
             self.led.value(not self.led.value())
@@ -158,6 +167,8 @@ class NetworkService(Service):
 
     @aioctl.aiotask
     async def webrepl_setup(self, *args, **kwargs):
+        import webrepl
+
         webrepl.start()
         if self.log:
             self.log.info(f"[{self.name}.service.webrepl] WebREPL setup done")
