@@ -167,7 +167,7 @@ class TaskGroup:
             self.cnt = 0
         else:
             self.cnt += 1
-            new_name = f"{task.name}_{self.cnt}"
+            new_name = f"{task.name}@{self.cnt}"
             task.name = new_name
             self.tasks[task.name] = task
 
