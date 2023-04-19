@@ -8,7 +8,7 @@ from services import Services, failed_services
 
 _SERVICES_GROUP = {service.name: service for service in Services}
 _SERVICES_CONFIG = "services.config"
-_SERVICES_STATUS = {"loaded": [], "failed": []}
+_SERVICES_STATUS = {"loaded": set(), "failed": set()}
 _SERVICE_LOGGER = None
 
 
@@ -47,6 +47,18 @@ def call(name):
         service(name)()
 
 
+def _suid(name):
+    import aioctl
+
+    name = f"{name}.service"
+    _name = name
+    _id = 0
+    while name in aioctl.group().tasks:
+        _id += 1
+        name = f"{_name}@{_id}"
+    return name
+
+
 def load(name=None, debug=False, log=None, debug_log=False, config=False):
     global _SERVICES_GROUP, _SERVICES_STATUS, _SERVICE_LOGGER
     import aioctl
@@ -77,7 +89,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                         service.enabled = False
             # catch failed load services
             if service.name in failed_services or not service.loaded:
-                _SERVICES_STATUS["failed"].append(service)
+                _SERVICES_STATUS["failed"].add(service)
                 if debug:
                     print(
                         f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
@@ -111,7 +123,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                     print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
                 if debug_log and log:
                     log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
-                _SERVICES_STATUS["loaded"].append(service)
+                _SERVICES_STATUS["loaded"].add(service)
     else:
         if name in _SERVICES_GROUP.keys():
             service = _SERVICES_GROUP[name]
@@ -130,7 +142,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
 
             # catch failed load services
             if service.name in failed_services or not service.loaded:
-                _SERVICES_STATUS["failed"].append(service)
+                _SERVICES_STATUS["failed"].add(service)
                 if debug:
                     print(
                         f"[ \u001b[31;1mERROR\u001b[0m ] {service} not loaded:", end=""
@@ -142,28 +154,30 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                     log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
                 return False
 
+            _name = _suid(service.name)
+
             aioctl.add(
                 service.task,
                 service,
                 *service.args,
                 **service.kwargs,
-                name=f"{service.name}.service",
-                _id=f"{service.name}.service",
+                name=_name,
+                _id=_name,
                 log=log,
             )
             if aioctl._SCHEDULE:
                 if hasattr(service, "schedule"):
-                    aioctl.stop(f"{service.name}.service", stop_sch=False)
+                    aioctl.stop(_name, stop_sch=False)
                     import aioschedule
 
-                    aioschedule.schedule(f"{service.name}.service", **service.schedule)
+                    aioschedule.schedule(_name, **service.schedule)
 
             if debug:
                 print(f"[ \033[92mOK\x1b[0m ] {service} loaded")
             if debug_log and log:
                 log.info(f"[aioservice] [ \033[92mOK\x1b[0m ] {service} loaded")
 
-            _SERVICES_STATUS["loaded"].append(service)
+            _SERVICES_STATUS["loaded"].add(service)
 
         else:
             if "./aioservices/services" not in sys.path:
