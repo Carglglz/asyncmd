@@ -234,7 +234,7 @@ True
 # Add another blink task
 --> aioctl.add(blink, 3, sleep=6)
 --> aioctl.status()
-● blink_1: status: running since 2023-03-16 11:40:56; 11 s ago
+● blink@1: status: running since 2023-03-16 11:40:56; 11 s ago
     Task: <Taskctl object at 20015350>
     ┗━► args: (3,)
     ┗━► kwargs: { 'sleep': 6 }
@@ -283,7 +283,7 @@ of these tools.
 
 - aiotasks --> [examples](examples)
 
-- aioservices --> [examples-aioservices](example-aioservices)
+- aioservices --> [example-aioservices](example-aioservices)
 
 
 ### Notes
