@@ -47,15 +47,14 @@ def call(name):
         service(name)()
 
 
-def _suid(name):
-    import aioctl
-
+def _suid(_aioctl, name):
     name = f"{name}.service"
     _name = name
     _id = 0
-    while name in aioctl.group().tasks:
-        _id += 1
-        name = f"{_name}@{_id}"
+    if _aioctl.group():
+        while name in _aioctl.group().tasks:
+            _id += 1
+            name = f"{_name}@{_id}"
     return name
 
 
@@ -154,7 +153,7 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                     log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
                 return False
 
-            _name = _suid(service.name)
+            _name = _suid(aioctl, service.name)
 
             aioctl.add(
                 service.task,
