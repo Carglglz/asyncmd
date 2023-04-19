@@ -39,7 +39,7 @@ class MicrodotService(Service):
         self.info = "Microdot Async Webserver v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "host": "0.0.0.0",

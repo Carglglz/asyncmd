@@ -14,7 +14,7 @@ class HelloService(Service):
         self.info = "Hello example runner v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [(20, 25, 0), 20]
         self.kwargs = {"loops": 2}
         # core.service --> run one time at boot
@@ -23,7 +23,6 @@ class HelloService(Service):
     @aioctl.aiotask
     async def task(self, n, s, log=None, loops=3):
         while True:
-
             await anm.pulse(n, 1, loops=loops)
             await asyncio.sleep_ms(200)
             if log:

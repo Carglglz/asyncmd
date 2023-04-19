@@ -15,7 +15,7 @@ class MQTTService(Service):
         self.info = "Async MQTT client v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = ["async_mqtt_client"]
         self.kwargs = {
             "server": "0.0.0.0",

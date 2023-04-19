@@ -11,7 +11,7 @@ class WorldService(Service):
         self.info = "World example runner v1.0"
         self.type = "schedule.service"
         self.enabled = True
-        self.docs = "https://github.com/Carglglz/mpy-wpa_supplicant/blob/main/README.md"
+        self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [2, 5]
         self.kwargs = {}
         self.schedule = {"start_in": 20, "repeat": 90}
