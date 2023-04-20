@@ -62,6 +62,9 @@ class MQTTService(Service):
         self.n_pub = 0
         self.id = NAME
         self.i2c = None
+        self._temp = None
+        self._hum = None
+        self._press = None
 
     def setup(self):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
@@ -107,6 +110,15 @@ class MQTTService(Service):
             "Stats",
             f"   Messages: Received: {self.n_msg}, Published: " + f"{self.n_pub}",
         )
+
+    def stats(self):
+        return {
+            "temp": self._temp,
+            "hum": self._hum,
+            "press": self._press,
+            "npub": self.n_pub,
+            "nrecv": self.n_msg,
+        }
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         # self.app awaits self.app.server.wait_closed which
@@ -238,6 +250,9 @@ class MQTTService(Service):
     async def sense(self, *args, **kwargs):
         while True:
             temp, press, hum = self.sensor.read_compensated_data()
+            self._temp = temp
+            self._press = press
+            self._hum = hum
             if self.log:
                 self.log.info(
                     f"[{self.name}.service.sense] {temp} C {press} Pa {hum} %"
