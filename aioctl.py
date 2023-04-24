@@ -158,16 +158,17 @@ class Taskctl:
 class TaskGroup:
     def __init__(self, tasks=[]):
         self.tasks = {task.name: task for task in tasks}
-        self.cnt = 0
         self.results = {}
 
     def add_task(self, task):
         if task.name not in self.tasks:
             self.tasks[task.name] = task
-            self.cnt = 0
         else:
-            self.cnt += 1
-            new_name = f"{task.name}@{self.cnt}"
+            _id = 0
+            new_name = task.name
+            while new_name in self.tasks:
+                _id += 1
+                new_name = f"{task.name}@{_id}"
             task.name = new_name
 
             if task._is_service:
