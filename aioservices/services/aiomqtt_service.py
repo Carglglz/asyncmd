@@ -47,6 +47,15 @@ class MQTTService(Service):
         self.id = NAME
         self._stat_buff = io.StringIO(2000)
 
+    def _suid(self, _aioctl, name):
+        _name = name
+        _id = 0
+        if _aioctl.group():
+            while name in _aioctl.group().tasks:
+                _id += 1
+                name = f"{_name}@{_id}"
+        return name
+
     @aioctl.aiotask
     async def do_action(self, action, service):
         if action == "status":
@@ -135,23 +144,15 @@ class MQTTService(Service):
                 for action, serv in act.items():
                     if isinstance(serv, list):
                         for srv in serv:
+                            _name = self._suid(aioctl, f"{self.name}.service.do_action")
                             aioctl.add(
-                                self.do_action,
-                                self,
-                                action,
-                                srv,
-                                name=f"{self.name}.service.do_action",
-                                _id=f"{self.name}.service.do_action",
+                                self.do_action, self, action, srv, name=_name, _id=_name
                             )
 
                     else:
+                        _name = self._suid(aioctl, f"{self.name}.service.do_action")
                         aioctl.add(
-                            self.do_action,
-                            self,
-                            action,
-                            serv,
-                            name=f"{self.name}.service.do_action",
-                            _id=f"{self.name}.service.do_action",
+                            self.do_action, self, action, serv, name=_name, _id=_name
                         )
 
         except Exception as e:
