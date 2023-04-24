@@ -66,6 +66,7 @@ class MQTTService(Service):
             await self.client.publish(
                 self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
             )
+            self.n_pub += 1
             if self.log:
                 self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
 
@@ -77,6 +78,8 @@ class MQTTService(Service):
                         self._STATUS_TOPIC,
                         json.dumps({service: {action: aiostats.task_status(_task)}}),
                     )
+
+                    self.n_pub += 1
                     if self.log:
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
@@ -91,6 +94,8 @@ class MQTTService(Service):
                         self._STATUS_TOPIC,
                         json.dumps({service: {action: aiostats.task_status(_task)}}),
                     )
+
+                    self.n_pub += 1
                     if self.log:
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
