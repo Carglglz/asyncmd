@@ -169,6 +169,10 @@ class TaskGroup:
             self.cnt += 1
             new_name = f"{task.name}@{self.cnt}"
             task.name = new_name
+
+            if task._is_service:
+                if task._is_child:
+                    task.service._child_tasks.add(new_name)
             self.tasks[task.name] = task
 
 
