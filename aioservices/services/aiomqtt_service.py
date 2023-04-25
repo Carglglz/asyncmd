@@ -45,6 +45,7 @@ class MQTTService(Service):
         self.n_pub = 0
         self.td = 0
         self.id = NAME
+        self.lock = asyncio.Lock()
         self._stat_buff = io.StringIO(2000)
 
     def _suid(self, _aioctl, name):
@@ -63,9 +64,10 @@ class MQTTService(Service):
             json.dump({service: {action: aiostats.stats(service)}}, self._stat_buff)
             len_b = self._stat_buff.tell()
             self._stat_buff.seek(0)
-            await self.client.publish(
-                self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
-            )
+            async with self.lock:
+                await self.client.publish(
+                    self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
+                )
             self.n_pub += 1
             if self.log:
                 self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
@@ -74,10 +76,13 @@ class MQTTService(Service):
             for _task in aioctl.tasks_match(service):
                 aioctl.start(_task)
                 if _task in aioctl.group().tasks:
-                    await self.client.publish(
-                        self._STATUS_TOPIC,
-                        json.dumps({service: {action: aiostats.task_status(_task)}}),
-                    )
+                    async with self.lock:
+                        await self.client.publish(
+                            self._STATUS_TOPIC,
+                            json.dumps(
+                                {service: {action: aiostats.task_status(_task)}}
+                            ),
+                        )
 
                     self.n_pub += 1
                     if self.log:
@@ -90,10 +95,13 @@ class MQTTService(Service):
                 aioctl.stop(_task)
 
                 if _task in aioctl.group().tasks:
-                    await self.client.publish(
-                        self._STATUS_TOPIC,
-                        json.dumps({service: {action: aiostats.task_status(_task)}}),
-                    )
+                    async with self.lock:
+                        await self.client.publish(
+                            self._STATUS_TOPIC,
+                            json.dumps(
+                                {service: {action: aiostats.task_status(_task)}}
+                            ),
+                        )
 
                     self.n_pub += 1
                     if self.log:
@@ -208,11 +216,12 @@ class MQTTService(Service):
             self.log.info(f"[{self.name}.service] MQTT client connected")
 
         # Subscribe to service topic
-        await self.client.subscribe(self._SERVICE_TOPIC)
-        # Subscribe to task topic
-        await self.client.subscribe(self._TASK_TOPIC)
-        # Subscribe to state topic
-        await self.client.subscribe(self._STATE_TOPIC)
+        async with self.lock:
+            await self.client.subscribe(self._SERVICE_TOPIC)
+            # Subscribe to task topic
+            await self.client.subscribe(self._TASK_TOPIC)
+            # Subscribe to state topic
+            await self.client.subscribe(self._STATE_TOPIC)
         if self.log:
             self.log.info(
                 f"[{self.name}.service] MQTT Client Services and Tasks enabled!"
@@ -255,7 +264,8 @@ class MQTTService(Service):
     @aioctl.aiotask
     async def ping(self, *args, **kwargs):
         while True:
-            await self.client.publish(self._STATE_TOPIC, b"OK")
+            async with self.lock:
+                await self.client.publish(self._STATE_TOPIC, b"OK")
             self.n_pub += 1
             await asyncio.sleep(5)
 
@@ -275,7 +285,8 @@ class MQTTService(Service):
     @aioctl.aiotask
     async def disconnect(self, *args, **kwargs):
         if self.client:
-            await self.client.disconnect()
+            async with self.lock:
+                await self.client.disconnect()
         self.sslctx = None
         self.client = None
         gc.collect()
