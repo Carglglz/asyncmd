@@ -61,7 +61,7 @@ class MQTTService(Service):
     async def do_action(self, action, service):
         if action == "status":
             self._stat_buff.seek(0)
-            json.dump({service: {action: aiostats.stats(service)}}, self._stat_buff)
+            json.dump(aiostats.stats(service), self._stat_buff)
             len_b = self._stat_buff.tell()
             self._stat_buff.seek(0)
             async with self.lock:
