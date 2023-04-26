@@ -36,6 +36,8 @@ class MQTTService(Service):
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "stats": False,
+            "services": "*.service",
         }
 
         self.sslctx = False
@@ -183,6 +185,8 @@ class MQTTService(Service):
         hostname=None,
         keepalive=300,
         debug=True,
+        stats=False,
+        services="*.service",
         log=None,
     ):
         self.log = log
@@ -256,6 +260,21 @@ class MQTTService(Service):
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT clean task enabled")
 
+        # Add stats pub
+        if stats:
+            if f"{self.name}.service.stats" in aioctl.group().tasks:
+                aioctl.delete(f"{self.name}.service.stats")
+            aioctl.add(
+                self.stats_pub,
+                self,
+                services=services,
+                name=f"{self.name}.service.stats",
+                _id=f"{self.name}.service.stats",
+                on_error=self.on_error,
+            )
+            if self.log:
+                self.log.info(f"[{self.name}.service] MQTT stats task enabled")
+
         # Wait for messages
         while True:
             await self.client.wait_msg()
@@ -268,6 +287,23 @@ class MQTTService(Service):
                 await self.client.publish(self._STATE_TOPIC, b"OK")
             self.n_pub += 1
             await asyncio.sleep(5)
+
+    @aioctl.aiotask
+    async def stats_pub(self, *args, **kwargs):
+        service = kwargs.get("services")
+        while True:
+            self._stat_buff.seek(0)
+            json.dump(aiostats.stats(service), self._stat_buff)
+            len_b = self._stat_buff.tell()
+            self._stat_buff.seek(0)
+            async with self.lock:
+                await self.client.publish(
+                    self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
+                )
+            self.n_pub += 1
+            if self.log:
+                self.log.info(f"[{self.name}.service] @ [STATUS]: {service}")
+            await asyncio.sleep(10)
 
     @aioctl.aiotask
     async def clean(self, *args, **kwargs):
