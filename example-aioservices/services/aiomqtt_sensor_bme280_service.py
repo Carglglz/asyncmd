@@ -127,6 +127,7 @@ class MQTTService(Service):
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         # self.app awaits self.app.server.wait_closed which
         # consumes Cancelled error so this does not run
+        self.client = None
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
             # aioctl.add(self.app.shutdown)
@@ -142,6 +143,7 @@ class MQTTService(Service):
         return
 
     def on_error(self, e, *args, **kwargs):
+        self.client = None
         if self.log:
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
@@ -266,7 +268,8 @@ class MQTTService(Service):
                 await asyncio.sleep(1)
         else:
             while True:
-                await asyncio.sleep(1)
+                assert self.client == self.aiomqtt_service.client
+                await asyncio.sleep(5)
 
     # @aioctl.aiotask
     # async def pulse(self, *args, **kwargs):
