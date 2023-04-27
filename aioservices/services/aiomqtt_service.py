@@ -314,7 +314,8 @@ class MQTTService(Service):
     async def ping(self, *args, **kwargs):
         while True:
             async with self.lock:
-                await self.client.publish(self._STATE_TOPIC, b"OK")
+                # await self.client.publish(self._STATE_TOPIC, b"OK")
+                await self.client.ping()
             self.n_pub += 1
             await asyncio.sleep(5)
 
