@@ -158,7 +158,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_ctasks"
+                  "aiomqtt.service_stats_ctasks"
                 ],
                 "type": "field"
               },
@@ -172,7 +172,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_tasks"
+                  "aiomqtt.service_stats_tasks"
                 ],
                 "type": "field"
               },
@@ -186,7 +186,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_services"
+                  "aiomqtt.service_stats_services"
                 ],
                 "type": "field"
               },
@@ -200,7 +200,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_fstotal"
+                  "aiomqtt.service_stats_fstotal"
                 ],
                 "type": "field"
               },
@@ -214,7 +214,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_fsused"
+                  "aiomqtt.service_stats_fsused"
                 ],
                 "type": "field"
               },
@@ -228,7 +228,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_fsfree"
+                  "aiomqtt.service_stats_fsfree"
                 ],
                 "type": "field"
               },
@@ -242,7 +242,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_mtotal"
+                  "aiomqtt.service_stats_mtotal"
                 ],
                 "type": "field"
               },
@@ -256,7 +256,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_mused"
+                  "aiomqtt.service_stats_mused"
                 ],
                 "type": "field"
               },
@@ -270,7 +270,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_mfree"
+                  "aiomqtt.service_stats_mfree"
                 ],
                 "type": "field"
               },
@@ -284,7 +284,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_requests"
+                  "aiomqtt.service_stats_requests"
                 ],
                 "type": "field"
               },
@@ -427,7 +427,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_firmware"
+                  "aiomqtt.service_stats_firmware"
                 ],
                 "type": "field"
               },
@@ -441,7 +441,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_platform"
+                  "aiomqtt.service_stats_platform"
                 ],
                 "type": "field"
               },
@@ -455,7 +455,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_machine"
+                  "aiomqtt.service_stats_machine"
                 ],
                 "type": "field"
               },
@@ -1319,7 +1319,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_mused"
+                  "aiomqtt.service_stats_mused"
                 ],
                 "type": "field"
               },
@@ -1337,7 +1337,7 @@
             [
               {
                 "params": [
-                  "stats.service_stats_mfree"
+                  "aiomqtt.service_stats_mfree"
                 ],
                 "type": "field"
               },
@@ -2959,7 +2959,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "transparent"
+                "color": "transparent",
+                "value": null
               }
             ]
           }
@@ -3254,7 +3255,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           }
@@ -3455,7 +3457,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3579,7 +3582,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           }
@@ -3780,7 +3784,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue"
+                "color": "blue",
+                "value": null
               },
               {
                 "color": "red",
@@ -3934,7 +3939,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4088,6 +4094,6 @@
   "timezone": "",
   "title": "asyncmd mqtt local",
   "uid": "fa40fd02-17ee-4d66-83ef-97fdff122d26",
-  "version": 8,
+  "version": 11,
   "weekStart": ""
 }
