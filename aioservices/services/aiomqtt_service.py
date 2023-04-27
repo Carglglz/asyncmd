@@ -1,3 +1,5 @@
+import sys
+import os
 import time
 import ssl as _ssl
 from aioclass import Service
@@ -58,6 +60,17 @@ class MQTTService(Service):
                 _id += 1
                 name = f"{_name}@{_id}"
         return name
+
+    def _df(self):
+        size_info = os.statvfs("")
+        self._total_b = size_info[0] * size_info[2]
+        self._used_b = (size_info[0] * size_info[2]) - (size_info[0] * size_info[3])
+        self._free_b = size_info[0] * size_info[3]
+
+    def _taskinfo(self):
+        self._tasks_total = len(aioctl.tasks_match("*"))
+        self._services_total = len(aioctl.tasks_match("*.service"))
+        self._ctasks_total = len(aioctl.tasks_match("*.service.*"))
 
     @aioctl.aiotask
     async def do_action(self, action, service):
@@ -120,7 +133,24 @@ class MQTTService(Service):
         )
 
     def stats(self):
+        # fs,mem,tasks,firmware
+        self._df()
+        self._taskinfo()
+        gc.collect()
         return {
+            "fstotal": self._total_b,
+            "fsfree": self._free_b,
+            "fsused": self._used_b,
+            "mtotal": gc.mem_free() + gc.mem_alloc(),
+            "mfree": gc.mem_free(),
+            "mused": gc.mem_alloc(),
+            "tasks": self._tasks_total,
+            "services": self._services_total,
+            "ctasks": self._ctasks_total,
+            "requests": self.n_msg,
+            "firmware": sys.version,
+            "machine": sys.implementation._machine,
+            "platform": sys.platform,
             "npub": self.n_pub,
             "nrecv": self.n_msg,
         }
