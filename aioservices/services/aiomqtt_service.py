@@ -50,7 +50,7 @@ class MQTTService(Service):
         self.td = 0
         self.id = NAME
         self.lock = asyncio.Lock()
-        self._stat_buff = io.StringIO(2000)
+        self._stat_buff = io.StringIO(2200)
 
     def _suid(self, _aioctl, name):
         _name = name
