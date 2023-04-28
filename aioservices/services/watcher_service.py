@@ -77,6 +77,7 @@ class WatcherService(Service):
     async def task(self, sleep, max_errors=0, log=None):
         self.log = log
         await asyncio.sleep(10)
+        excl = []
         while True:
             for name, res in aioctl.result_all(as_dict=True).items():
                 if issubclass(res.__class__, Exception):
@@ -91,7 +92,28 @@ class WatcherService(Service):
                         continue
                     if log:
                         self.log.info(f"[{self.name}.service] Restarting Task {name}")
-                    aioctl.start(name)
+                    res = aioctl.group().tasks[name].kwargs.get("restart", True)
+                    if isinstance(res, list):
+                        for _name in res:
+                            if _name not in excl:
+                                try:
+                                    aioctl.stop(_name)
+                                    if self.log:
+                                        self.log.info(
+                                            f"[{self.name}.service] Restarting {name}"
+                                        )
+                                    aioctl.start(_name)
+                                    excl.append(_name)
+                                except Exception as e:
+                                    if self.log:
+                                        self.log.error(f"[watcher.service] {e}")
+                                    else:
+                                        sys.print_exception(e)
+
+                    else:
+                        if name not in excl:
+                            aioctl.start(name)
+            excl = []
             await asyncio.sleep(sleep)
             if self.err_count > max_errors and max_errors > 0:
                 machine.reset()

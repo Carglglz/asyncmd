@@ -55,6 +55,7 @@ class MQTTService(Service):
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "restart": ["aiomqtt_sensor_bme280.service"],
         }
 
         self.sslctx = False
@@ -185,6 +186,7 @@ class MQTTService(Service):
         hostname=None,
         keepalive=300,
         debug=True,
+        restart=True,
         log=None,
     ):
         self.log = log
@@ -257,6 +259,7 @@ class MQTTService(Service):
             _id=f"{self.name}.service.sense",
             on_stop=self.on_stop,
             on_error=self.on_error,
+            restart=restart,
         )
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT publish task enabled")

@@ -40,6 +40,7 @@ class MQTTService(Service):
             "on_error": self.on_error,
             "stats": False,
             "services": "*.service",
+            "restart": ["aiomqtt.service"],
         }
 
         self.sslctx = False
@@ -217,6 +218,7 @@ class MQTTService(Service):
         debug=True,
         stats=False,
         services="*.service",
+        restart=True,
         log=None,
     ):
         self.log = log
@@ -272,6 +274,7 @@ class MQTTService(Service):
             _id=f"{self.name}.service.ping",
             on_stop=self.on_stop,
             on_error=self.on_error,
+            restart=restart,
         )
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT ping task enabled")
@@ -301,6 +304,7 @@ class MQTTService(Service):
                 name=f"{self.name}.service.stats",
                 _id=f"{self.name}.service.stats",
                 on_error=self.on_error,
+                restart=restart,
             )
             if self.log:
                 self.log.info(f"[{self.name}.service] MQTT stats task enabled")
