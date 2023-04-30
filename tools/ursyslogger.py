@@ -84,6 +84,8 @@ class RsysLogger:
         self.framing=FRAMING_NON_TRANSPARENT
         self.connected = False
         self.connect(tls=tls, tls_params=tls_params)
+        self._tls = tls
+        self._tls_params = tls_params
 
 
     def connect(self, tls=False, tls_params={}):
@@ -122,8 +124,14 @@ class RsysLogger:
             syslog_msg = b"".join((syslog_msg, b"\n"))
         else:
             syslog_msg = b" ".join((str(len(syslog_msg)).encode("ascii"), syslog_msg))
-        
-        self.sock.sendall(syslog_msg)
+
+        try:
+            self.sock.sendall(syslog_msg)
+        except OSError:
+            try:
+                self.connect(self._tls, self._tls_params)
+            except Exception as e:
+                sys.print_exception(e)
 
 
     def build_msg(self, record, level, timestamp, appname):
