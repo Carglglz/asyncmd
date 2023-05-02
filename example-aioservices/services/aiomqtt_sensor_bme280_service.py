@@ -56,6 +56,7 @@ class MQTTService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "restart": ["aiomqtt_sensor_bme280.service"],
+            "topics": [f"device/{NAME}/state", "device/all/state"],
         }
 
         self.sslctx = False
@@ -156,20 +157,6 @@ class MQTTService(Service):
                 self.log.info(
                     f"[{self.name}.service] @ [{topic.decode()}]:" + f" {msg.decode()}"
                 )
-            # if topic == b"homeassistant/sensor/esphome/pulse":
-            #     color = json.loads(msg.decode())
-            #     R, G, B = color["R"], color["G"], color["B"]
-            #     if "as_mqtt.service.pulse" in aioctl.group().tasks:
-            #         aioctl.delete("as_mqtt.service.pulse")
-            #     aioctl.add(
-            #         self.pulse,
-            #         self,
-            #         (R, G, B),
-            #         1,
-            #         loops=2,
-            #         name="as_mqtt.service.pulse",
-            #         _id="as_mqtt.service.pulse",
-            #     )
         except Exception as e:
             if self.log:
                 self.log.error(f"[{self.name}.service] {e}")
@@ -187,6 +174,7 @@ class MQTTService(Service):
         keepalive=300,
         debug=True,
         restart=True,
+        topics=[],
         log=None,
     ):
         self.log = log
@@ -228,9 +216,18 @@ class MQTTService(Service):
             self.client = self.aiomqtt_service.client
             self.lock = self.aiomqtt_service.lock
 
-        # Subscribe
-        # await self.client.subscribe(b"homeassistant/sensor/esphome/state")
-        # await self.client.subscribe(b"homeassistant/sensor/esphome/pulse")
+            # add callback
+
+            # Subscribe
+            async with self.lock:
+                for tp in topics:
+                    self.aiomqtt_service.add_callback(
+                        tp, {"name": "sense", "task": self.sense_cb, "service": self}
+                    )
+                    if isinstance(tp, str):
+                        tp = tp.encode("utf-8")
+                    await self.client.subscribe(tp)
+
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT client connected")
         # Discovery
@@ -279,6 +276,27 @@ class MQTTService(Service):
     #     if self.log:
     #         self.log.info(f"[as_mqtt.service.pulse] {args} {kwargs} pulse")
     #     await self.anm.pulse(*args, **kwargs)
+
+    @aioctl.aiotask
+    async def sense_cb(self, topic, msg):
+        self.on_receive(topic, msg)
+        temp, press, hum = self.sensor.read_compensated_data()
+
+        if self.log:
+            self.log.info(f"[{self.name}.service.sense_cb] {temp} C {press} Pa {hum} %")
+        async with self.lock:
+            await self.client.publish(
+                topic.replace(b"state", b"sense"),
+                json.dumps(
+                    {
+                        "temperature": f"{temp:.1f}",
+                        "pressure": f"{press:.1f}",
+                        "humidity": f"{hum:.1f}",
+                        "hostname": NAME,
+                    }
+                ),
+            )
+        self.n_pub += 1
 
     @aioctl.aiotask
     async def sense(self, *args, **kwargs):

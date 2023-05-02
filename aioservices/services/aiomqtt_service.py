@@ -41,6 +41,7 @@ class MQTTService(Service):
             "stats": False,
             "services": "*.service",
             "restart": ["aiomqtt.service"],
+            "topics": ["device/all/cmd", f"device/{NAME}/cmd"],
         }
 
         self.sslctx = False
@@ -51,7 +52,9 @@ class MQTTService(Service):
         self.td = 0
         self.id = NAME
         self.lock = asyncio.Lock()
-        self._stat_buff = io.StringIO(2200)
+        self._stat_buff = io.StringIO(3000)
+        self._callbacks = {}
+        self._topics = []
 
     def _suid(self, _aioctl, name):
         _name = name
@@ -61,6 +64,9 @@ class MQTTService(Service):
                 _id += 1
                 name = f"{_name}@{_id}"
         return name
+
+    def add_callback(self, topic, callback):
+        self._callbacks[topic] = callback
 
     def _df(self):
         size_info = os.statvfs("")
@@ -125,6 +131,43 @@ class MQTTService(Service):
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
                         )
 
+        else:
+            # topic-command-lib {"on":{"cmd": led.on, args:[], kwargs:{}, log:"LED ON",
+            # resp:{"topic":"", "msg":""}}}  --> tpc["on"]()
+            try:
+                _resp = None
+                if isinstance(action, str):
+                    if "args" in service[action]:
+                        _resp = service[action]["cmd"](
+                            *service[action]["args"], **service[action]["kwargs"]
+                        )
+                    else:
+                        _resp = service[action]["cmd"]()
+                    if "log" in service[action]:
+                        if self.log:
+                            self.log.info(
+                                f"[{self.name}.service] [CMD]: {service[action]['log']}"
+                            )
+
+                    if "resp" in service[action]:
+                        async with self.lock:
+                            await self.client.publish(
+                                service[action]["resp"]["topic"].encode(),
+                                json.dumps(
+                                    {
+                                        "cmd": action,
+                                        "resp": _resp,
+                                        "msg": service[action]["resp"]["msg"],
+                                        "hostname": NAME,
+                                    }
+                                ),
+                            )
+
+                else:
+                    pass
+            except Exception as e:
+                raise e
+
     def show(self):
         return (
             "Stats",
@@ -161,7 +204,6 @@ class MQTTService(Service):
         # consumes Cancelled error so this does not run
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
-            # aioctl.add(self.app.shutdown)
         if f"{self.name}.service.disconnect" in aioctl.group().tasks:
             aioctl.delete(f"{self.name}.service.disconnect")
         aioctl.add(
@@ -200,6 +242,45 @@ class MQTTService(Service):
                         aioctl.add(
                             self.do_action, self, action, serv, name=_name, _id=_name
                         )
+            elif topic.decode() in self._callbacks:
+                _tp = topic.decode()
+                _cb_name = self._callbacks[_tp]["name"]
+                _name = self._suid(aioctl, f"{self.name}.service.do_action.{_cb_name}")
+                aioctl.add(
+                    self._callbacks[_tp]["task"],
+                    self._callbacks[_tp]["service"],
+                    topic,
+                    msg,
+                    name=_name,
+                    _id=_name,
+                )
+
+            elif topic.decode() in self._topics:
+                if topic.decode().endswith("cmd"):
+                    try:
+                        from mqtt_cmdlib import mqtt_cmds
+
+                        try:
+                            act = json.loads(msg.decode())
+                        except Exception:
+                            act = msg.decode()
+                        if isinstance(act, str):
+                            _cmd_name = act
+                        else:
+                            _cmd_name = act["cmd"]
+
+                        _name = self._suid(
+                            aioctl, f"{self.name}.service.do_action.{_cmd_name}"
+                        )
+                        aioctl.add(
+                            self.do_action, self, act, mqtt_cmds, name=_name, _id=_name
+                        )
+
+                    except Exception as e:
+                        if self.log:
+                            self.log.error(
+                                f"[{self.name}.service] Command lib not found: {e}"
+                            )
 
         except Exception as e:
             if self.log:
@@ -219,9 +300,11 @@ class MQTTService(Service):
         stats=False,
         services="*.service",
         restart=True,
+        topics=[],
         log=None,
     ):
         self.log = log
+        self._topics = topics
         if isinstance(self._SERVICE_TOPIC, str):
             self._TASK_TOPIC = self._TASK_TOPIC.format(client_id).encode("utf-8")
             self._SERVICE_TOPIC = self._SERVICE_TOPIC.format(client_id).encode("utf-8")
@@ -258,6 +341,11 @@ class MQTTService(Service):
             await self.client.subscribe(self._TASK_TOPIC)
             # Subscribe to state topic
             await self.client.subscribe(self._STATE_TOPIC)
+
+            for tp in topics:
+                if isinstance(tp, str):
+                    tp = tp.encode("utf-8")
+                await self.client.subscribe(tp)
         if self.log:
             self.log.info(
                 f"[{self.name}.service] MQTT Client Services and Tasks enabled!"
@@ -345,7 +433,8 @@ class MQTTService(Service):
         while True:
             for _ctask in aioctl.tasks_match(f"{self.name}.service.do_action*"):
                 if aiostats.task_status(_ctask) == "done":
-                    self._child_tasks.remove(_ctask)
+                    if _ctask in self._child_tasks:
+                        self._child_tasks.remove(_ctask)
                     aioctl.delete(_ctask)
                     if self.log:
                         self.log.info(f"[{self.name}.service] {_ctask} cleaned")

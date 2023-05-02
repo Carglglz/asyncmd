@@ -1194,6 +1194,247 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "LED OFF": {
+                  "color": "red",
+                  "index": 1
+                },
+                "LED ON": {
+                  "color": "green",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "LED ?",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 0,
+        "y": 19
+      },
+      "id": 47,
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^mqtt_consumer\\.last$/",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "9.5.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "Nka9_8jMz"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "previous"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "mqtt_consumer",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "msg"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "hostname",
+              "operator": "=~",
+              "value": "/^$device$/"
+            }
+          ]
+        }
+      ],
+      "title": "LED STATUS",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "Nka9_8jMz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "LED OFF": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "OFF"
+                },
+                "LED ON": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "ON"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "LED ?",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 21,
+        "x": 3,
+        "y": 19
+      },
+      "id": 48,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.5.1",
+      "targets": [
+        {
+          "alias": "LED",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "Nka9_8jMz"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "previous"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "mqtt_consumer",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "msg"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "hostname",
+              "operator": "=~",
+              "value": "/^$device$/"
+            }
+          ]
+        }
+      ],
+      "title": "LED STATUS",
+      "transparent": true,
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "Nka9_8jMz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "continuous-GrYlRd",
             "seriesBy": "last"
           },
@@ -1265,7 +1506,7 @@
         "h": 7,
         "w": 23,
         "x": 0,
-        "y": 19
+        "y": 24
       },
       "id": 45,
       "options": {
@@ -1450,7 +1691,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 31
       },
       "id": 2,
       "options": {
@@ -1589,7 +1830,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 35
       },
       "id": 37,
       "options": {
@@ -1762,7 +2003,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 30
+        "y": 35
       },
       "id": 39,
       "options": {
@@ -1927,7 +2168,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 41
       },
       "id": 40,
       "options": {
@@ -2094,7 +2335,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 45
       },
       "id": 38,
       "options": {
@@ -2240,7 +2481,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 45
       },
       "id": 41,
       "options": {
@@ -2416,7 +2657,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 51
       },
       "id": 42,
       "options": {
@@ -2544,7 +2785,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 55
       },
       "id": 16,
       "panels": [],
@@ -2630,7 +2871,7 @@
         "h": 15,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 56
       },
       "id": 17,
       "options": {
@@ -2869,7 +3110,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 71
       },
       "id": 14,
       "panels": [],
@@ -2971,7 +3212,7 @@
         "h": 18,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 72
       },
       "id": 43,
       "options": {
@@ -3224,7 +3465,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 85
+        "y": 90
       },
       "id": 12,
       "panels": [],
@@ -3267,7 +3508,7 @@
         "h": 6,
         "w": 9,
         "x": 0,
-        "y": 86
+        "y": 91
       },
       "id": 23,
       "options": {
@@ -3474,7 +3715,7 @@
         "h": 8,
         "w": 14,
         "x": 10,
-        "y": 86
+        "y": 91
       },
       "id": 6,
       "options": {
@@ -3594,7 +3835,7 @@
         "h": 6,
         "w": 9,
         "x": 0,
-        "y": 92
+        "y": 97
       },
       "id": 46,
       "options": {
@@ -3801,7 +4042,7 @@
         "h": 9,
         "w": 14,
         "x": 10,
-        "y": 94
+        "y": 99
       },
       "id": 8,
       "options": {
@@ -3956,7 +4197,7 @@
         "h": 7,
         "w": 14,
         "x": 10,
-        "y": 103
+        "y": 108
       },
       "id": 9,
       "options": {
@@ -4061,9 +4302,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "gkesp32",
-          "value": "gkesp32"
+          "selected": true,
+          "text": "especg",
+          "value": "especg"
         },
         "datasource": {
           "type": "influxdb",
@@ -4087,13 +4328,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "asyncmd mqtt local",
   "uid": "fa40fd02-17ee-4d66-83ef-97fdff122d26",
-  "version": 11,
+  "version": 16,
   "weekStart": ""
 }
