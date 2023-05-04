@@ -155,7 +155,7 @@ class MQTTClient:
         await self.a_writer.drain()
         if qos == 1:
             while 1:
-                op = self.wait_msg()
+                op = await self.wait_msg()
                 if op == 0x40:
                     sz = await self.a_reader.read(1)
                     assert sz == b"\x02"

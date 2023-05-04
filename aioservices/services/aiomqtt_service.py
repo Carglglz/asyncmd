@@ -12,6 +12,7 @@ import socket
 import io
 from hostname import NAME
 import aiostats
+import machine
 
 
 class MQTTService(Service):
@@ -41,7 +42,12 @@ class MQTTService(Service):
             "stats": False,
             "services": "*.service",
             "restart": ["aiomqtt.service"],
-            "topics": ["device/all/cmd", f"device/{NAME}/cmd"],
+            "topics": [
+                "device/all/cmd",
+                f"device/{NAME}/cmd",
+                "device/all/ota",
+                f"device/{NAME}/ota",
+            ],
         }
 
         self.sslctx = False
@@ -130,6 +136,28 @@ class MQTTService(Service):
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
                         )
+        elif action == "ota":
+            msg = service
+
+            _ota_task = aioctl.group().tasks.get("as_ota.service")
+            if _ota_task:
+                _ota_service = _ota_task.service
+                _ota_params = json.loads(msg.decode())
+                _ota_service.start_ota(
+                    _ota_params["host"],
+                    _ota_params["port"],
+                    _ota_params["sha"],
+                    blocks=_ota_params["blocks"],
+                    bg=_ota_params["bg"],
+                )
+                while not _ota_service._OK:
+                    await asyncio.sleep(1)
+                async with self.lock:
+                    await self.client.publish(
+                        f"device/{self.id}/otaok".encode("utf-8"), b"OK"
+                    )
+            else:
+                self.log.info(f"[{self.name}.service] No OTA service found")
 
         else:
             # topic-command-lib {"on":{"cmd": led.on, args:[], kwargs:{}, log:"LED ON",
@@ -257,6 +285,21 @@ class MQTTService(Service):
 
             elif topic.decode() in self._topics:
                 if topic.decode().endswith("cmd"):
+                    if msg.decode() == "reset":
+                        self.log.info(f"[CMD]: {msg.decode()}")
+
+                        _name = self._suid(
+                            aioctl, f"{self.name}.service.do_action.{msg.decode()}"
+                        )
+                        aioctl.add(
+                            self.reset,
+                            self,
+                            *self.args,
+                            **self.kwargs,
+                            name=_name,
+                            _id=_name,
+                        )
+                        return
                     try:
                         from mqtt_cmdlib import mqtt_cmds
 
@@ -272,8 +315,14 @@ class MQTTService(Service):
                         _name = self._suid(
                             aioctl, f"{self.name}.service.do_action.{_cmd_name}"
                         )
+
                         aioctl.add(
-                            self.do_action, self, act, mqtt_cmds, name=_name, _id=_name
+                            self.do_action,
+                            self,
+                            act,
+                            mqtt_cmds,
+                            name=_name,
+                            _id=_name,
                         )
 
                     except Exception as e:
@@ -281,6 +330,9 @@ class MQTTService(Service):
                             self.log.error(
                                 f"[{self.name}.service] Command lib not found: {e}"
                             )
+                elif topic.decode().endswith("ota"):
+                    _name = self._suid(aioctl, f"{self.name}.service.do_action.ota")
+                    aioctl.add(self.do_action, self, "ota", msg, name=_name, _id=_name)
 
         except Exception as e:
             if self.log:
@@ -402,13 +454,17 @@ class MQTTService(Service):
             await self.client.wait_msg()
             await asyncio.sleep(1)
 
+            if self.log and debug:
+                self.log.info(f"[{self.name}.service] MQTT waiting...")
+
     @aioctl.aiotask
     async def ping(self, *args, **kwargs):
         while True:
             async with self.lock:
                 # await self.client.publish(self._STATE_TOPIC, b"OK")
                 await self.client.ping()
-            self.n_pub += 1
+                # await self.client.wait_msg()
+                self.n_pub += 1
             await asyncio.sleep(5)
 
     @aioctl.aiotask
@@ -435,6 +491,8 @@ class MQTTService(Service):
                 if aiostats.task_status(_ctask) == "done":
                     if _ctask in self._child_tasks:
                         self._child_tasks.remove(_ctask)
+                    else:
+                        aioctl.group().tasks[_ctask].service._child_tasks.remove(_ctask)
                     aioctl.delete(_ctask)
                     if self.log:
                         self.log.info(f"[{self.name}.service] {_ctask} cleaned")
@@ -450,6 +508,22 @@ class MQTTService(Service):
         self.sslctx = None
         self.client = None
         gc.collect()
+
+    @aioctl.aiotask
+    async def reset(self, *args, **kwargs):
+        _res = 5
+        if self.log and kwargs.get("debug"):
+            self.log.info(f"[{self.name}.service] Rebooting in {_res} s")
+        await asyncio.sleep(_res)
+        for service in aioctl.tasks_match("*.service"):
+            self.log.info(f"[{self.name}.service] Stopping {service}")
+            aioctl.stop(service)
+
+        if self.log and kwargs.get("debug"):
+            self.log.info(f"[{self.name}.service] Rebooting now")
+
+        await asyncio.sleep(1)
+        machine.reset()
 
 
 service = MQTTService("aiomqtt")
