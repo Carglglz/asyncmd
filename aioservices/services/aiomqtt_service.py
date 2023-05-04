@@ -292,7 +292,7 @@ class MQTTService(Service):
                         self.log.info(f"[CMD]: {msg.decode()}")
 
                         _name = self._suid(
-                            aioctl, f"{self.name}.service.do_action.{msg.decode()}"
+                            aioctl, f"{self.name}.service.{msg.decode()}"
                         )
                         aioctl.add(
                             self.reset,
@@ -525,9 +525,10 @@ class MQTTService(Service):
         if self.log and kwargs.get("debug"):
             self.log.info(f"[{self.name}.service] Rebooting in {_res} s")
         await asyncio.sleep(_res)
-        for service in aioctl.tasks_match("*.service"):
-            self.log.info(f"[{self.name}.service] Stopping {service}")
-            aioctl.stop(service)
+        for service in aioctl.tasks_match("*.service*"):
+            if service != f"{self.name}.service.reset":
+                self.log.info(f"[{self.name}.service] Stopping {service}")
+                aioctl.stop(service)
 
         if self.log and kwargs.get("debug"):
             self.log.info(f"[{self.name}.service] Rebooting now")
