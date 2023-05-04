@@ -128,7 +128,7 @@ To install services using `mip`
 
 >>> mip.install("github:Carglglz/asyncmd/services/network", target=".")
 
-# or develop (watcher, as_mip, unittest)
+# or develop (watcher, mip, unittest)
 
 >>> mip.install("github:Carglglz/asyncmd/services/develop", target=".")
 

@@ -9,6 +9,6 @@
 
 - ota.service
 
-- as_mip.service
+- mip.service
 
 - unittest.service

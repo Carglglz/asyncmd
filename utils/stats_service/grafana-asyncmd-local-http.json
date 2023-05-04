@@ -2138,7 +2138,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_status"
+                  "devop.service_stats_update_mip.service_status"
                 ],
                 "type": "field"
               },
@@ -2152,7 +2152,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_info"
+                  "devop.service_stats_update_mip.service_info"
                 ],
                 "type": "field"
               },
@@ -2166,7 +2166,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_done_at"
+                  "devop.service_stats_update_mip.service_done_at"
                 ],
                 "type": "field"
               },
@@ -2284,7 +2284,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_stats_status"
+                  "devop.service_stats_update_mip.service_stats_status"
                 ],
                 "type": "field"
               },
@@ -2298,7 +2298,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_stats_packages_n"
+                  "devop.service_stats_update_mip.service_stats_packages_n"
                 ],
                 "type": "field"
               },
@@ -2312,7 +2312,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_stats_update_n"
+                  "devop.service_stats_update_mip.service_stats_update_n"
                 ],
                 "type": "field"
               },
@@ -2462,7 +2462,7 @@
             [
               {
                 "params": [
-                  "devop.service_stats_update_as_mip.service_stats_packages_mymodule_version"
+                  "devop.service_stats_update_mip.service_stats_packages_mymodule_version"
                 ],
                 "type": "field"
               }
@@ -2764,7 +2764,7 @@
             [
               {
                 "params": [
-                  "as_mip.service_status"
+                  "mip.service_status"
                 ],
                 "type": "field"
               },
@@ -3130,7 +3130,7 @@
             [
               {
                 "params": [
-                  "as_mip.service_status"
+                  "mip.service_status"
                 ],
                 "type": "field"
               },

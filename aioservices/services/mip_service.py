@@ -201,7 +201,7 @@ class MIPService(Service):
             # fetch packages from packages.config
 
         if packages and not self.packages:
-            # fetch from services.config as_mip packages kwarg
+            # fetch from services.config mip packages kwarg
             self.packages = packages
 
         await asyncio.sleep(5)
@@ -236,4 +236,4 @@ class MIPService(Service):
             return "Packages up to date"
 
 
-service = MIPService("as_mip")
+service = MIPService("mip")
