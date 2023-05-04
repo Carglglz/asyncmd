@@ -2680,7 +2680,7 @@
             [
               {
                 "params": [
-                  "as_ota.service_status"
+                  "ota.service_status"
                 ],
                 "type": "field"
               },
@@ -3018,7 +3018,7 @@
             [
               {
                 "params": [
-                  "as_ota.service_status"
+                  "ota.service_status"
                 ],
                 "type": "field"
               },

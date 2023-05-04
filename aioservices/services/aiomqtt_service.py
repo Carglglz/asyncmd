@@ -139,10 +139,13 @@ class MQTTService(Service):
         elif action == "ota":
             msg = service
 
-            _ota_task = aioctl.group().tasks.get("as_ota.service")
+            _ota_task = aioctl.group().tasks.get("ota.service")
             if _ota_task:
                 _ota_service = _ota_task.service
                 _ota_params = json.loads(msg.decode())
+                # check if != hash
+                # await publish TRUE --> start ota
+                # await publish FALSE --> don't
                 _ota_service.start_ota(
                     _ota_params["host"],
                     _ota_params["port"],
@@ -312,18 +315,25 @@ class MQTTService(Service):
                         else:
                             _cmd_name = act["cmd"]
 
-                        _name = self._suid(
-                            aioctl, f"{self.name}.service.do_action.{_cmd_name}"
-                        )
+                        if _cmd_name in mqtt_cmds:
+                            _name = self._suid(
+                                aioctl, f"{self.name}.service.do_action.{_cmd_name}"
+                            )
 
-                        aioctl.add(
-                            self.do_action,
-                            self,
-                            act,
-                            mqtt_cmds,
-                            name=_name,
-                            _id=_name,
-                        )
+                            aioctl.add(
+                                self.do_action,
+                                self,
+                                act,
+                                mqtt_cmds,
+                                name=_name,
+                                _id=_name,
+                            )
+                        else:
+                            if self.log:
+                                self.log.error(
+                                    f"[{self.name}.service] "
+                                    + f"Command {_cmd_name} not found"
+                                )
 
                     except Exception as e:
                         if self.log:

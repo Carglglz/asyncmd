@@ -208,4 +208,4 @@ class OTAService(Service):
         return res
 
 
-service = OTAService("as_ota")
+service = OTAService("ota")

@@ -7,7 +7,7 @@
 
 - watcher.service
 
-- as_ota.service
+- ota.service
 
 - as_mip.service
 

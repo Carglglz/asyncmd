@@ -1,7 +1,12 @@
 from machine import Pin
 from hostname import NAME
 
-led = Pin(2, Pin.OUT)
+try:
+    from pinconfig import LED_PIN
+except Exception:
+    LED_PIN = 2
+
+led = Pin(LED_PIN, Pin.OUT)
 
 
 mqtt_cmds = {
