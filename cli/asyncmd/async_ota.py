@@ -9,6 +9,7 @@ import select
 import ssl
 import getpass
 import json
+import asyncio
 
 BLOCKLEN = 4096
 
@@ -50,9 +51,9 @@ def do_pg_bar(
     sys.stdout.flush()
 
 
-class OTAServer:
+class AOTAServer:
     """
-    OTA Server Class
+    Async OTA Server Class
     """
 
     def __init__(
@@ -86,6 +87,7 @@ class OTAServer:
         self.log = logger
         self._topic = topic
         self._bg = _bg
+        self.server = None
         if tls_params:
             self.key = tls_params["key"]
             self.cert = tls_params["cert"]
@@ -121,6 +123,10 @@ class OTAServer:
                 )
             self.context.verify_mode = ssl.CERT_REQUIRED
             # self.context.load_verify_locations(cadata=self.cadata)
+
+        self.update_sha(firmware)
+
+    def update_sha(self, firmware):
         self._fw_file = firmware
         with open(firmware, "rb") as fwr:
             self.firmware = fwr.read()
@@ -136,6 +142,173 @@ class OTAServer:
         local_ip = ip_soc.getsockname()[0]
         ip_soc.close()
         return local_ip
+
+    async def start_ota_server(self):
+        # SERVE OTA
+        async def serve(reader, writer):
+            if not hasattr(writer, "awrite"):  # pragma: no cover
+                # CPython provides the awrite and aclose methods in 3.8+
+                async def awrite(self, data):
+                    self.write(data)
+                    await self.drain()
+
+                async def aclose(self):
+                    self.close()
+                    await self.wait_closed()
+
+                from types import MethodType
+
+                writer.awrite = MethodType(awrite, writer)
+                writer.aclose = MethodType(aclose, writer)
+
+            addr = writer.get_extra_info("peername")
+
+            self.log.info(f"Connection received from {addr}")
+            if self._use_tls:
+                self.log.info("Connection TLS enabled...")
+            self.log.info("Starting OTA Firmware update...")
+            await self.do_async_ota(reader, writer)
+
+            self.log.info("Checking Firmware...")
+            ota_ok = False
+            try:
+                async with self.client.messages() as messages:
+                    sub_topic = self._topic
+                    if "/all/" in self._topic:
+                        sub_topic = self._topic.replace("all", "+")
+                    await self.client.subscribe(f"{sub_topic}ok")
+                    async for message in messages:
+                        self.log.info(f"[{message.topic}] {message.payload.decode()}")
+                        # resp from device --> message.topic --> send reset to
+                        # message.topic
+                        devname = str(message.topic).split("/")[1]
+                        if message.payload.decode() == "OK":
+                            ota_ok = True
+                            break
+                        else:
+                            ota_ok = False
+                            break
+
+            except Exception as e:
+                self.log.error(e)
+            if ota_ok:
+                self.log.info("OTA Firmware Updated Succesfully!")
+                await self.client.publish(f"device/{devname}/cmd", payload="reset")
+            else:
+                self.log.info("OTA Firmware Update Failed.")
+
+        # END ####
+
+        self.log.info(f"Starting async server on {self.host}:{self.port}...")
+
+        self.log.info("OTA Server listening...")
+        if self._use_tls:
+            self.log.info("OTA TLS enabled...")
+        await self.client.publish(
+            self._topic,
+            payload=json.dumps(
+                {
+                    "host": self.host,
+                    "port": self.port,
+                    "sha": self.check_sha,
+                    "blocks": self._n_blocks,
+                    "bg": self._bg,
+                }
+            ),
+        )
+
+        self.server = await asyncio.start_server(
+            serve, self.host, self.port, ssl=self.context
+        )
+
+        while True:
+            try:
+                await self.server.wait_closed()
+                break
+            except AttributeError:  # pragma: no cover
+                # the task hasn't been initialized in the server object yet
+                # wait a bit and try again
+                await asyncio.sleep(0.1)
+
+    async def do_async_ota(self, reader, writer):
+        try:
+            columns, rows = os.get_terminal_size(0)
+        except Exception:
+            columns, rows = 80, 80
+        cnt_size = 65
+        if columns > cnt_size:
+            size_bar = int((columns - cnt_size))
+            pb = True
+        else:
+            size_bar = 1
+            pb = False
+        if "/all/" in self._topic:
+            pb = False
+        wheel = ["|", "/", "-", "\\"]
+        sz = len(self.firmware)
+        if not self._bg:
+            print(f"{self._fw_file}  [{sz / 1000:.2f} kB]")
+        cnt = 0
+        data = await reader.read(2)
+        assert data == b"OK"
+        t_start = time.time()
+        with open(self._fw_file, "rb") as f:
+            self.buff = f.read(BLOCKLEN)
+            while True:
+                try:
+                    if self.buff != b"":
+                        # in python use 'i'
+                        cnt += len(self.buff)
+                        if len(self.buff) < BLOCKLEN:  # fill last block
+                            for i in range(BLOCKLEN - len(self.buff)):
+                                self.buff += b"\xff"  # erased flash is ff
+                        writer.write(self.buff)
+                        await writer.drain()
+                        loop_index_f = (cnt / sz) * size_bar
+                        loop_index = int(loop_index_f)
+                        loop_index_l = int(round(loop_index_f - loop_index, 1) * 6)
+                        nb_of_total = "{:.2f}/{:.2f} kB".format(
+                            cnt / (1000), sz / (1000)
+                        )
+                        percentage = cnt / sz
+                        t_elapsed = time.time() - t_start
+                        t_speed = "{:^2.2f}".format((cnt / (1000)) / t_elapsed)
+                        ett = sz / (cnt / t_elapsed)
+                        if not self._bg:
+                            if pb:
+                                do_pg_bar(
+                                    loop_index,
+                                    wheel,
+                                    nb_of_total,
+                                    t_speed,
+                                    t_elapsed,
+                                    loop_index_l,
+                                    percentage,
+                                    ett,
+                                    size_bar,
+                                )
+                            else:
+                                sys.stdout.write("Sent %d of %d bytes\r" % (cnt, sz))
+                                sys.stdout.flush()
+                        self.buff = f.read(BLOCKLEN)
+                        # chunk = def_chunk
+                        # final_file += chunk
+                    else:
+                        break
+
+                except Exception:
+                    # print(e)
+                    await asyncio.sleep(0.02)
+                    pass
+        if self._async:
+            while True:
+                data = await reader.read(2)
+                assert data == b"OK"
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    break
 
     async def start_ota(self):
         while True:
@@ -170,14 +343,19 @@ class OTAServer:
         self.log.info("Starting OTA Firmware update...")
         print()
         self.do_ota()
-
+        print()
         self.log.info("Checking Firmware...")
         ota_ok = False
         try:
             async with self.client.messages() as messages:
-                await self.client.subscribe(f"{self._topic}ok")
+                sub_topic = self._topic
+                if "/all/" in self._topic:
+                    sub_topic = self._topic.replace("all", "+")
+                await self.client.subscribe(f"{sub_topic}ok")
                 async for message in messages:
-                    self.log.info(f"[{self._topic}ok] {message.payload}")
+                    self.log.info(f"[{message.topic}] {message.payload.decode()}")
+                    # resp from device --> message.topic --> send reset to
+                    # message.topic
                     if message.payload.decode() == "OK":
                         ota_ok = True
                         break

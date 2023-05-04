@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import hashlib
+import binascii
 import sys
 import os
 import json
@@ -11,7 +13,8 @@ from argcomplete.completers import ChoicesCompleter
 import asyncio
 import asyncio_mqtt as aiomqtt
 import ssl
-from asyncmd_ota import OTAServer
+from ota import OTAServer
+from async_ota import AOTAServer
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
@@ -35,14 +38,17 @@ _DEFAULT_ARGS = {
 
 
 helparg = """Mode:
-- pub : publish message
+- pub : publish message to topic/s
+- sub : subscribe to topic/s
+- ota : do ota update
+- otasrv: do async ota update
 - config: configure default settings
 """
 
 usag = """%(prog)s [Mode] [options]
 """
 # UPY MODE KEYWORDS AND COMMANDS
-keywords_mode = ["pub", "sub", "config", "ota"]
+keywords_mode = ["pub", "sub", "config", "ota", "otasrv"]
 
 parser = argparse.ArgumentParser(
     prog="asyncmd",
@@ -201,6 +207,18 @@ fh_err.setFormatter(fmt_err)
 log.addHandler(fh_err)
 
 
+def get_sha256(file):
+    try:
+        with open(file, "rb") as fwf:
+            sha = hashlib.sha256(fwf.read())
+            res = binascii.hexlify(sha.digest()).decode()
+
+    except Exception:
+        return
+
+    return res
+
+
 async def _pub(args, log):
     if args.cafile:
         tls_params = aiomqtt.TLSParameters(
@@ -240,7 +258,7 @@ async def _sub(args, log):
             async with client.messages() as messages:
                 await client.subscribe(args.t)
                 async for message in messages:
-                    log.info(message.payload)
+                    log.info(f"[{message.topic}]" f" {message.payload.decode()}")
     else:
         async with aiomqtt.Client(
             hostname=args.ht,
@@ -250,7 +268,7 @@ async def _sub(args, log):
             async with client.messages() as messages:
                 await client.subscribe(args.t)
                 async for message in messages:
-                    log.info(message.payload)
+                    log.info(f"[{message.topic}]" f" {message.payload.decode()}")
 
 
 async def _ota(args, log):
@@ -296,6 +314,97 @@ async def _ota(args, log):
             await ota_server.start_ota()
 
 
+async def async_ota(args, log):
+    tasks = set()
+    if args.cafile:
+        tls_params = aiomqtt.TLSParameters(
+            ca_certs=args.cafile,
+            certfile=args.cert,
+            keyfile=args.key,
+            cert_reqs=ssl.CERT_REQUIRED,
+            tls_version=ssl.PROTOCOL_TLS,
+            ciphers=None,
+        )
+        async with aiomqtt.Client(
+            hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+        ) as client:
+            ota_server = AOTAServer(
+                client,
+                8014,
+                args.t,
+                args.ff,
+                log,
+                tls_params={
+                    "cafile": args.ota_cafile,
+                    "cert": args.ota_cert,
+                    "key": args.ota_key,
+                    "pph": "espkeyhack",
+                },
+            )
+            ota_task = asyncio.create_task(ota_server.start_ota_server())
+            check_sha_task = asyncio.create_task(
+                check_fw_sha(args, log, client, ota_server)
+            )
+            tasks.add(ota_task)
+            tasks.add(check_sha_task)
+            await asyncio.gather(*tasks)
+
+    else:
+        async with aiomqtt.Client(
+            hostname=args.ht,
+            port=args.p,
+            logger=log,
+        ) as client:
+            ota_server = AOTAServer(
+                client,
+                8014,
+                args.t,
+                args.ff,
+                log,
+            )
+            await ota_server.start_ota_server()
+
+
+async def check_fw_sha(args, log, client, server):
+    fwfile = args.ff
+    fw_mtime = int(os.path.getmtime(fwfile))
+    fw_sha = get_sha256(fwfile)
+    while True:
+        mod_time = 0
+        try:
+            mod_time = int(os.path.getmtime(fwfile))
+        except Exception:
+            pass
+        if fw_mtime != mod_time:
+            fw_mtime = mod_time
+            # check sha
+            c_fw_sha = get_sha256(fwfile)
+            if fw_sha != c_fw_sha and c_fw_sha is not None:
+                fw_sha = c_fw_sha
+                log.info("New or modified firmware file detected")
+                log.info(f"{fwfile}: SHA256: {fw_sha}")
+                log.info("Sending notification...")
+                server.update_sha(fwfile)
+                await client.publish(
+                    args.t,
+                    payload=json.dumps(
+                        {
+                            "host": server.host,
+                            "port": server.port,
+                            "sha": server.check_sha,
+                            "blocks": server._n_blocks,
+                            "bg": server._bg,
+                        }
+                    ),
+                )
+
+            # test
+            elif c_fw_sha is None:
+                fw_sha = c_fw_sha
+
+        await asyncio.sleep(5)
+
+
 def main(log):
     # print(argconf)
     # print(args.__dict__)
@@ -316,6 +425,11 @@ def main(log):
         args.t = args.t.replace("cmd", "ota")
         log.info(f"ota @ [{args.t}]")
         asyncio.run(_ota(args, log))
+
+    elif args.cmd == "otasrv":
+        args.t = args.t.replace("cmd", "ota")
+        log.info(f"aota @ [{args.t}]")
+        asyncio.run(async_ota(args, log))
 
 
 if __name__ == "__main__":

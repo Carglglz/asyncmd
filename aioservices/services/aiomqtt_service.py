@@ -155,6 +155,8 @@ class MQTTService(Service):
                 )
                 while not _ota_service._OK:
                     await asyncio.sleep(1)
+
+                await asyncio.sleep(1)
                 async with self.lock:
                     await self.client.publish(
                         f"device/{self.id}/otaok".encode("utf-8"), b"OK"
