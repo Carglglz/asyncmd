@@ -373,7 +373,14 @@ async def async_ota(args, log):
                 args.ff,
                 log,
             )
-            await ota_server.start_ota_server()
+
+            ota_task = asyncio.create_task(ota_server.start_ota_server())
+            check_sha_task = asyncio.create_task(
+                check_fw_sha(args, log, client, ota_server)
+            )
+            tasks.add(ota_task)
+            tasks.add(check_sha_task)
+            await asyncio.gather(*tasks)
 
 
 async def check_fw_sha(args, log, client, server):

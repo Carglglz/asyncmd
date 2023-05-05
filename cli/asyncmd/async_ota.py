@@ -88,6 +88,8 @@ class AOTAServer:
         self._topic = topic
         self._bg = _bg
         self.server = None
+        self._conn_addr = set()
+        self._conn_devs = set()
         if tls_params:
             self.key = tls_params["key"]
             self.cert = tls_params["cert"]
@@ -161,9 +163,10 @@ class AOTAServer:
                 writer.awrite = MethodType(awrite, writer)
                 writer.aclose = MethodType(aclose, writer)
 
-            addr = writer.get_extra_info("peername")
+            addr, dport = writer.get_extra_info("peername")
 
-            self.log.info(f"Connection received from {addr}")
+            self.log.info(f"Connection received from {addr} @ {dport}")
+            self._conn_addr.add(addr)
             if self._use_tls:
                 self.log.info("Connection TLS enabled...")
             self.log.info("Starting OTA Firmware update...")
@@ -178,16 +181,20 @@ class AOTAServer:
                         sub_topic = self._topic.replace("all", "+")
                     await self.client.subscribe(f"{sub_topic}ok")
                     async for message in messages:
-                        self.log.info(f"[{message.topic}] {message.payload.decode()}")
                         # resp from device --> message.topic --> send reset to
                         # message.topic
                         devname = str(message.topic).split("/")[1]
-                        if message.payload.decode() == "OK":
-                            ota_ok = True
-                            break
-                        else:
-                            ota_ok = False
-                            break
+                        if devname not in self._conn_devs:
+                            self.log.info(
+                                f"[{message.topic}] {message.payload.decode()}"
+                            )
+                            self._conn_devs.add(devname)
+                            if message.payload.decode() == "OK":
+                                ota_ok = True
+                                break
+                            else:
+                                ota_ok = False
+                                break
 
             except Exception as e:
                 self.log.error(e)
@@ -196,6 +203,13 @@ class AOTAServer:
                 await self.client.publish(f"device/{devname}/cmd", payload="reset")
             else:
                 self.log.info("OTA Firmware Update Failed.")
+            await asyncio.sleep(5)
+            if addr in self._conn_addr:
+                self._conn_addr.remove(addr)
+            if devname in self._conn_devs:
+                self._conn_devs.remove(devname)
+
+            self.log.info(f"Device @ {addr} disconnected")
 
         # END ####
 
@@ -308,159 +322,4 @@ class AOTAServer:
                 try:
                     await writer.wait_closed()
                 except Exception:
-                    break
-
-    async def start_ota(self):
-        while True:
-            try:
-                self.serv_soc.bind((self.host, self.port))
-                break
-            except Exception:
-                self.port += 2
-        self.serv_soc.listen(1)
-        self.log.info("OTA Server listening...")
-        if self._use_tls:
-            self.log.info("OTA TLS enabled...")
-        await self.client.publish(
-            self._topic,
-            payload=json.dumps(
-                {
-                    "host": self.host,
-                    "port": self.port,
-                    "sha": self.check_sha,
-                    "blocks": self._n_blocks,
-                    "bg": self._bg,
-                }
-            ),
-        )
-        self.conn, self.addr_client = self.serv_soc.accept()
-        self.log.info("Connection received...")
-        if self._use_tls:
-            self.conn = self.context.wrap_socket(self.conn, server_side=True)
-            self.log.info("Connection TLS enabled...")
-        # print(self.addr_client)
-        self.conn.settimeout(2)
-        self.log.info("Starting OTA Firmware update...")
-        print()
-        self.do_ota()
-        print()
-        self.log.info("Checking Firmware...")
-        ota_ok = False
-        try:
-            async with self.client.messages() as messages:
-                sub_topic = self._topic
-                if "/all/" in self._topic:
-                    sub_topic = self._topic.replace("all", "+")
-                await self.client.subscribe(f"{sub_topic}ok")
-                async for message in messages:
-                    self.log.info(f"[{message.topic}] {message.payload.decode()}")
-                    # resp from device --> message.topic --> send reset to
-                    # message.topic
-                    if message.payload.decode() == "OK":
-                        ota_ok = True
-                        break
-                    else:
-                        ota_ok = False
-                        break
-
-        except Exception as e:
-            self.log.info(e)
-        if ota_ok:
-            self.log.info("OTA Firmware Updated Succesfully!")
-            await self.client.publish(
-                self._topic.replace("ota", "cmd"), payload="reset"
-            )
-        else:
-            self.log.info("OTA Firmware Update Failed.")
-
-    def do_ota(self):
-        try:
-            columns, rows = os.get_terminal_size(0)
-        except Exception:
-            columns, rows = 80, 80
-        cnt_size = 65
-        if columns > cnt_size:
-            size_bar = int((columns - cnt_size))
-            pb = True
-        else:
-            size_bar = 1
-            pb = False
-        wheel = ["|", "/", "-", "\\"]
-        sz = len(self.firmware)
-        if not self._bg:
-            print(f"{self._fw_file}  [{sz / 1000:.2f} kB]")
-        put_soc = [self.conn]
-        cnt = 0
-        if self._async:
-            while True:
-                readable, writable, exceptional = select.select(
-                    put_soc, put_soc, put_soc
-                )
-                if len(readable) == 1:
-                    assert self.conn.recv(2) == b"OK"
-                    break
-        t_start = time.time()
-        with open(self._fw_file, "rb") as f:
-            self.buff = f.read(BLOCKLEN)
-            while True:
-                try:
-                    readable, writable, exceptional = select.select(
-                        put_soc, put_soc, put_soc
-                    )
-                    # self.buff = f.read(1024)  # 1 KB
-                    # print(len(chunk))
-                    if len(writable) == 1:
-                        if self.buff != b"":
-                            # in python use 'i'
-                            cnt += len(self.buff)
-                            if len(self.buff) < BLOCKLEN:  # fill last block
-                                for i in range(BLOCKLEN - len(self.buff)):
-                                    self.buff += b"\xff"  # erased flash is ff
-                            self.conn.sendall(self.buff)
-                            loop_index_f = (cnt / sz) * size_bar
-                            loop_index = int(loop_index_f)
-                            loop_index_l = int(round(loop_index_f - loop_index, 1) * 6)
-                            nb_of_total = "{:.2f}/{:.2f} kB".format(
-                                cnt / (1000), sz / (1000)
-                            )
-                            percentage = cnt / sz
-                            t_elapsed = time.time() - t_start
-                            t_speed = "{:^2.2f}".format((cnt / (1000)) / t_elapsed)
-                            ett = sz / (cnt / t_elapsed)
-                            if not self._bg:
-                                if pb:
-                                    do_pg_bar(
-                                        loop_index,
-                                        wheel,
-                                        nb_of_total,
-                                        t_speed,
-                                        t_elapsed,
-                                        loop_index_l,
-                                        percentage,
-                                        ett,
-                                        size_bar,
-                                    )
-                                else:
-                                    sys.stdout.write(
-                                        "Sent %d of %d bytes\r" % (cnt, sz)
-                                    )
-                                    sys.stdout.flush()
-                            self.buff = f.read(BLOCKLEN)
-                            # chunk = def_chunk
-                            # final_file += chunk
-                        else:
-                            break
-
-                except Exception:
-                    # print(e)
-                    time.sleep(0.02)
-                    pass
-        if self._async:
-            while True:
-                readable, writable, exceptional = select.select(
-                    put_soc, put_soc, put_soc
-                )
-                if len(readable) == 1:
-                    assert self.conn.recv(2) == b"OK"
-                    self.conn.close()
                     break
