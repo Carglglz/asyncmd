@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 
 import hashlib
 import binascii
 import sys
 import os
 import json
-import time
 import logging
 import argparse
 import argcomplete
@@ -13,8 +13,9 @@ from argcomplete.completers import ChoicesCompleter
 import asyncio
 import asyncio_mqtt as aiomqtt
 import ssl
-from ota import OTAServer
-from async_ota import AOTAServer
+from asyncmd.ota import OTAServer
+from asyncmd.async_ota import AOTAServer
+import yaml
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
@@ -41,7 +42,7 @@ helparg = """Mode:
 - pub : publish message to topic/s
 - sub : subscribe to topic/s
 - ota : do ota update
-- otasrv: do async ota update
+- otasrv: start ota async server
 - config: configure default settings
 """
 
@@ -61,6 +62,7 @@ parser.add_argument("cmd", metavar="Mode", help=helparg).completer = ChoicesComp
     keywords_mode
 )
 parser.add_argument("-v", action="version")
+parser.add_argument("-c", action="store_true", required=False, default=False)
 parser.add_argument(
     "-ht",
     help="host",
@@ -160,6 +162,14 @@ argconf = dict(args.__dict__)
 argconf.pop("cmd")
 argconf.pop("f")
 
+
+# PARSE YAML CONFIG FILE
+def parse_config_file(config_file):
+    with open(config_file, "r") as tf:
+        _conf = tf.read()
+    return yaml.safe_load(_conf)
+
+
 # LOAD CONFIG
 if not os.path.exists(_CONFIG_DIR):
     os.mkdir(_CONFIG_DIR)
@@ -168,15 +178,16 @@ else:
     # print(args.__dict__)
     # print(_DEFAULT_ARGS)
     if os.path.exists(_CONFIG_FILE):  # LOAD_CONFIG
-        with open(_CONFIG_FILE, "r") as configf:
-            load_conf = json.loads(configf.read())
-            for key in load_conf.keys():
-                if (
-                    argconf[key] == _DEFAULT_ARGS[key]
-                ):  # IF args are default fallback to configuration
-                    if key not in args.f:
-                        args.__dict__[key] = load_conf[key]
-                        argconf[key] = load_conf[key]
+        # with open(_CONFIG_FILE, "r") as configf:
+        #     load_conf = json.loads(configf.read())
+        load_conf = parse_config_file(_CONFIG_FILE)
+        for key in load_conf.keys():
+            if (
+                argconf[key] == _DEFAULT_ARGS[key]
+            ):  # IF args are default fallback to configuration
+                if key not in args.f:
+                    args.__dict__[key] = load_conf[key]
+                    argconf[key] = load_conf[key]
 
 
 # LOGGING
@@ -410,6 +421,11 @@ def main(log):
     # print(args.__dict__)
     # print(_DEFAULT_ARGS)
     if args.cmd == "config":
+        if args.c:
+            configf = parse_config_file(_CONFIG_FILE)
+            print(yaml.dump(configf))
+
+            return
         with open(_CONFIG_FILE, "w") as configf:
             configf.write(json.dumps(argconf))
 
