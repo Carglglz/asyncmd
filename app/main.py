@@ -1,11 +1,12 @@
-try:
-    from hostname import NAME
-except Exception:
-    NAME = "mpy"
 import logging
 import sys
 from aiolog import streamlog
 import aioctl
+
+try:
+    from hostname import NAME
+except Exception:
+    NAME = "mpy"
 
 
 aioctl.set_log(streamlog)

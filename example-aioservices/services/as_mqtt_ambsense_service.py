@@ -8,8 +8,16 @@ import random
 import gc
 from machine import Pin, I2C
 import socket
-from bme280 import BME280
-from hostname import NAME
+import sys
+
+try:
+    from bme280 import BME280
+except Exception:
+    pass
+try:
+    from hostname import NAME
+except Exception:
+    NAME = sys.platform
 
 
 class FakeBME280:

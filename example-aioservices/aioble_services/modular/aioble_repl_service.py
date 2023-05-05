@@ -8,14 +8,13 @@ import io
 import os
 import micropython
 import machine
-import struct
 import sys
 
 try:
     from hostname import NAME
 
 except Exception:
-    NAME = "esp-mpy"
+    NAME = sys.platform
 
 
 uart = None

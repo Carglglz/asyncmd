@@ -6,12 +6,13 @@ import aioble
 import bluetooth
 import random
 import struct
+import sys
 
 try:
     from hostname import NAME
 
 except Exception:
-    NAME = "esp-mpy"
+    NAME = sys.platform
 
 
 class AiobleTempService(Service):

@@ -13,7 +13,7 @@ try:
     from hostname import NAME
 
 except Exception:
-    NAME = "esp-mpy"
+    NAME = sys.platform
 
 
 class AiobleService(Service):

@@ -1,5 +1,10 @@
 from machine import Pin
-from hostname import NAME
+import sys
+
+try:
+    from hostname import NAME
+except Exception:
+    NAME = sys.platform
 
 try:
     from pinconfig import LED_PIN

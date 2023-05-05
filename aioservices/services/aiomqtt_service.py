@@ -10,9 +10,13 @@ import json
 import gc
 import socket
 import io
-from hostname import NAME
 import aiostats
 import machine
+
+try:
+    from hostname import NAME
+except Exception:
+    NAME = sys.platform
 
 
 class MQTTService(Service):

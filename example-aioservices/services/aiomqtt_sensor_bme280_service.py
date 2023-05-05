@@ -8,9 +8,13 @@ import json
 import random
 from machine import Pin, I2C
 import socket
+import sys
 
 # from bme280 import BME280
-from hostname import NAME
+try:
+    from hostname import NAME
+except Exception:
+    NAME = sys.platform
 
 
 class FakeBME280:
