@@ -100,8 +100,17 @@ async def request(
             import ssl
 
             sslctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            sslctx.check_hostname = False
-            sslctx.verify_mode = ssl.CERT_NONE
+            try:
+                import certifi.isrg
+                import certifi.digicert
+
+                sslctx.load_verify_locations(
+                    cadata=certifi.isrg.CACERTS + certifi.digicert.CACERTS
+                )
+
+            except Exception:
+                sslctx.check_hostname = False
+                sslctx.verify_mode = ssl.CERT_NONE
 
         reader, writer = await asyncio.open_connection(host, port, ssl=sslctx)
         writer.write(b"%s /%s HTTP/1.0\r\n" % (method, path))

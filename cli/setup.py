@@ -18,4 +18,9 @@ setup(
     zip_safe=False,
     include_package_data=True,
     scripts=["bin/asyncmd"],
+    install_requires=[
+        "argcomplete>=2.0.0",
+        "asyncio_mqtt",
+        "pyyaml",
+    ],
 )

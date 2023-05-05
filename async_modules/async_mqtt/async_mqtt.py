@@ -1,4 +1,3 @@
-import usocket as socket
 import ustruct as struct
 import uasyncio as asyncio
 
