@@ -232,7 +232,7 @@ class AOTAServer:
         )
 
         self.server = await asyncio.start_server(
-            serve, self.host, self.port, ssl=self.context
+            serve, self.host, self.port, ssl=self.context, reuse_port=True
         )
 
         while True:

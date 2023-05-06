@@ -4303,8 +4303,8 @@
       {
         "current": {
           "selected": true,
-          "text": "especg",
-          "value": "especg"
+          "text": "gkesp32",
+          "value": "gkesp32"
         },
         "datasource": {
           "type": "influxdb",
@@ -4335,6 +4335,6 @@
   "timezone": "",
   "title": "asyncmd mqtt local",
   "uid": "fa40fd02-17ee-4d66-83ef-97fdff122d26",
-  "version": 16,
+  "version": 23,
   "weekStart": ""
 }

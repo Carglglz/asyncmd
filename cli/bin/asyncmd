@@ -327,6 +327,9 @@ async def _ota(args, log):
 
 async def async_ota(args, log):
     tasks = set()
+    interval = 5
+    tls_params = None
+    ota_tls_params = {}
     if args.cafile:
         tls_params = aiomqtt.TLSParameters(
             ca_certs=args.cafile,
@@ -336,51 +339,98 @@ async def async_ota(args, log):
             tls_version=ssl.PROTOCOL_TLS,
             ciphers=None,
         )
-        async with aiomqtt.Client(
-            hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
-        ) as client:
-            ota_server = AOTAServer(
-                client,
-                8014,
-                args.t,
-                args.ff,
-                log,
-                tls_params={
-                    "cafile": args.ota_cafile,
-                    "cert": args.ota_cert,
-                    "key": args.ota_key,
-                    "pph": "espkeyhack",
-                },
-            )
-            ota_task = asyncio.create_task(ota_server.start_ota_server())
-            check_sha_task = asyncio.create_task(
-                check_fw_sha(args, log, client, ota_server)
-            )
-            tasks.add(ota_task)
-            tasks.add(check_sha_task)
-            await asyncio.gather(*tasks)
+        ota_tls_params = {
+            "cafile": args.ota_cafile,
+            "cert": args.ota_cert,
+            "key": args.ota_key,
+            "pph": "espkeyhack",
+        }
 
-    else:
-        async with aiomqtt.Client(
-            hostname=args.ht,
-            port=args.p,
-            logger=log,
-        ) as client:
-            ota_server = AOTAServer(
-                client,
-                8014,
-                args.t,
-                args.ff,
-                log,
-            )
+    while True:
+        try:
+            async with aiomqtt.Client(
+                hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+            ) as client:
+                ota_server = AOTAServer(
+                    client,
+                    8014,
+                    args.t,
+                    args.ff,
+                    log,
+                    tls_params=ota_tls_params,
+                )
+                ota_task = asyncio.create_task(ota_server.start_ota_server())
+                check_sha_task = asyncio.create_task(
+                    check_fw_sha(args, log, client, ota_server)
+                )
 
-            ota_task = asyncio.create_task(ota_server.start_ota_server())
-            check_sha_task = asyncio.create_task(
-                check_fw_sha(args, log, client, ota_server)
-            )
-            tasks.add(ota_task)
-            tasks.add(check_sha_task)
-            await asyncio.gather(*tasks)
+                otaserv_sha_task = asyncio.create_task(
+                    ota_sha_check_listen(args, log, ota_server)
+                )
+                tasks.add(ota_task)
+                tasks.add(check_sha_task)
+                tasks.add(otaserv_sha_task)
+                # add ota_check listener
+                await asyncio.gather(*tasks)
+        except aiomqtt.MqttError:
+            log.error(f"Connection lost; Reconnecting in {interval} seconds ...")
+            log.info("Cleaning tasks...")
+            for _tsk in tasks:
+                try:
+                    _tsk.cancel()
+                    await _tsk
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    log.error(e)
+            tasks.clear()
+
+            await asyncio.sleep(interval)
+
+
+async def ota_sha_check_listen(args, log, server):
+    # separate client
+    tls_params = None
+    if args.cafile:
+        tls_params = aiomqtt.TLSParameters(
+            ca_certs=args.cafile,
+            certfile=args.cert,
+            keyfile=args.key,
+            cert_reqs=ssl.CERT_REQUIRED,
+            tls_version=ssl.PROTOCOL_TLS,
+            ciphers=None,
+        )
+
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        async with client.messages() as messages:
+            await client.subscribe("device/+/otacheck")
+            async for message in messages:
+                # log check from device x with firmware sha:
+                # old sha then publish
+                devname = str(message.topic).split("/")[1]
+
+                log.info(f"OTA request from {devname}: SHA {message.payload.decode()}")
+
+                # get device from topic
+                # publish to device/{name}/ota
+                if message.payload.decode() != server.check_sha:
+                    log.info(f"New firmware for {devname}: SHA {server.check_sha}")
+                    await client.publish(
+                        str(message.topic),
+                        payload=json.dumps(
+                            {
+                                "host": server.host,
+                                "port": server.port,
+                                "sha": server.check_sha,
+                                "blocks": server._n_blocks,
+                                "bg": server._bg,
+                            }
+                        ),
+                    )
+                else:
+                    log.info(f"{devname} Firmware Up to date")
 
 
 async def check_fw_sha(args, log, client, server):

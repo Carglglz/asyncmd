@@ -9,7 +9,7 @@ import binascii
 import gc
 from machine import unique_id
 import time
-import sys
+import os
 
 
 BLOCKLEN = const(4096)  # data bytes in a flash block
@@ -40,6 +40,7 @@ class OTAService(Service):
         self._OK = False
         self._ota_complete = False
         self._bg = False
+        self._save_sha = False
         self.host = ""
         self.port = 0
         self._t0 = 0
@@ -52,6 +53,8 @@ class OTAService(Service):
             "read_size": self.read_size,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "save_sha": True,
+            "new_sha_check": True,
         }
 
     def show(self):
@@ -71,9 +74,25 @@ class OTAService(Service):
         return
 
     def on_error(self, e, *args, **kwargs):
+        self._start_ota = False
         if self.log:
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
+
+    def _comp_sha_ota(self, new_sha, rtn=False):
+        if not self._new_sha_check:
+            return False
+        try:
+            os.stat(".shaota")
+            with open(".shaota", "rb") as sha:
+                _csha = sha.read().decode()
+                if _csha == new_sha:
+                    return _csha
+                if rtn:
+                    return _csha
+
+        except Exception:
+            return False
 
     def start_ota(self, host, port, check_sha, blocks=0, bg=False):
         self.host = host
@@ -83,6 +102,9 @@ class OTAService(Service):
         self._start_ota = True
         self._bg = bg
         self._tmp_buf = bytearray(self.kwargs.get("read_size", self.read_size))
+        if self._save_sha:
+            with open(".shaota", "wb") as sha:
+                sha.write(check_sha.encode("utf-8"))
 
     async def do_ota(self):
         nb = 0
@@ -175,8 +197,21 @@ class OTAService(Service):
         return f"{mm}:{ss}"
 
     @aioctl.aiotask
-    async def task(self, tls=False, hostname=None, log=None, read_size=512):
+    async def task(
+        self,
+        tls=False,
+        hostname=None,
+        log=None,
+        read_size=512,
+        save_sha=False,
+        new_sha_check=True,
+    ):
+        self._save_sha = save_sha
+        self._new_sha_check = new_sha_check
         self.log = log
+        self._start_ota = False
+        if not hasattr(self, "buf"):
+            self.buf = bytearray(BLOCKLEN)
 
         while not self._start_ota:
             await asyncio.sleep(1)

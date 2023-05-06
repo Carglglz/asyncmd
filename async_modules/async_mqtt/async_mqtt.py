@@ -66,6 +66,11 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
+    def is_connected(self):
+        if self.a_reader and self.a_writer:
+            return True
+        return False
+
     async def connect(self, clean_session=True):
         self.a_reader, self.a_writer = await asyncio.open_connection(
             self.server, self.port, ssl=self.ssl, server_hostname=self.ssl_hostname

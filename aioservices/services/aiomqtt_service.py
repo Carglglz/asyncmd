@@ -52,6 +52,7 @@ class MQTTService(Service):
                 "device/all/ota",
                 f"device/{NAME}/ota",
             ],
+            "ota_check": True,
         }
 
         self.sslctx = False
@@ -65,6 +66,7 @@ class MQTTService(Service):
         self._stat_buff = io.StringIO(3000)
         self._callbacks = {}
         self._topics = []
+        self._ota_check = False
 
     def _suid(self, _aioctl, name):
         _name = name
@@ -144,12 +146,29 @@ class MQTTService(Service):
             msg = service
 
             _ota_task = aioctl.group().tasks.get("ota.service")
+            if msg.decode() == "check" and _ota_task:
+                if self._ota_check:
+                    _ota_task.service._new_sha_check = True
+                _csha = _ota_task.service._comp_sha_ota("", rtn=True)
+                if _csha:
+                    async with self.lock:
+                        await self.client.publish(
+                            f"device/{self.id}/otacheck".encode("utf-8"),
+                            _csha.encode("utf-8"),
+                        )
+                return
+
             if _ota_task:
                 _ota_service = _ota_task.service
                 _ota_params = json.loads(msg.decode())
                 # check if != hash
-                # await publish TRUE --> start ota
-                # await publish FALSE --> don't
+                if self._ota_check:
+                    _ota_service._new_sha_check = True
+                if _ota_service._comp_sha_ota(_ota_params["sha"]):
+                    if self.log:
+                        self.log.info(f"[{self.name}.service] No new OTA update")
+                    return
+
                 _ota_service.start_ota(
                     _ota_params["host"],
                     _ota_params["port"],
@@ -166,7 +185,8 @@ class MQTTService(Service):
                         f"device/{self.id}/otaok".encode("utf-8"), b"OK"
                     )
             else:
-                self.log.info(f"[{self.name}.service] No OTA service found")
+                if self.log:
+                    self.log.info(f"[{self.name}.service] No OTA service found")
 
         else:
             # topic-command-lib {"on":{"cmd": led.on, args:[], kwargs:{}, log:"LED ON",
@@ -369,10 +389,12 @@ class MQTTService(Service):
         services="*.service",
         restart=True,
         topics=[],
+        ota_check=True,
         log=None,
     ):
         self.log = log
         self._topics = topics
+        self._ota_check = ota_check
         if isinstance(self._SERVICE_TOPIC, str):
             self._TASK_TOPIC = self._TASK_TOPIC.format(client_id).encode("utf-8")
             self._SERVICE_TOPIC = self._SERVICE_TOPIC.format(client_id).encode("utf-8")
@@ -465,22 +487,43 @@ class MQTTService(Service):
             if self.log:
                 self.log.info(f"[{self.name}.service] MQTT stats task enabled")
 
+        if ota_check:
+            if self.log:
+                self.log.info(f"[{self.name}.service] MQTT checking OTA update..")
+            _name = self._suid(aioctl, f"{self.name}.service.do_action.ota_check")
+            aioctl.add(self.do_action, self, "ota", b"check", name=_name, _id=_name)
+
+        # aioctl.add named do_action.ota_check (to be cleaned)
+        # --> await 10 --> self.ota_check
+
+        # get current sha --> publish --> server will respond if != sha
+
         # Wait for messages
         while True:
-            await self.client.wait_msg()
-            await asyncio.sleep(1)
+            try:
+                # prevent waiting forever, blocking incoming messages
+                await asyncio.wait_for(self.client.wait_msg(), 30)
+                await asyncio.sleep(1)
 
-            if self.log and debug:
-                self.log.info(f"[{self.name}.service] MQTT waiting...")
+                if self.log and debug:
+                    self.log.info(f"[{self.name}.service] MQTT waiting...")
+            except asyncio.TimeoutError as e:
+                if self.log:
+                    self.log.error(f"[{self.name}.service] Error: Client Timeout {e}")
+                aioctl.stop(f"{self.name}.service.*")
+                await asyncio.sleep(1)
+                raise e
 
     @aioctl.aiotask
     async def ping(self, *args, **kwargs):
         while True:
             async with self.lock:
                 # await self.client.publish(self._STATE_TOPIC, b"OK")
-                await self.client.ping()
-                # await self.client.wait_msg()
-                self.n_pub += 1
+                if self.client:
+                    if self.client.is_connected():
+                        await self.client.ping()
+                        # await self.client.wait_msg()
+                        self.n_pub += 1
             await asyncio.sleep(5)
 
     @aioctl.aiotask
@@ -520,7 +563,8 @@ class MQTTService(Service):
     async def disconnect(self, *args, **kwargs):
         if self.client:
             async with self.lock:
-                await self.client.disconnect()
+                if self.client.is_connected():
+                    await self.client.disconnect()
         self.sslctx = None
         self.client = None
         gc.collect()
