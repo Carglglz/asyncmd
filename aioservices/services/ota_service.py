@@ -102,9 +102,9 @@ class OTAService(Service):
         self._start_ota = True
         self._bg = bg
         self._tmp_buf = bytearray(self.kwargs.get("read_size", self.read_size))
-        if self._save_sha:
-            with open(".shaota", "wb") as sha:
-                sha.write(check_sha.encode("utf-8"))
+        # if self._save_sha:
+        #     with open(".shaota", "wb") as sha:
+        #         sha.write(check_sha.encode("utf-8"))
 
     async def do_ota(self):
         nb = 0
@@ -177,6 +177,10 @@ class OTAService(Service):
         else:
             self._OK = True
         self.part.set_boot()
+
+        if self._save_sha:
+            with open(".shaota", "wb") as sha:
+                sha.write(self.check_sha.encode("utf-8"))
         return True
 
     def _fmt_time(self):

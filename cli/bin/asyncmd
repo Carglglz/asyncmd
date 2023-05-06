@@ -35,6 +35,7 @@ _DEFAULT_ARGS = {
     "ota_cafile": "",
     "ota_cert": "",
     "ota_key": "",
+    "ota_key_pph": "",
 }
 
 
@@ -131,6 +132,12 @@ parser.add_argument(
     default="",
 )
 parser.add_argument(
+    "--ota-key-pph",
+    help="OTA server key passphrase",
+    required=False,
+    default="",
+)
+parser.add_argument(
     "--ota-cert",
     help="OTA server cert",
     required=False,
@@ -161,6 +168,7 @@ args.t = args.t.format(args.d)
 argconf = dict(args.__dict__)
 argconf.pop("cmd")
 argconf.pop("f")
+argconf.pop("c")
 
 
 # PARSE YAML CONFIG FILE
@@ -230,121 +238,36 @@ def get_sha256(file):
     return res
 
 
-async def _pub(args, log):
-    if args.cafile:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=args.cafile,
-            certfile=args.cert,
-            keyfile=args.key,
-            cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLS,
-            ciphers=None,
+async def _pub(args, log, tls_params=None):
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        await client.publish(args.t, payload=args.m)
+
+
+async def _sub(args, log, tls_params=None):
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        async with client.messages() as messages:
+            await client.subscribe(args.t)
+            async for message in messages:
+                log.info(f"[{message.topic}]" f" {message.payload.decode()}")
+
+
+async def _ota(args, log, tls_params=None, ota_tls_params={}):
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        ota_server = OTAServer(
+            client, 8014, args.t, args.ff, log, tls_params=ota_tls_params
         )
-        async with aiomqtt.Client(
-            hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
-        ) as client:
-            await client.publish(args.t, payload=args.m)
-    else:
-        async with aiomqtt.Client(
-            hostname=args.ht,
-            port=args.p,
-            logger=log,
-        ) as client:
-            await client.publish(args.t, payload=args.m)
+        await ota_server.start_ota()
 
 
-async def _sub(args, log):
-    if args.cafile:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=args.cafile,
-            certfile=args.cert,
-            keyfile=args.key,
-            cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLS,
-            ciphers=None,
-        )
-        async with aiomqtt.Client(
-            hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
-        ) as client:
-            async with client.messages() as messages:
-                await client.subscribe(args.t)
-                async for message in messages:
-                    log.info(f"[{message.topic}]" f" {message.payload.decode()}")
-    else:
-        async with aiomqtt.Client(
-            hostname=args.ht,
-            port=args.p,
-            logger=log,
-        ) as client:
-            async with client.messages() as messages:
-                await client.subscribe(args.t)
-                async for message in messages:
-                    log.info(f"[{message.topic}]" f" {message.payload.decode()}")
-
-
-async def _ota(args, log):
-    if args.cafile:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=args.cafile,
-            certfile=args.cert,
-            keyfile=args.key,
-            cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLS,
-            ciphers=None,
-        )
-        async with aiomqtt.Client(
-            hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
-        ) as client:
-            ota_server = OTAServer(
-                client,
-                8014,
-                args.t,
-                args.ff,
-                log,
-                tls_params={
-                    "cafile": args.ota_cafile,
-                    "cert": args.ota_cert,
-                    "key": args.ota_key,
-                    "pph": "espkeyhack",
-                },
-            )
-            await ota_server.start_ota()
-    else:
-        async with aiomqtt.Client(
-            hostname=args.ht,
-            port=args.p,
-            logger=log,
-        ) as client:
-            ota_server = OTAServer(
-                client,
-                8014,
-                args.t,
-                args.ff,
-                log,
-            )
-            await ota_server.start_ota()
-
-
-async def async_ota(args, log):
+async def async_ota(args, log, tls_params=None, ota_tls_params={}):
     tasks = set()
     interval = 5
-    tls_params = None
-    ota_tls_params = {}
-    if args.cafile:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=args.cafile,
-            certfile=args.cert,
-            keyfile=args.key,
-            cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLS,
-            ciphers=None,
-        )
-        ota_tls_params = {
-            "cafile": args.ota_cafile,
-            "cert": args.ota_cert,
-            "key": args.ota_key,
-            "pph": "espkeyhack",
-        }
 
     while True:
         try:
@@ -365,7 +288,7 @@ async def async_ota(args, log):
                 )
 
                 otaserv_sha_task = asyncio.create_task(
-                    ota_sha_check_listen(args, log, ota_server)
+                    ota_sha_check_listen(args, log, ota_server, tls_params)
                 )
                 tasks.add(ota_task)
                 tasks.add(check_sha_task)
@@ -388,18 +311,8 @@ async def async_ota(args, log):
             await asyncio.sleep(interval)
 
 
-async def ota_sha_check_listen(args, log, server):
+async def ota_sha_check_listen(args, log, server, tls_params=None):
     # separate client
-    tls_params = None
-    if args.cafile:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=args.cafile,
-            certfile=args.cert,
-            keyfile=args.key,
-            cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLS,
-            ciphers=None,
-        )
 
     async with aiomqtt.Client(
         hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
@@ -484,25 +397,44 @@ def main(log):
 
             return
         with open(_CONFIG_FILE, "w") as configf:
-            configf.write(json.dumps(argconf))
+            configf.write(yaml.dump(argconf))
+            return
 
-    elif args.cmd == "pub":
+    tls_params = None
+    ota_tls_params = {}
+    if args.cafile:
+        tls_params = aiomqtt.TLSParameters(
+            ca_certs=args.cafile,
+            certfile=args.cert,
+            keyfile=args.key,
+            cert_reqs=ssl.CERT_REQUIRED,
+            tls_version=ssl.PROTOCOL_TLS,
+            ciphers=None,
+        )
+        ota_tls_params = {
+            "cafile": args.ota_cafile,
+            "cert": args.ota_cert,
+            "key": args.ota_key,
+            "pph": args.ota_key_pph,
+        }
+
+    if args.cmd == "pub":
         log.info(f"pub @ [{args.t}] {args.m}")
-        asyncio.run(_pub(args, log))
+        asyncio.run(_pub(args, log, tls_params))
 
     elif args.cmd == "sub":
         log.info(f"sub @ [{args.t}]")
-        asyncio.run(_sub(args, log))
+        asyncio.run(_sub(args, log, tls_params))
 
     elif args.cmd == "ota":
         args.t = args.t.replace("cmd", "ota")
         log.info(f"ota @ [{args.t}]")
-        asyncio.run(_ota(args, log))
+        asyncio.run(_ota(args, log, tls_params, ota_tls_params))
 
     elif args.cmd == "otasrv":
         args.t = args.t.replace("cmd", "ota")
         log.info(f"aota @ [{args.t}]")
-        asyncio.run(async_ota(args, log))
+        asyncio.run(async_ota(args, log, tls_params, ota_tls_params))
 
 
 if __name__ == "__main__":
