@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-# @Author: carlosgilgonzalez
-# @Date:   2019-07-11T23:29:40+01:00
-# @Last modified by:   carlosgilgonzalez
-# @Last modified time: 2019-07-14T13:48:30+01:00
 
 from setuptools import setup
 
