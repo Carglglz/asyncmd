@@ -56,11 +56,12 @@ class MQTTService(Service):
             "ssl": False,
             "ssl_params": {},
             "keepalive": 300,
-            "debug": True,
+            "debug": False,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "restart": ["aiomqtt_sensor_bme280.service"],
             "topics": [f"device/{NAME}/state", "device/all/state"],
+            "i2c": (22, 21),
         }
 
         self.sslctx = False
@@ -73,7 +74,7 @@ class MQTTService(Service):
         self._press = None
         self.td = 0
         self.id = NAME
-        self.i2c = I2C(1, scl=Pin(22), sda=Pin(21))
+        self.i2c = None
 
     def setup(self):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
@@ -179,9 +180,11 @@ class MQTTService(Service):
         debug=True,
         restart=True,
         topics=[],
+        i2c=(22, 21),
         log=None,
     ):
         self.log = log
+        self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
         self.setup()
         if not main:
             if ssl:
@@ -239,10 +242,10 @@ class MQTTService(Service):
             await self.client.publish(
                 self._cfg_temp["topic"], self._cfg_temp["payload"]
             )
-            await asyncio.sleep(1)
+            # await asyncio.sleep(1)
             # HUMIDITY
             await self.client.publish(self._cfg_hum["topic"], self._cfg_hum["payload"])
-            await asyncio.sleep(1)
+            # await asyncio.sleep(1)
             # PRESSURE
             await self.client.publish(self._cfg_pr["topic"], self._cfg_pr["payload"])
         if self.log:
@@ -274,6 +277,9 @@ class MQTTService(Service):
             while True:
                 assert self.client == self.aiomqtt_service.client
                 await asyncio.sleep(5)
+
+                if self.log and debug:
+                    self.log.info(f"[{self.name}.service] MQTT sensor OK")
 
     # @aioctl.aiotask
     # async def pulse(self, *args, **kwargs):

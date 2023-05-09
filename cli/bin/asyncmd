@@ -44,13 +44,14 @@ helparg = """Mode:
 - sub : subscribe to topic/s
 - ota : do ota update
 - otasrv: start ota async server
+- sha: check hash (SHA256) of device current application firmware
 - config: configure default settings
 """
 
 usag = """%(prog)s [Mode] [options]
 """
 # UPY MODE KEYWORDS AND COMMANDS
-keywords_mode = ["pub", "sub", "config", "ota", "otasrv"]
+keywords_mode = ["pub", "sub", "config", "ota", "otasrv", "sha"]
 
 parser = argparse.ArgumentParser(
     prog="asyncmd",
@@ -63,7 +64,15 @@ parser.add_argument("cmd", metavar="Mode", help=helparg).completer = ChoicesComp
     keywords_mode
 )
 parser.add_argument("-v", action="version")
-parser.add_argument("-c", action="store_true", required=False, default=False)
+parser.add_argument(
+    "-c", action="store_true", required=False, default=False, help="check config file"
+)
+parser.add_argument(
+    "--conf",
+    required=False,
+    default=_CONFIG_FILE,
+    help="config file to use, default: ~/.asyncmd/asyncmd.config",
+)
 parser.add_argument(
     "-ht",
     help="host",
@@ -94,7 +103,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "-ff",
-    help="firmware file",
+    help="firmware file, default: micropython.bin",
     required=False,
     default=_DEFAULT_ARGS["ff"],
 )
@@ -169,6 +178,7 @@ argconf = dict(args.__dict__)
 argconf.pop("cmd")
 argconf.pop("f")
 argconf.pop("c")
+argconf.pop("conf")
 
 
 # PARSE YAML CONFIG FILE
@@ -185,6 +195,8 @@ else:
     # print(argconf)
     # print(args.__dict__)
     # print(_DEFAULT_ARGS)
+    if args.conf != _CONFIG_FILE:
+        _CONFIG_FILE = args.conf
     if os.path.exists(_CONFIG_FILE):  # LOAD_CONFIG
         # with open(_CONFIG_FILE, "r") as configf:
         #     load_conf = json.loads(configf.read())
@@ -386,6 +398,25 @@ async def check_fw_sha(args, log, client, server):
         await asyncio.sleep(5)
 
 
+async def check_device_sha(args, log, tls_params):
+    pub_topic = f"device/{args.d}/ota"
+    _msg = "check"
+
+    if args.d == "all":
+        args.d = "+"
+    sub_topic = f"device/{args.d}/otacheck"
+
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        async with client.messages() as messages:
+            await client.subscribe(sub_topic)
+            await client.publish(pub_topic, payload=_msg)
+            async for message in messages:
+                devname = str(message.topic).split("/")[1]
+                log.info(f"[{devname}] SHA: {message.payload.decode()}")
+
+
 def main(log):
     # print(argconf)
     # print(args.__dict__)
@@ -411,6 +442,7 @@ def main(log):
             tls_version=ssl.PROTOCOL_TLS,
             ciphers=None,
         )
+    if args.ota_cafile:
         ota_tls_params = {
             "cafile": args.ota_cafile,
             "cert": args.ota_cert,
@@ -436,6 +468,13 @@ def main(log):
         log.info(f"aota @ [{args.t}]")
         asyncio.run(async_ota(args, log, tls_params, ota_tls_params))
 
+    elif args.cmd == "sha":
+        log.info(f"sha @ [{args.d}]")
+        asyncio.run(check_device_sha(args, log, tls_params))
+
 
 if __name__ == "__main__":
-    main(log)
+    try:
+        main(log)
+    except KeyboardInterrupt:
+        log.info("exit")

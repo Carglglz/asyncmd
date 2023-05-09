@@ -493,17 +493,17 @@ class MQTTService(Service):
             _name = self._suid(aioctl, f"{self.name}.service.do_action.ota_check")
             aioctl.add(self.do_action, self, "ota", b"check", name=_name, _id=_name)
 
-        # aioctl.add named do_action.ota_check (to be cleaned)
-        # --> await 10 --> self.ota_check
-
-        # get current sha --> publish --> server will respond if != sha
-
         # Wait for messages
+        async with self.lock:
+            await self.client.ping()
         while True:
             try:
                 # prevent waiting forever, blocking incoming messages
+                async with self.lock:
+                    await asyncio.sleep_ms(200)
+
                 await asyncio.wait_for(self.client.wait_msg(), 30)
-                await asyncio.sleep(1)
+                await asyncio.sleep_ms(500)
 
                 if self.log and debug:
                     self.log.info(f"[{self.name}.service] MQTT waiting...")
