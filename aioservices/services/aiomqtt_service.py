@@ -195,11 +195,19 @@ class MQTTService(Service):
                 _resp = None
                 if isinstance(action, str):
                     if "args" in service[action]:
-                        _resp = service[action]["cmd"](
-                            *service[action]["args"], **service[action]["kwargs"]
-                        )
+                        if "async" in service[action]:
+                            _resp = await service[action]["cmd"](
+                                *service[action]["args"], **service[action]["kwargs"]
+                            )
+                        else:
+                            _resp = service[action]["cmd"](
+                                *service[action]["args"], **service[action]["kwargs"]
+                            )
                     else:
-                        _resp = service[action]["cmd"]()
+                        if "async" in service[action]:
+                            _resp = await service[action]["cmd"]()
+                        else:
+                            _resp = service[action]["cmd"]()
                     if "log" in service[action]:
                         if self.log:
                             self.log.info(
