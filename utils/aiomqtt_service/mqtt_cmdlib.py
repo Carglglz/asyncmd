@@ -15,12 +15,12 @@ except Exception:
 led = Pin(LED_PIN, Pin.OUT)
 
 
-async def blink():
-    for i in range(5):
+async def blink(n, sleep_ms=(100, 200)):
+    for i in range(n):
         led.on()
-        await asyncio.sleep_ms(100)
+        await asyncio.sleep_ms(sleep_ms[0])
         led.off()
-        await asyncio.sleep_ms(200)
+        await asyncio.sleep_ms(sleep_ms[1])
 
 
 mqtt_cmds = {
@@ -40,8 +40,8 @@ mqtt_cmds = {
     },
     "blink": {
         "cmd": blink,
-        # "args": [],
-        # "kwargs": {},
+        "args": [5],
+        "kwargs": {"sleep_ms": (100, 200)},
         "async": True,
         "log": "BLINK BLINK",
         "resp": {"topic": f"device/{NAME}/resp", "msg": "BLINK"},

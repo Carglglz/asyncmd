@@ -228,8 +228,44 @@ class MQTTService(Service):
                                 ),
                             )
 
-                else:
-                    pass
+                else:  # json command
+                    _args = action.get("args")
+                    _kwargs = action.get("kwargs")
+                    action = action["cmd"]
+                    if not _args:
+                        _args = service[action].get("args")
+                    if not _kwargs:
+                        _kwargs = service[action].get("kwargs")
+                    if "args" in service[action]:
+                        if "async" in service[action]:
+                            _resp = await service[action]["cmd"](*_args, **_kwargs)
+                        else:
+                            _resp = service[action]["cmd"](*_args, **_kwargs)
+                    else:
+                        if "async" in service[action]:
+                            _resp = await service[action]["cmd"]()
+                        else:
+                            _resp = service[action]["cmd"]()
+                    if "log" in service[action]:
+                        if self.log:
+                            self.log.info(
+                                f"[{self.name}.service] [CMD]: {service[action]['log']}"
+                            )
+
+                    if "resp" in service[action]:
+                        async with self.lock:
+                            await self.client.publish(
+                                service[action]["resp"]["topic"].encode(),
+                                json.dumps(
+                                    {
+                                        "cmd": action,
+                                        "resp": _resp,
+                                        "msg": service[action]["resp"]["msg"],
+                                        "hostname": NAME,
+                                    }
+                                ),
+                            )
+
             except Exception as e:
                 raise e
 
