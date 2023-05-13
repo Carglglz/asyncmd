@@ -18,5 +18,6 @@ setup(
         "argcomplete>=2.0.0",
         "asyncio_mqtt",
         "pyyaml",
+        "tqdm",
     ],
 )
