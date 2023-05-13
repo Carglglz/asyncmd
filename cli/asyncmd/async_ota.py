@@ -92,6 +92,8 @@ class AOTAServer:
         self._conn_addr = set()
         self._conn_devs = set()
         self._busy_pos = set()
+        self._sucess_updates = 0
+        self._fail_updates = 0
         if tls_params:
             self.key = tls_params["key"]
             self.cert = tls_params["cert"]
@@ -182,6 +184,20 @@ class AOTAServer:
                 self._conn_addr.add(addr)
                 if self._use_tls:
                     self.log.info("Connection TLS enabled...")
+                await self.client.publish(
+                    "device/otaserver/otasrv",
+                    payload=json.dumps(
+                        {
+                            "hostname": "otaserver",
+                            "ipaddr": addr,
+                            "ota_msg": "started",
+                            "n_conn": len(self._conn_addr),
+                            "n_success": self._sucess_updates,
+                            "n_failures": self._fail_updates,
+                        }
+                    ),
+                )
+
                 self.log.info("Starting OTA Firmware update...")
                 await self.do_async_ota(addr, reader, writer)
 
@@ -214,13 +230,28 @@ class AOTAServer:
                 if ota_ok:
                     self.log.info("OTA Firmware Updated Succesfully!")
                     await self.client.publish(f"device/{devname}/cmd", payload="reset")
+                    self._sucess_updates += 1
                 else:
                     self.log.info("OTA Firmware Update Failed.")
+                    self._fail_updates += 1
                 await asyncio.sleep(5)
                 if addr in self._conn_addr:
                     self._conn_addr.remove(addr)
                 if devname in self._conn_devs:
                     self._conn_devs.remove(devname)
+                await self.client.publish(
+                    f"device/{devname}/otasrv",
+                    payload=json.dumps(
+                        {
+                            "hostname": devname,
+                            "ipaddr": addr,
+                            "ota_msg": str(ota_ok),
+                            "n_conn": len(self._conn_addr),
+                            "n_success": self._sucess_updates,
+                            "n_failures": self._fail_updates,
+                        }
+                    ),
+                )
 
                 self.log.info(f"Device @ {addr} disconnected")
 

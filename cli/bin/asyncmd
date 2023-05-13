@@ -366,6 +366,7 @@ async def async_ota(args, log, tls_params=None, ota_tls_params={}):
 
 async def ota_sha_check_listen(args, log, server, tls_params=None):
     # separate client
+    n_req = 0
 
     async with aiomqtt.Client(
         hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
@@ -375,13 +376,16 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
             async for message in messages:
                 # log check from device x with firmware sha:
                 # old sha then publish
+                n_req += 1
                 devname = str(message.topic).split("/")[1]
 
                 log.info(f"OTA request from {devname}: SHA {message.payload.decode()}")
 
                 # get device from topic
                 # publish to device/{name}/ota
+                fwm_msg = "up to date"
                 if message.payload.decode() != server.check_sha:
+                    fwm_msg = "new"
                     log.info(f"New firmware for {devname}: SHA {server.check_sha}")
                     await client.publish(
                         str(message.topic),
@@ -397,6 +401,19 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
                     )
                 else:
                     log.info(f"{devname} Firmware Up to date")
+
+                # report requestf
+                await client.publish(
+                    f"device/{devname}/otasrv",
+                    payload=json.dumps(
+                        {
+                            "hostname": devname,
+                            "ota_msg": fwm_msg,
+                            "n_req": n_req,
+                            "sha": server.check_sha,
+                        }
+                    ),
+                )
 
 
 async def check_fw_sha(args, log, client, server):
@@ -612,6 +629,10 @@ def main(log):
             "key": args.ota_key,
             "pph": args.ota_key_pph,
         }
+
+    if args.cmd not in keywords_mode:
+        args.m = args.cmd
+        args.cmd = "pub"
 
     if args.cmd == "pub":
         log.info(f"pub @ [{args.t}] {args.m}")
