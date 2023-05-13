@@ -370,7 +370,7 @@ class MQTTService(Service):
                 self.log.info(
                     f"[{self.name}.service] @ [{topic.decode()}]:" + f" {msg.decode()}"
                 )
-            if topic == self._SERVICE_TOPIC or topic.endswith(b"/all/service"):
+            if topic == self._SERVICE_TOPIC or topic.endswith(b"/service"):
                 act = json.loads(msg.decode())
                 for action, serv in act.items():
                     if isinstance(serv, list):
