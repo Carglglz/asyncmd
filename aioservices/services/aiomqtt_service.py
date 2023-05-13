@@ -46,13 +46,7 @@ class MQTTService(Service):
             "stats": False,
             "services": "*.service",
             "restart": ["aiomqtt.service"],
-            "topics": [
-                "device/all/cmd",
-                f"device/{NAME}/cmd",
-                "device/all/ota",
-                f"device/{NAME}/ota",
-                "device/all/service",
-            ],
+            "topics": [],
             "ota_check": True,
         }
 
@@ -66,7 +60,14 @@ class MQTTService(Service):
         self.lock = asyncio.Lock()
         self._stat_buff = io.StringIO(3000)
         self._callbacks = {}
-        self._topics = []
+        self._topics = {
+            "device/all/cmd",
+            f"device/{NAME}/cmd",
+            "device/all/ota",
+            f"device/{NAME}/ota",
+            "device/all/service",
+        }
+
         self._ota_check = False
 
     def _suid(self, _aioctl, name):
@@ -478,7 +479,8 @@ class MQTTService(Service):
         log=None,
     ):
         self.log = log
-        self._topics = topics
+        for top in topics:
+            self._topics.add(top)
         self._ota_check = ota_check
         if isinstance(self._SERVICE_TOPIC, str):
             self._TASK_TOPIC = self._TASK_TOPIC.format(client_id).encode("utf-8")
@@ -517,7 +519,7 @@ class MQTTService(Service):
             # Subscribe to state topic
             await self.client.subscribe(self._STATE_TOPIC)
 
-            for tp in topics:
+            for tp in self._topics:
                 if isinstance(tp, str):
                     tp = tp.encode("utf-8")
                 await self.client.subscribe(tp)
