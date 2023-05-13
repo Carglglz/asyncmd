@@ -112,6 +112,7 @@ parser.add_argument(
     help="kwargs for devconfig",
     type=yaml.safe_load,
 )
+parser.add_argument("--sub", required=False, help="override subscription topic")
 
 parser.add_argument(
     "-ht",
@@ -263,7 +264,7 @@ logfileName = "asyncmd"
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(log_levels[args.dslev])
 logging.basicConfig(
-    level=log_levels["debug"],
+    level=log_levels["info"],
     format=("%(asctime)s [%(name)s] [%(levelname)s] %(message)s"),
     handlers=[handler],
 )
@@ -528,7 +529,9 @@ async def dev_config(args, log, tls_params):
         else:
             if not _configf:
                 if args.kwargs is None:
-                    args.kwargs = "{}"
+                    args.kwargs = {}
+                if args.args is None:
+                    args.args = []
                 _msg = json.dumps(
                     {
                         "config": {
@@ -554,6 +557,8 @@ async def dev_config(args, log, tls_params):
 
     if args.d == "all":
         args.d = "+"
+    if args.sub:
+        args.d = args.sub
     sub_topic = f"device/{args.d}/config"
 
     async with aiomqtt.Client(
@@ -569,7 +574,10 @@ async def dev_config(args, log, tls_params):
                 async for message in messages:
                     devname = str(message.topic).split("/")[1]
                     log.info(f"[{devname}] {_serv} config @ {devname} ")
-                    print(yaml.dump(json.loads(message.payload.decode())))
+                    if _serv != "*":
+                        print(yaml.dump({_serv: json.loads(message.payload.decode())}))
+                    else:
+                        print(yaml.dump(json.loads(message.payload.decode())))
 
 
 def main(log):
