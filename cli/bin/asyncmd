@@ -45,13 +45,36 @@ helparg = """Mode:
 - ota : do ota update
 - otasrv: start ota async server
 - sha: check hash (SHA256) of device current application firmware
+- services: list aioservices
+- dtop: device aioservices status with htop alike UI.
+- devconfig: get or set device services.config
 - config: configure default settings
 """
 
 usag = """%(prog)s [Mode] [options]
 """
 # UPY MODE KEYWORDS AND COMMANDS
-keywords_mode = ["pub", "sub", "config", "ota", "otasrv", "sha"]
+keywords_mode = [
+    "pub",
+    "sub",
+    "config",
+    "ota",
+    "otasrv",
+    "sha",
+    "services",
+    "devconfig",
+    "dtop",
+]
+
+
+def get_args(arg):
+    if arg.isdecimal():
+        if "." in arg:
+            return float(arg)
+        else:
+            return int(arg)
+    return arg
+
 
 parser = argparse.ArgumentParser(
     prog="asyncmd",
@@ -73,6 +96,23 @@ parser.add_argument(
     default=_CONFIG_FILE,
     help="config file to use, default: ~/.asyncmd/asyncmd.config",
 )
+parser.add_argument(
+    "--dconf",
+    required=False,
+    default=["get"],
+    nargs="*",
+    help="config options for devconfig: options: [get, set, enable, disable]",
+)
+parser.add_argument(
+    "--args", required=False, nargs="*", help="args for devconfig", type=get_args
+)
+parser.add_argument(
+    "--kwargs",
+    required=False,
+    help="kwargs for devconfig",
+    type=yaml.safe_load,
+)
+
 parser.add_argument(
     "-ht",
     help="host",
@@ -417,6 +457,121 @@ async def check_device_sha(args, log, tls_params):
                 log.info(f"[{devname}] SHA: {message.payload.decode()}")
 
 
+async def get_services(args, log, tls_params):
+    pub_topic = f"device/{args.d}/service"
+    _msg = '{"status": "*.service"}'
+
+    if args.d == "all":
+        args.d = "+"
+    sub_topic = f"device/{args.d}/status"
+
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        async with client.messages() as messages:
+            await client.subscribe(sub_topic)
+            await client.publish(pub_topic, payload=_msg)
+            async for message in messages:
+                devname = str(message.topic).split("/")[1]
+                log.info(f"[{devname}] Services @ {devname} ")
+                for k, v in json.loads(message.payload.decode()).items():
+                    if k.endswith(".service"):
+                        pprint_status(k, v["status"])
+
+
+def pprint_status(service, status):
+    if status == "running":
+        _dot = "\033[92m●\x1b[0m"
+        print(f"{_dot} {service}: status: \033[92m{status}\x1b[0m ")
+
+    elif status == "error":
+        _err = "failed"
+        _status = f"\u001b[31;1m{_err}\u001b[0m"
+        _dot = "\u001b[31;1m●\u001b[0m"
+        print(f"{_dot} {service}: status: {_status}")
+
+    elif status == "done":
+        _dot = "●"
+        print(f"{_dot} {service}: status: {status}")
+
+    elif status == "stopped":
+        _status = "\u001b[33;1mstopped\u001b[0m"
+        _dot = "\u001b[33;1m●\u001b[0m"
+        print(f"{_dot} {service}: status: {_status}")
+
+    elif "scheduled" in status:
+        _status = "scheduled"
+        _dot = "\u001b[36m●\u001b[0m"
+        print(f"{_dot} {service}: status: {status}")
+
+
+async def dev_config(args, log, tls_params):
+    pub_topic = f"device/{args.d}/service"
+    act = args.dconf[0]
+    if act == "get":
+        if len(args.dconf) == 1:
+            _serv = "*"
+        else:
+            _serv = args.dconf[1]
+        _serv = _serv.replace(".service", "")
+        _msg = json.dumps({"config": {"get": _serv}})
+
+    elif act in ["set", "enable", "disable"]:
+        _serv = args.dconf[1]
+        _configf = False
+        if os.path.exists(_serv):
+            _configf = parse_config_file(_serv)
+        else:  # device services.config file
+            _serv = _serv.replace(".service", "")
+        if act in ["enable", "disable"]:
+            _msg = json.dumps({"config": {act: _serv}})
+        else:
+            if not _configf:
+                if args.kwargs is None:
+                    args.kwargs = "{}"
+                _msg = json.dumps(
+                    {
+                        "config": {
+                            act: {
+                                _serv: {
+                                    "args": args.args,
+                                    "kwargs": args.kwargs,
+                                }
+                            }
+                        }
+                    }
+                )
+            else:
+                enabled_servs = {
+                    serv: {
+                        "args": _configf[serv].get("args", []),
+                        "kwargs": _configf[serv].get("kwargs", {}),
+                    }
+                    for serv in _configf
+                    if _configf[serv].get("enabled", False)
+                }
+                _msg = json.dumps({"config": {act: enabled_servs}})
+
+    if args.d == "all":
+        args.d = "+"
+    sub_topic = f"device/{args.d}/config"
+
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        async with client.messages() as messages:
+            await client.subscribe(sub_topic)
+            await client.publish(pub_topic, payload=_msg)
+            if act in ["set", "enable", "disable"]:
+                log.info(f"[{args.d}] {_serv} config {act} {_msg} ")
+                return
+            if act == "get":
+                async for message in messages:
+                    devname = str(message.topic).split("/")[1]
+                    log.info(f"[{devname}] {_serv} config @ {devname} ")
+                    print(yaml.dump(json.loads(message.payload.decode())))
+
+
 def main(log):
     # print(argconf)
     # print(args.__dict__)
@@ -471,6 +626,14 @@ def main(log):
     elif args.cmd == "sha":
         log.info(f"sha @ [{args.d}]")
         asyncio.run(check_device_sha(args, log, tls_params))
+
+    elif args.cmd == "services":
+        log.info(f"services @ [{args.d}]")
+        asyncio.run(get_services(args, log, tls_params))
+
+    elif args.cmd == "devconfig":
+        log.info(f"devconfig @ [{args.d}]")
+        asyncio.run(dev_config(args, log, tls_params))
 
 
 if __name__ == "__main__":

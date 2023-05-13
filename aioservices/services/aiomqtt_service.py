@@ -51,6 +51,7 @@ class MQTTService(Service):
                 f"device/{NAME}/cmd",
                 "device/all/ota",
                 f"device/{NAME}/ota",
+                "device/all/service",
             ],
             "ota_check": True,
         }
@@ -142,6 +143,46 @@ class MQTTService(Service):
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
                         )
+        elif action == "config":
+            import aioservice
+
+            try:
+                for _act, _serv in service.items():
+                    if _act == "get":
+                        if _serv == "*":
+                            _serv = None
+                        async with self.lock:
+                            await self.client.publish(
+                                self._STATUS_TOPIC.replace(b"status", b"config"),
+                                json.dumps(aioservice.get_config(_serv)),
+                            )
+
+                        self.n_pub += 1
+                        if self.log:
+                            self.log.info(
+                                f"[{self.name}.service] @ [CONFIG]:{_act} {_serv}"
+                            )
+                    elif _act in ["set", "enable", "disable"]:
+                        if _act == "enable":
+                            aioservice.enable(_serv)
+                        elif _act == "disable":
+                            aioservice.disable(_serv)
+                        else:
+                            for kserv, _conf in _serv.items():
+                                aioservice.config(
+                                    kserv, True, *_conf["args"], **_conf["kwargs"]
+                                )
+
+                        if self.log:
+                            self.log.info(
+                                f"[{self.name}.service] @ [CONFIG]:{_act} {_serv}"
+                            )
+            except Exception as e:
+                if self.log:
+                    self.log.error(
+                        f"[{self.name}.service] @ [CONFIG]:{_act} {_serv} {e}"
+                    )
+
         elif action == "ota":
             msg = service
 
@@ -328,7 +369,7 @@ class MQTTService(Service):
                 self.log.info(
                     f"[{self.name}.service] @ [{topic.decode()}]:" + f" {msg.decode()}"
                 )
-            if topic == self._SERVICE_TOPIC:
+            if topic == self._SERVICE_TOPIC or topic.endswith(b"/all/service"):
                 act = json.loads(msg.decode())
                 for action, serv in act.items():
                     if isinstance(serv, list):
