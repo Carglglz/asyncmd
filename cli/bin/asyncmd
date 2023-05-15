@@ -28,8 +28,9 @@ _DEFAULT_ARGS = {
     "cafile": "",
     "cert": "",
     "key": "",
+    "dconf": ["get"],
     "f": [],
-    "ff": "micropython.bin",
+    "ff": ["micropython.bin"],
     "dslev": "info",
     "dflev": "error",
     "ota_cafile": "",
@@ -144,8 +145,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-ff",
-    help="firmware file, default: micropython.bin",
+    help="firmware file/s, default: [micropython.bin]",
     required=False,
+    nargs="*",
     default=_DEFAULT_ARGS["ff"],
 )
 parser.add_argument(
@@ -220,6 +222,9 @@ argconf.pop("cmd")
 argconf.pop("f")
 argconf.pop("c")
 argconf.pop("conf")
+argconf.pop("kwargs")
+argconf.pop("args")
+argconf.pop("sub")
 
 
 # PARSE YAML CONFIG FILE
@@ -313,7 +318,7 @@ async def _ota(args, log, tls_params=None, ota_tls_params={}):
         hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
     ) as client:
         ota_server = OTAServer(
-            client, 8014, args.t, args.ff, log, tls_params=ota_tls_params
+            client, 8014, args.t, args.ff[0], log, tls_params=ota_tls_params
         )
         await ota_server.start_ota()
 
@@ -378,24 +383,60 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
                 # old sha then publish
                 n_req += 1
                 devname = str(message.topic).split("/")[1]
+                # device ota request --> sha only --> default fwmfile -->
+                # args.ff[0]
+                # if sha + filename --> register device
+                # needs to send ip too
+                try:
+                    sha_file = json.loads(message.payload.decode())
+                except Exception:
+                    sha_file = {
+                        "sha": message.payload.decode(),
+                        "fwfile": args.ff[0],
+                        "ip": None,
+                    }
 
-                log.info(f"OTA request from {devname}: SHA {message.payload.decode()}")
+                if sha_file["fwfile"] in ["", None]:
+                    sha_file["fwfile"] = args.ff[0]
+
+                if sha_file["fwfile"] not in server.check_sha:
+                    log.error(
+                        f"OTA request from {devname}: FILE "
+                        f": {sha_file['fwfile']} not available"
+                    )
+                    continue
+
+                log.info(
+                    f"OTA request from {devname}: FILE: "
+                    f"{os.path.relpath(sha_file['fwfile'])}"
+                )
+                log.info(f"OTA request from {devname}: SHA: {sha_file['sha']}")
 
                 # get device from topic
                 # publish to device/{name}/ota
+
+                server.register_device(devname, sha_file)
+
+                # log.info(server._device_register)
                 fwm_msg = "up to date"
-                if message.payload.decode() != server.check_sha:
+                if sha_file["sha"] != server.check_sha[sha_file["fwfile"]]:
                     fwm_msg = "new"
-                    log.info(f"New firmware for {devname}: SHA {server.check_sha}")
+                    log.info(
+                        f"New firmware for {devname}: SHA: "
+                        f"{server.check_sha[sha_file['fwfile']]}"
+                    )
                     await client.publish(
-                        str(message.topic),
+                        str(message.topic).replace("otacheck", "ota"),
                         payload=json.dumps(
                             {
                                 "host": server.host,
                                 "port": server.port,
-                                "sha": server.check_sha,
-                                "blocks": server._n_blocks,
+                                "sha": server.check_sha[sha_file["fwfile"]],
+                                "blocks": server._fw_files[sha_file["fwfile"]][
+                                    "n_blocks"
+                                ],
                                 "bg": server._bg,
+                                "fwfile": sha_file["fwfile"],
                             }
                         ),
                     )
@@ -410,48 +451,56 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
                             "hostname": devname,
                             "ota_msg": fwm_msg,
                             "n_req": n_req,
-                            "sha": server.check_sha,
+                            "sha": server.check_sha[sha_file["fwfile"]],
                         }
                     ),
                 )
 
 
 async def check_fw_sha(args, log, client, server):
-    fwfile = args.ff
-    fw_mtime = int(os.path.getmtime(fwfile))
-    fw_sha = get_sha256(fwfile)
+    fwfiles = [file for file in args.ff if os.path.exists(file)]
+    fw_mtime = {
+        fwfile: int(os.path.getmtime(fwfile))
+        for fwfile in fwfiles
+        if os.path.exists(fwfile)
+    }
+    fw_sha = {
+        fwfile: get_sha256(fwfile) for fwfile in fwfiles if os.path.exists(fwfile)
+    }
     while True:
-        mod_time = 0
-        try:
-            mod_time = int(os.path.getmtime(fwfile))
-        except Exception:
-            pass
-        if fw_mtime != mod_time:
-            fw_mtime = mod_time
-            # check sha
-            c_fw_sha = get_sha256(fwfile)
-            if fw_sha != c_fw_sha and c_fw_sha is not None:
-                fw_sha = c_fw_sha
-                log.info("New or modified firmware file detected")
-                log.info(f"{fwfile}: SHA256: {fw_sha}")
-                log.info("Sending notification...")
-                server.update_sha(fwfile)
-                await client.publish(
-                    args.t,
-                    payload=json.dumps(
-                        {
-                            "host": server.host,
-                            "port": server.port,
-                            "sha": server.check_sha,
-                            "blocks": server._n_blocks,
-                            "bg": server._bg,
-                        }
-                    ),
-                )
+        for fwfile in fwfiles:
+            mod_time = 0
+            try:
+                mod_time = int(os.path.getmtime(fwfile))
+            except Exception:
+                pass
+            if fw_mtime[fwfile] != mod_time:
+                fw_mtime[fwfile] = mod_time
+                # check sha
+                c_fw_sha = get_sha256(fwfile)
+                if fw_sha[fwfile] != c_fw_sha and c_fw_sha is not None:
+                    fw_sha[fwfile] = c_fw_sha
+                    log.info("New or modified firmware file detected")
+                    log.info(f"{os.path.relpath(fwfile)}: SHA256: {fw_sha[fwfile]}")
+                    log.info("Sending notification...")
+                    server.update_sha(fwfile)  # fix this
+                    await client.publish(
+                        args.t,
+                        payload=json.dumps(
+                            {
+                                "host": server.host,
+                                "port": server.port,
+                                "sha": server.check_sha[fwfile],
+                                "blocks": server._fw_files[fwfile]["n_blocks"],
+                                "bg": server._bg,
+                                "fwfile": fwfile,
+                            }
+                        ),
+                    )
 
-            # test
-            elif c_fw_sha is None:
-                fw_sha = c_fw_sha
+                # test
+                elif c_fw_sha is None:
+                    fw_sha[fwfile] = c_fw_sha
 
         await asyncio.sleep(5)
 
@@ -649,6 +698,7 @@ def main(log):
 
     elif args.cmd == "otasrv":
         args.t = args.t.replace("cmd", "ota")
+        args.t = args.t.replace("all", args.d)
         log.info(f"aota @ [{args.t}]")
         asyncio.run(async_ota(args, log, tls_params, ota_tls_params))
 

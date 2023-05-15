@@ -125,9 +125,13 @@ class OTAServer:
         with open(firmware, "rb") as fwr:
             self.firmware = fwr.read()
         self.sz = len(self.firmware)
-        self._n_blocks = (self.sz // BLOCKLEN) + 1
         hf = hashlib.sha256(self.firmware)
-        hf.update(b"\xff" * ((self._n_blocks * BLOCKLEN) - self.sz))
+        if self.sz % BLOCKLEN != 0:
+            self._n_blocks = (self.sz // BLOCKLEN) + 1
+
+            hf.update(b"\xff" * ((self._n_blocks * BLOCKLEN) - self.sz))
+        else:
+            self._n_blocks = self.sz // BLOCKLEN
         self.check_sha = hexlify(hf.digest()).decode()
 
     def find_localip(self):
@@ -157,6 +161,7 @@ class OTAServer:
                     "sha": self.check_sha,
                     "blocks": self._n_blocks,
                     "bg": self._bg,
+                    "fwfile": self._fw_file,
                 }
             ),
         )

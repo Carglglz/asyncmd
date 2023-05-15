@@ -48,6 +48,7 @@ class MQTTService(Service):
             "restart": ["aiomqtt.service"],
             "topics": [],
             "ota_check": True,
+            "fwfile": None,
         }
 
         self.sslctx = False
@@ -69,6 +70,7 @@ class MQTTService(Service):
         }
 
         self._ota_check = False
+        self._fwfile = None
 
     def _suid(self, _aioctl, name):
         _name = name
@@ -192,11 +194,20 @@ class MQTTService(Service):
                 if self._ota_check:
                     _ota_task.service._new_sha_check = True
                 _csha = _ota_task.service._comp_sha_ota("", rtn=True)
+                ip = None
+                if "network.service" in aioctl.group().tasks:
+                    ip = (
+                        aioctl.group()
+                        .tasks["network.service"]
+                        .service.wlan.ifconfig()[0]
+                    )
                 if _csha:
                     async with self.lock:
                         await self.client.publish(
                             f"device/{self.id}/otacheck".encode("utf-8"),
-                            _csha.encode("utf-8"),
+                            json.dumps(
+                                {"sha": _csha, "fwfile": self._fwfile, "ip": ip}
+                            ),
                         )
                 return
 
@@ -206,6 +217,15 @@ class MQTTService(Service):
                 # check if != hash
                 if self._ota_check:
                     _ota_service._new_sha_check = True
+                    if self._fwfile:
+                        if self._fwfile != _ota_params["fwfile"]:
+                            if self.log:
+                                self.log.info(
+                                    f"[{self.name}.service] No new OTA update"
+                                )
+                            return
+                    else:
+                        self._fwfile = _ota_params["fwfile"]
                 if _ota_service._comp_sha_ota(_ota_params["sha"]):
                     if self.log:
                         self.log.info(f"[{self.name}.service] No new OTA update")
@@ -476,12 +496,14 @@ class MQTTService(Service):
         restart=True,
         topics=[],
         ota_check=True,
+        fwfile=None,
         log=None,
     ):
         self.log = log
         for top in topics:
             self._topics.add(top)
         self._ota_check = ota_check
+        self._fwfile = fwfile
         if isinstance(self._SERVICE_TOPIC, str):
             self._TASK_TOPIC = self._TASK_TOPIC.format(client_id).encode("utf-8")
             self._SERVICE_TOPIC = self._SERVICE_TOPIC.format(client_id).encode("utf-8")
