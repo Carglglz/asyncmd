@@ -20,10 +20,13 @@ class WatcherService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "max_errors": 0,
+            "watchdog": True,
+            "wdfeed": 30000,
         }
         self.err_count = 0
         self.err_report = {}
         self.log = None
+        self._wdt = None
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
@@ -74,10 +77,23 @@ class WatcherService(Service):
                 self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
 
     @aioctl.aiotask
-    async def task(self, sleep, max_errors=0, log=None):
+    async def task(self, sleep, max_errors=0, watchdog=True, wdfeed=10000, log=None):
         self.log = log
         await asyncio.sleep(10)
         excl = []
+        if watchdog:
+            if f"{self.name}.service.wdt" not in aioctl.group().tasks:
+                aioctl.add(
+                    self.wdt,
+                    self,
+                    wdfeed,
+                    name=f"{self.name}.service.wdt",
+                    _id=f"{self.name}.service.wdt",
+                    on_error=self.on_error,
+                )
+                if self.log:
+                    self.log.info(f"[{self.name}.service] WDT task enabled")
+
         while True:
             for name, res in aioctl.result_all(as_dict=True).items():
                 if issubclass(res.__class__, Exception):
@@ -117,6 +133,14 @@ class WatcherService(Service):
             await asyncio.sleep(sleep)
             if self.err_count > max_errors and max_errors > 0:
                 machine.reset()
+
+    @aioctl.aiotask
+    async def wdt(self, timeout):
+        self._wdt = machine.WDT(timeout=timeout)
+        _asleep = int(timeout / 2)
+        while True:
+            self._wdt.feed()
+            await asyncio.sleep_ms(_asleep)
 
 
 service = WatcherService("watcher")
