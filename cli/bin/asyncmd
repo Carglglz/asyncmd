@@ -714,6 +714,13 @@ def main(log):
         log.info(f"devconfig @ [{args.d}]")
         asyncio.run(dev_config(args, log, tls_params))
 
+    elif args.cmd == "dtop":
+        from asyncmd.dtop import DeviceTOP
+        import curses
+
+        dev_top = DeviceTOP(args)
+        curses.wrapper(dev_top.start, 5)
+
 
 if __name__ == "__main__":
     try:
