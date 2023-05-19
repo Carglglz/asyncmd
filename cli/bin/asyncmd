@@ -204,6 +204,13 @@ parser.add_argument(
     default=[],
 )
 parser.add_argument(
+    "-nl",
+    help="disable logging for devconfig cmd",
+    required=False,
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
     "-dflev",
     help="debug file mode level, options [debug, info, warning, error, critical]",
     default="error",
@@ -225,6 +232,7 @@ argconf.pop("conf")
 argconf.pop("kwargs")
 argconf.pop("args")
 argconf.pop("sub")
+argconf.pop("nl")
 
 
 # PARSE YAML CONFIG FILE
@@ -639,11 +647,14 @@ async def dev_config(args, log, tls_params):
             if act == "get":
                 async for message in messages:
                     devname = str(message.topic).split("/")[1]
-                    log.info(f"[{devname}] {_serv} config @ {devname} ")
+                    if not args.nl:
+                        log.info(f"[{devname}] {_serv} config @ {devname} ")
                     if _serv != "*":
                         print(yaml.dump({_serv: json.loads(message.payload.decode())}))
                     else:
                         print(yaml.dump(json.loads(message.payload.decode())))
+                    if args.d != "+":
+                        break
 
 
 def main(log):
@@ -711,7 +722,8 @@ def main(log):
         asyncio.run(get_services(args, log, tls_params))
 
     elif args.cmd == "devconfig":
-        log.info(f"devconfig @ [{args.d}]")
+        if not args.nl:
+            log.info(f"devconfig @ [{args.d}]")
         asyncio.run(dev_config(args, log, tls_params))
 
     elif args.cmd == "dtop":
@@ -726,4 +738,7 @@ if __name__ == "__main__":
     try:
         main(log)
     except KeyboardInterrupt:
-        log.info("exit")
+        if args.cmd == "devconfig" and args.nl:
+            pass
+        else:
+            log.info("exit")

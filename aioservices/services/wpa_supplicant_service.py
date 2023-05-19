@@ -35,6 +35,8 @@ class WPASupplicantService(Service):
         self.wlan.active(True)
         self.restart_services = []
         self.log = None
+        self._con_evt = 0
+        self._disc_evt = 0
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
@@ -51,7 +53,19 @@ class WPASupplicantService(Service):
 
     def stats(self):
         if self.wlan.isconnected():
-            return {"rssi": self.wlan.status("rssi"), "ssid": self.ssid}
+            return {
+                "rssi": self.wlan.status("rssi"),
+                "ssid": self.ssid,
+                "conevs": self._con_evt,
+                "discevs": self._disc_evt,
+            }
+        else:
+            return {
+                "rssi": 0,
+                "ssid": "",
+                "conevs": self._con_evt,
+                "discevs": self._disc_evt,
+            }
 
     def check_network(self):
         if self.wlan.isconnected():
@@ -63,6 +77,7 @@ class WPASupplicantService(Service):
             else:
                 print("WLAN not connected, scanning for APs...")
             self.wlan.disconnect()
+            self._disc_evt += 1
             return False
 
     async def setup_network(self, timeout=10, hostname=NAME, notify=True):
@@ -117,6 +132,7 @@ class WPASupplicantService(Service):
                     print("Network Config:", self.wlan.ifconfig())
             self.net_status = f"Connected to {_ssid}"
             self.ssid = _ssid
+            self._con_evt += 1
             return True
 
     @aioctl.aiotask

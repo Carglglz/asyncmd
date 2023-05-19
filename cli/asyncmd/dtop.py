@@ -10,6 +10,8 @@ import json
 import asyncio
 from . import __version__ as version
 from functools import wraps
+import yaml
+import textwrap
 
 
 def convert_size(size_bytes):  # convert from bytes to other units
@@ -51,14 +53,12 @@ class Pointer:
 
 
 class DeviceTOP:
-    # one task handle screen update --> draw
-    # second task handle data collection (mqtt) --> mqtt subscribe
-    # self.data_buffer = {hostname:{data}}
-    # main --> create tasks and gather
     def __init__(self, args):
         self.args = args
-        self._data_buffer = {}
+        self._data_buffer = {"all": {}}
+        self._conf_buffer = {}
         self._close_flag = False
+        self._client = None
 
         self._status_colors = {
             "running": 5,
@@ -70,7 +70,12 @@ class DeviceTOP:
 
     def bottom_status_bar(self):
         local_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
-        bottom_statusbar_str = f"asyncmd {version} | Local time {local_time}"
+        bottom_statusbar_str = (
+            f"asyncmd {version} | Local time {local_time}"
+            " | KEYS: n: next device, p: previous device"
+            ", s: switch time format (ISO/DELTA)"
+            ", c: fetch services.config"
+        )
         return bottom_statusbar_str
 
     @handle
@@ -109,6 +114,7 @@ class DeviceTOP:
         curses.init_pair(6, curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         curses.init_pair(8, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     @handle
     def print_bottom_status_bar(self, stdscr, width, height):
@@ -187,7 +193,7 @@ class DeviceTOP:
         val = info[serv].get(col.lower(), "")
         if col in ["SINCE", "DONE_AT"]:
             if val is not None:
-                val += 946684800  # EPOCH DELTA
+                val += 946684800  # EPOCH DELTA # FIXME
                 if tmf == "ISO":
                     return time.strftime("%Y-%m-%d  %H:%M:%S", time.localtime(val))
                 else:
@@ -207,7 +213,7 @@ class DeviceTOP:
                 return ""
         return str(val)
 
-    def get_node_info(self, _all_info):
+    def get_node_info(self, _all_info, width):
         # 1st line
         # Mem [                           %65.4] | Tasks: , Services: , CTasks:
         # Disk[                           %70.0] | Recv:  , Send:
@@ -215,19 +221,22 @@ class DeviceTOP:
         # Machine, platform...
         info = _all_info["aiomqtt.service"]["stats"]
         nod_info = []
+        w = min(int(width / 3), 100)
         _mem_pc = (info["mused"] / info["mtotal"]) * 100
+        _mem_b = (info["mused"] / info["mtotal"]) * w
         _mem_ = f"[{convert_size(info['mused'])}/{convert_size(info['mtotal'])}]"
-        _len_str = len(f"Mem [{'|'*int(_mem_pc):100}{_mem_pc:.1f}%]{_mem_:23}")
+        _len_str = len(f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:.1f}%]{_mem_:23}")
 
         _mem_tasks = (
-            f"Mem [{'|'*int(_mem_pc):100}{_mem_pc:.1f}%]{_mem_:23}|"
+            f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:.1f}%]{_mem_:23}|"
             f" Tasks: {info['tasks']}, Services: {info['services']}"
             f", CTasks: {info['ctasks']}"
         )
         _disk_pc = (info["fsused"] / info["fstotal"]) * 100
+        _disk_b = (info["fsused"] / info["fstotal"]) * w
         _disk_ = f"[{convert_size(info['fsused'])}/{convert_size(info['fstotal'])}]"
         _disk_msg = (
-            f"Disk[{'|'*int(_disk_pc):100}{_disk_pc:.1f}%]{_disk_:23}|"
+            f"Disk[{'|'*int(_disk_b):{w}s}{_disk_pc:.1f}%]{_disk_:23}|"
             f" Recv: {info['nrecv']}, Send: {info['npub']}"
         )
         fmw_str = f"Firmware: {info['firmware']}"
@@ -255,17 +264,21 @@ class DeviceTOP:
                 ciphers=None,
             )
 
-            # stdscr.nodelay(True)
         async with aiomqtt.Client(
             hostname=self.args.ht, port=self.args.p, logger=None, tls_params=tls_params
         ) as client:
+            self._client = client
             async with client.messages() as messages:
                 await client.subscribe("device/+/status")
+                await client.subscribe("device/+/config")
                 async for message in messages:
-                    devname = str(message.topic).split("/")[1]
-
-                    _servs = json.loads(message.payload.decode())
-                    self._data_buffer[devname] = _servs
+                    devname, topic = str(message.topic).split("/")[1:]
+                    if topic == "status":
+                        _servs = json.loads(message.payload.decode())
+                        self._data_buffer[devname] = _servs
+                    elif topic == "config":
+                        _confs = json.loads(message.payload.decode())
+                        self._conf_buffer[devname] = _confs
                     if self._close_flag:
                         return
 
@@ -273,14 +286,27 @@ class DeviceTOP:
         self.init(stdscr)
         k = 0
         node_idx = 0
-        TM_FORMAT = "DELTA"
+        show_config = False
+        TM_FMT = "DELTA"
+        _HL = [
+            "DEVICE",
+            "SERVICE",
+            "STATUS",
+            "SINCE",
+            "DONE_AT",
+            "RESULT",
+            "STATS",
+        ]
 
         stdscr.nodelay(True)
 
         while True:
             k = stdscr.getch()
             nodes = list(self._data_buffer.keys())
-            if not nodes:
+            if not nodes or nodes == ["all"]:
+                ptr = Pointer()
+                height, width = stdscr.getmaxyx()
+                self.printline(stdscr, "Fetching info...", ptr, width)
                 await asyncio.sleep(0.1)
                 continue
             # set --> add from topic
@@ -294,35 +320,50 @@ class DeviceTOP:
                 node_idx = nodes_cnt - 1 if node_idx + 1 >= nodes_cnt else node_idx + 1
             elif k == ord("p"):
                 node_idx = 0 if node_idx - 1 < 0 else node_idx - 1
-            if k == ord("s"):
-                if TM_FORMAT == "ISO":
-                    TM_FORMAT = "DELTA"
+            elif k == ord("s"):
+                if TM_FMT == "ISO":
+                    TM_FMT = "DELTA"
                 else:
-                    TM_FORMAT = "ISO"
+                    TM_FMT = "ISO"
+            elif k == ord("c"):
+                show_config = not show_config
+                if show_config:
+                    if self._client:
+                        _msg = json.dumps({"config": {"get": "*"}})
 
-            # add key for
+                        await self._client.publish("device/all/service", payload=_msg)
+
+            ptr = Pointer()
+            height, width = stdscr.getmaxyx()
+            stdscr.erase()
+            # stdscr.box()
+
             node = nodes[node_idx]
-            node_info_str = [f"Device: {node}"]
-            data = self._data_buffer[node]
-            node_info_str += self.get_node_info(data)
-            _HL = ["DEVICE", "SERVICE", "STATUS", "SINCE", "DONE_AT", "RESULT", "STATS"]
-            _max_hn = self.get_sep("hostname", _HL, data, TM_FORMAT)
+            _nodes = [node]
+            _max_seps = {k: [] for k in _HL}
+            _max_hns = []
+            if _nodes == ["all"]:
+                _nodes = [nd for nd in list(self._data_buffer.keys()) if nd != "all"]
+            for node in _nodes:
+                data = self._data_buffer[node]
+                _max_hn = self.get_sep("hostname", _HL, data, TM_FMT)
+                _max_hns.append(_max_hn)
 
-            _max_sep = {k: self.get_sep(k, _HL, data, TM_FORMAT) for k in _HL}
+                _max_sep_nd = {k: self.get_sep(k, _HL, data, TM_FMT) for k in _HL}
+                for k in _HL:
+                    _max_seps[k] += [_max_sep_nd[k]]
 
-            vm_status_list = [
-                f" {data['hostname']:{_max_hn}s}"
-                f"{serv:{_max_sep['SERVICE']}s}"
-                + "".join(
-                    [
-                        f"{self.get_val(hdr, data, serv, TM_FORMAT):{_max_sep[hdr]}s}"
-                        for hdr in ["STATUS", "SINCE", "DONE_AT", "RESULT", "STATS"]
-                    ]
-                )
-                for serv in data.keys()
-                if serv != "hostname"
-            ]  # --> services row
-            status_bar_item_length = 3
+            _max_hn = max(_max_hns)
+            _max_sep = {k: max(v) for k, v in _max_seps.items()}
+
+            node_info_str = []
+            for node in _nodes:
+                node_info_str += [f"Device: {node}"]
+                data = self._data_buffer[node]
+                node_info_str += self.get_node_info(data, width)
+
+            self.print_node_info(stdscr, ptr, node_info_str, width)
+
             status_bar_str = "".join(
                 [f" {'DEVICE':{_max_sep['DEVICE']}s}"]
                 + [
@@ -338,18 +379,85 @@ class DeviceTOP:
                 ]
             )  # --> static : # DEVICE # SERVICE
             # STATUS # SINCE # DONE, # RESULT, # STATS
-            ptr = Pointer()
-            height, width = stdscr.getmaxyx()
-            stdscr.erase()
 
-            self.print_node_info(stdscr, ptr, node_info_str, width)
-            self.print_vm_info(
-                stdscr, ptr, vm_status_list, status_bar_item_length, width
-            )
-            self.print_bottom_status_bar(stdscr, width, height)
             self.print_upper_status_bar(
                 stdscr, width, status_bar_str, len(node_info_str)
             )
+
+            for node in _nodes:
+                data = self._data_buffer[node]
+
+                vm_status_list = [
+                    f" {data['hostname']:{_max_hn}s}"
+                    f"{serv:{_max_sep['SERVICE']}s}"
+                    + "".join(
+                        [
+                            f"{self.get_val(hdr, data, serv, TM_FMT):{_max_sep[hdr]}s}"
+                            for hdr in ["STATUS", "SINCE", "DONE_AT", "RESULT", "STATS"]
+                        ]
+                    )
+                    for serv in data.keys()
+                    if serv != "hostname"
+                ]  # --> services row
+                status_bar_item_length = 3
+                self.print_vm_info(
+                    stdscr, ptr, vm_status_list, status_bar_item_length, width
+                )
+            if show_config:
+                if len(_nodes) == 1:
+                    ptr.newline()
+                    stdscr.attron(curses.color_pair(3))
+                    self.printline(stdscr, f" CONFIG {' ' * (width - 7)}", ptr, width)
+                    stdscr.attroff(curses.color_pair(3))
+                    ptr.newline()
+                    for node in _nodes:
+                        _conf = self._conf_buffer.get(node)
+                        if _conf:
+                            _ptr_h0 = ptr.x
+                            _config_str = yaml.dump(_conf).splitlines()
+                            n_lines = len(_config_str)
+                            n_cols = int(n_lines / (height - _ptr_h0))
+                            cols_y_w = width
+                            if n_cols > 1:
+                                cols_y_w = int(
+                                    (
+                                        width
+                                        - (
+                                            max(
+                                                [
+                                                    len(s)
+                                                    for s in _config_str
+                                                    if "/" not in s
+                                                ]
+                                            )
+                                            + 4
+                                        )
+                                    )
+                                    / n_cols
+                                )
+
+                            for line in _config_str:
+                                if ptr.x > (height - 2):
+                                    ptr.x = _ptr_h0
+                                    ptr.y += cols_y_w
+                                if len(line) > cols_y_w - 4:
+                                    for _line in textwrap.wrap(line, cols_y_w - 4):
+                                        self.printline(stdscr, f"{_line}\n", ptr, width)
+                                else:
+                                    if not line.startswith(" "):
+                                        _serv = _conf.get(line.split(":")[0])
+                                        if _serv.get("enabled"):
+                                            stdscr.attron(curses.color_pair(3))
+                                        else:
+                                            stdscr.attron(curses.color_pair(9))
+
+                                        self.printline(stdscr, line, ptr, width)
+                                        stdscr.attroff(curses.color_pair(3))
+                                        stdscr.attroff(curses.color_pair(9))
+                                    else:
+                                        self.printline(stdscr, line, ptr, width)
+
+            self.print_bottom_status_bar(stdscr, width, height)
             stdscr.noutrefresh()
             curses.doupdate()
             stdscr.timeout(update_interval)
