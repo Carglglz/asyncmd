@@ -58,6 +58,7 @@ class DeviceTOP:
         self._data_buffer = {"all": {}}
         self._conf_buffer = {}
         self._log_buffer = {}
+        self._info_enabled = True
         self._close_flag = False
         self._client = None
         self._log_enabled = False
@@ -74,9 +75,11 @@ class DeviceTOP:
         local_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
         bottom_statusbar_str = (
             f"asyncmd {version} | Local time {local_time}"
-            " | KEYS: n: next device, p: previous device"
-            ", s: switch time format (ISO/DELTA)"
+            " | KEYS: n/p: next/pevious device"
+            ", s: time format (ISO/DELTA)"
             ", c: fetch services.config"
+            ", i: toggle device info"
+            ", l: toggle device log"
         )
         return bottom_statusbar_str
 
@@ -291,8 +294,12 @@ class DeviceTOP:
 
     async def data_log(self):
         while True:
+            if self._close_flag:
+                return
             if self._client and self._log_enabled:
                 await self._client.publish("device/all/logger", payload=b"log")
+                if self._close_flag:
+                    return
 
                 await asyncio.sleep(9)
             await asyncio.sleep(1)
@@ -340,6 +347,9 @@ class DeviceTOP:
                     TM_FMT = "DELTA"
                 else:
                     TM_FMT = "ISO"
+
+            elif k == ord("i"):
+                self._info_enabled = not self._info_enabled
             elif k == ord("c"):
                 show_config = not show_config
                 if show_config:
@@ -379,7 +389,12 @@ class DeviceTOP:
                 data = self._data_buffer[node]
                 node_info_str += self.get_node_info(data, width)
 
-            self.print_node_info(stdscr, ptr, node_info_str, width)
+            if self._info_enabled:
+                self.print_node_info(stdscr, ptr, node_info_str, width)
+            else:
+                node_info_str = [" " * width]
+                ptr.newline()
+                ptr.newline()
 
             status_bar_str = "".join(
                 [f" {'DEVICE':{_max_sep['DEVICE']}s}"]
@@ -474,19 +489,25 @@ class DeviceTOP:
                                     else:
                                         self.printline(stdscr, line, ptr, width)
             elif self._log_enabled:
-                if len(_nodes) == 1:
+                if len(_nodes) >= 1:
                     ptr.newline()
                     stdscr.attron(curses.color_pair(3))
                     self.printline(stdscr, f" LOG {' ' * (width - 7)}", ptr, width)
                     stdscr.attroff(curses.color_pair(3))
                     ptr.newline()
+                    _buffer_log = ""
+                    v_lines = (height - 2) - ptr.x
                     for node in _nodes:
                         _log = self._log_buffer.get(node)
                         if _log:
                             _n_lines = len(_log.splitlines())
-                            v_lines = (height - 2) - ptr.x
                             for line in _log.splitlines()[-v_lines:]:
-                                self.printline(stdscr, line, ptr, width)
+                                _buffer_log += f"{line}\n"
+                    if _buffer_log:
+                        _log_lines = _buffer_log.splitlines()
+                        _log_lines.sort()
+                        for line in _log_lines[-v_lines:]:
+                            self.printline(stdscr, line, ptr, width)
 
             self.print_bottom_status_bar(stdscr, width, height)
             stdscr.noutrefresh()

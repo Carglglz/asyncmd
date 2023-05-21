@@ -204,6 +204,7 @@ async def pipelog(client, topic, from_idx=None, log=aioctl._AIOCTL_LOG):
                     return
         else:
             log.seek(from_idx)
+            log.readline()
             if index <= from_idx:  # log rotated
                 for line in log:
                     if line.strip():
