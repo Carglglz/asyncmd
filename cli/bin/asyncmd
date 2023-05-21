@@ -529,7 +529,15 @@ async def check_device_sha(args, log, tls_params):
             await client.publish(pub_topic, payload=_msg)
             async for message in messages:
                 devname = str(message.topic).split("/")[1]
-                log.info(f"[{devname}] SHA: {message.payload.decode()}")
+                try:
+                    fwshafile = json.loads(message.payload.decode())
+                    fwfile = fwshafile.get("fwfile", args.ff[0])
+                    if not fwfile:
+                        fwfile = args.ff[0]
+                    shafile = fwshafile.get("sha")
+                    log.info(f"[{devname}] FILE: {fwfile}, SHA: {shafile}")
+                except Exception:
+                    log.info(f"[{devname}] SHA: {message.payload.decode()}")
 
 
 async def get_services(args, log, tls_params):

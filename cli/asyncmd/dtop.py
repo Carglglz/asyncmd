@@ -57,8 +57,10 @@ class DeviceTOP:
         self.args = args
         self._data_buffer = {"all": {}}
         self._conf_buffer = {}
+        self._log_buffer = {}
         self._close_flag = False
         self._client = None
+        self._log_enabled = False
 
         self._status_colors = {
             "running": 5,
@@ -271,6 +273,7 @@ class DeviceTOP:
             async with client.messages() as messages:
                 await client.subscribe("device/+/status")
                 await client.subscribe("device/+/config")
+                await client.subscribe("device/+/log")
                 async for message in messages:
                     devname, topic = str(message.topic).split("/")[1:]
                     if topic == "status":
@@ -279,8 +282,20 @@ class DeviceTOP:
                     elif topic == "config":
                         _confs = json.loads(message.payload.decode())
                         self._conf_buffer[devname] = _confs
+                    elif topic == "log":
+                        if not self._log_buffer.get(devname):
+                            self._log_buffer[devname] = ""
+                        self._log_buffer[devname] += message.payload.decode()
                     if self._close_flag:
                         return
+
+    async def data_log(self):
+        while True:
+            if self._client and self._log_enabled:
+                await self._client.publish("device/all/logger", payload=b"log")
+
+                await asyncio.sleep(9)
+            await asyncio.sleep(1)
 
     async def draw(self, stdscr, update_interval):
         self.init(stdscr)
@@ -332,6 +347,8 @@ class DeviceTOP:
                         _msg = json.dumps({"config": {"get": "*"}})
 
                         await self._client.publish("device/all/service", payload=_msg)
+            elif k == ord("l"):
+                self._log_enabled = not self._log_enabled
 
             ptr = Pointer()
             height, width = stdscr.getmaxyx()
@@ -456,6 +473,20 @@ class DeviceTOP:
                                         stdscr.attroff(curses.color_pair(9))
                                     else:
                                         self.printline(stdscr, line, ptr, width)
+            elif self._log_enabled:
+                if len(_nodes) == 1:
+                    ptr.newline()
+                    stdscr.attron(curses.color_pair(3))
+                    self.printline(stdscr, f" LOG {' ' * (width - 7)}", ptr, width)
+                    stdscr.attroff(curses.color_pair(3))
+                    ptr.newline()
+                    for node in _nodes:
+                        _log = self._log_buffer.get(node)
+                        if _log:
+                            _n_lines = len(_log.splitlines())
+                            v_lines = (height - 2) - ptr.x
+                            for line in _log.splitlines()[-v_lines:]:
+                                self.printline(stdscr, line, ptr, width)
 
             self.print_bottom_status_bar(stdscr, width, height)
             stdscr.noutrefresh()
@@ -466,8 +497,9 @@ class DeviceTOP:
 
     async def run(self, stdscr, upint):
         self._feed_task = asyncio.create_task(self.data_feed())
+        self._log_task = asyncio.create_task(self.data_log())
         self._draw_task = asyncio.create_task(self.draw(stdscr, upint))
-        self._tasks_set = {self._feed_task, self._draw_task}
+        self._tasks_set = {self._feed_task, self._draw_task, self._log_task}
         await asyncio.gather(*self._tasks_set)
 
     def start(self, stdscr, upint):

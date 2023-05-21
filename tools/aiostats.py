@@ -182,3 +182,48 @@ def stats(taskm="*"):
         _stats[task] = task_stats
     _stats["hostname"] = NAME
     return _stats
+
+
+async def pipelog(client, topic, from_idx=None, log=aioctl._AIOCTL_LOG):
+    index = log.tell()
+    try:
+        if log._comp:
+            log.readline()
+        if from_idx is None:
+            for line in log:
+                if line.strip():
+                    await client.publish(topic, line.encode("utf-8"))
+
+            log.seek(0)
+            # read and grep for regex
+            for line in log:
+                if line.strip():
+                    await client.publish(topic, line.encode("utf-8"))
+                if log.tell() >= index:
+                    log.seek(index)
+                    return
+        else:
+            log.seek(from_idx)
+            if index <= from_idx:  # log rotated
+                for line in log:
+                    if line.strip():
+                        await client.publish(topic, line.encode("utf-8"))
+
+                log.seek(0)
+                # read and grep for regex
+                for line in log:
+                    if line.strip():
+                        await client.publish(topic, line.encode("utf-8"))
+                    if log.tell() >= index:
+                        log.seek(index)
+                        return
+            elif index > from_idx:
+                for line in log:
+                    if line.strip():
+                        await client.publish(topic, line.encode("utf-8"))
+                    if log.tell() >= index:
+                        log.seek(index)
+                        return
+    except Exception as e:
+        log.seek(index)
+        raise e

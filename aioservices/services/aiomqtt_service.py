@@ -66,11 +66,14 @@ class MQTTService(Service):
             f"device/{NAME}/cmd",
             "device/all/ota",
             f"device/{NAME}/ota",
+            "device/all/logger",
+            f"device/{NAME}/logger",
             "device/all/service",
         }
 
         self._ota_check = False
         self._fwfile = None
+        self._log_idx = None
 
     def _suid(self, _aioctl, name):
         _name = name
@@ -146,6 +149,15 @@ class MQTTService(Service):
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
                         )
+        elif action == "log":
+            async with self.lock:
+                await aiostats.pipelog(
+                    self.client,
+                    f"device/{NAME}/log".encode("utf-8"),
+                    from_idx=self._log_idx,
+                )
+
+            self._log_idx = aioctl._AIOCTL_LOG.tell()
         elif action == "config":
             import aioservice
 
@@ -475,6 +487,10 @@ class MQTTService(Service):
                 elif topic.decode().endswith("ota"):
                     _name = self._suid(aioctl, f"{self.name}.service.do_action.ota")
                     aioctl.add(self.do_action, self, "ota", msg, name=_name, _id=_name)
+
+                elif topic.decode().endswith("logger"):
+                    _name = self._suid(aioctl, f"{self.name}.service.do_action.logger")
+                    aioctl.add(self.do_action, self, "log", msg, name=_name, _id=_name)
 
         except Exception as e:
             if self.log:
