@@ -25,6 +25,7 @@ except Exception:
 _AIOCTL_GROUP = None
 _AIOCTL_LOG = None
 _DEBUG = False
+_dt_list = [0, 1, 2, 3, 4, 5]
 
 
 def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
@@ -58,6 +59,58 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
                 print(f"{sep}{repr(k)}: {repr(v)}{ls}")
             else:
                 print(f"{sep*ind}{repr(k)}: {repr(v)}{ls}")
+
+
+def _dt_format(number):
+    n = str(number)
+    if len(n) == 1:
+        n = "0{}".format(n)
+        return n
+    else:
+        return n
+
+
+def _ft_datetime(t_now):
+    return [_dt_format(t_now[i]) for i in _dt_list]
+
+
+def get_datetime(_dt):
+    return "{}-{}-{} {}:{}:{}".format(*_ft_datetime(_dt))
+
+
+def time_str(uptime_tuple):
+    upt = [_dt_format(i) for i in uptime_tuple[1:]]
+    up_str_1 = f"{uptime_tuple[0]} days, "
+    up_str_2 = f"{upt[0]}:{upt[1]}:{upt[2]}"
+    if uptime_tuple[0] > 0:
+        return up_str_1 + up_str_2
+    elif uptime_tuple[-2] > 0 or uptime_tuple[-3] > 0:
+        return up_str_2
+    return f"{uptime_tuple[-1]} s"
+
+
+def tmdelta_fmt(dt):
+    if dt < 0:
+        return f"the past by {tmdelta_fmt(abs(dt))} s"
+    dd, hh, mm, ss = (0, 0, 0, 0)
+    mm = dt // 60
+    ss = dt % 60
+    if mm:
+        pass
+    else:
+        return time_str((dd, hh, mm, ss))
+    hh = mm // 60
+    if hh:
+        mm = mm % 60
+    else:
+        return time_str((dd, hh, mm, ss))
+    dd = hh // 24
+    if dd:
+        hh = hh % 24
+    else:
+        return time_str((dd, hh, mm, ss))
+
+    return time_str((dd, hh, mm, ss))
 
 
 def aiotask(f):
@@ -248,18 +301,19 @@ def status(name=None, log=True, debug=False, indent="    "):
             if group().tasks[name].cancelled:
                 _status = "\u001b[33;1mstopped\u001b[0m"
                 _dot = "\u001b[33;1m●\u001b[0m"
+
+            if _done_at:
+                _done_at = time.localtime(_done_at)
+                _done_at = get_datetime(_done_at)
+                _done_delta = time.time() - group().tasks[name].done_at
+                _done_at += f"; {tmdelta_fmt(_done_delta)} ago"
             if _SCHEDULE:
-                if _done_at:
-                    _done_at = time.localtime(_done_at)
-                    _done_at = aioschedule.get_datetime(_done_at)
-                    _done_delta = time.time() - group().tasks[name].done_at
-                    _done_at += f"; {aioschedule.tmdelta_fmt(_done_delta)} ago"
                 if name in aioschedule.group():
                     if aioschedule.group()[name]["start_in"] != -1:
                         _status = "scheduled"
                         _dot = "\u001b[36m●\u001b[0m"
                         if _done_at is None:
-                            _done_at = aioschedule.get_datetime(
+                            _done_at = get_datetime(
                                 time.localtime(
                                     aioschedule._AIOCTL_SCHEDULE_T0
                                     + aioschedule.group()[name]["start_in"]
@@ -315,8 +369,7 @@ def status(name=None, log=True, debug=False, indent="    "):
                     _delta_runtime = (
                         group().tasks[name].done_at - group().tasks[name].since
                     )
-                    if _SCHEDULE:
-                        _delta_runtime = aioschedule.tmdelta_fmt(_delta_runtime)
+                    _delta_runtime = tmdelta_fmt(_delta_runtime)
                     print(f"{indent}┗━► runtime: {_delta_runtime}")
 
                 if _SCHEDULE:
@@ -347,10 +400,8 @@ def status(name=None, log=True, debug=False, indent="    "):
             _dot = "\033[92m●\x1b[0m"
             _since_str = time.localtime(group().tasks[name].since)
             _since_delta = time.time() - group().tasks[name].since
-
-            if _SCHEDULE:
-                _since_str = aioschedule.get_datetime(_since_str)
-                _since_str += f"; {aioschedule.tmdelta_fmt(_since_delta)}"
+            _since_str = get_datetime(_since_str)
+            _since_str += f"; {tmdelta_fmt(_since_delta)}"
             if debug:
                 if (
                     _AIOCTL_GROUP.tasks[name]._is_service

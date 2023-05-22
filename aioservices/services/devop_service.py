@@ -290,7 +290,7 @@ class DevOpService(Service):
                         done_at = aioctl.group().tasks[_rpserv].done_at
                         if done_at:
                             done_at = time.localtime(done_at)
-                            done_at = aioctl.aioschedule.get_datetime(done_at)
+                            done_at = aioctl.get_datetime(done_at)
                             stats_report[_rpserv]["done_at"] = done_at
 
                         if hasattr(_serv, "stats"):

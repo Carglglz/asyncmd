@@ -6,7 +6,6 @@ import aioctl
 
 _AIOCTL_SCHEDULE_GROUP = {}
 _AIOCTL_SCHEDULE_T0 = 0
-_dt_list = [0, 1, 2, 3, 4, 5]
 
 
 def schedule_task(**sch_kwargs):
@@ -33,58 +32,6 @@ def schedule(f, *args, **kwargs):
 
 def unschedule(f):
     group().pop(f)
-
-
-def _dt_format(number):
-    n = str(number)
-    if len(n) == 1:
-        n = "0{}".format(n)
-        return n
-    else:
-        return n
-
-
-def _ft_datetime(t_now):
-    return [_dt_format(t_now[i]) for i in _dt_list]
-
-
-def get_datetime(_dt):
-    return "{}-{}-{} {}:{}:{}".format(*_ft_datetime(_dt))
-
-
-def time_str(uptime_tuple):
-    upt = [_dt_format(i) for i in uptime_tuple[1:]]
-    up_str_1 = f"{uptime_tuple[0]} days, "
-    up_str_2 = f"{upt[0]}:{upt[1]}:{upt[2]}"
-    if uptime_tuple[0] > 0:
-        return up_str_1 + up_str_2
-    elif uptime_tuple[-2] > 0 or uptime_tuple[-3] > 0:
-        return up_str_2
-    return f"{uptime_tuple[-1]} s"
-
-
-def tmdelta_fmt(dt):
-    if dt < 0:
-        return f"the past by {tmdelta_fmt(abs(dt))} s"
-    dd, hh, mm, ss = (0, 0, 0, 0)
-    mm = dt // 60
-    ss = dt % 60
-    if mm:
-        pass
-    else:
-        return time_str((dd, hh, mm, ss))
-    hh = mm // 60
-    if hh:
-        mm = mm % 60
-    else:
-        return time_str((dd, hh, mm, ss))
-    dd = hh // 24
-    if dd:
-        hh = hh % 24
-    else:
-        return time_str((dd, hh, mm, ss))
-
-    return time_str((dd, hh, mm, ss))
 
 
 async def schedule_loop(alog=None):
@@ -178,7 +125,7 @@ def status_sc(name, debug=False):
         _next = None
         start_in = None
         if last:
-            last = get_datetime(last)
+            last = aioctl.get_datetime(last)
             if repeat:
                 _next = repeat - (time.time() - _last_tm)
         else:
@@ -193,17 +140,18 @@ def status_sc(name, debug=False):
         if repeat:
             if last:
                 print(
-                    f"    ┗━► schedule: last @ {last} --> next in {tmdelta_fmt(_next)}",
+                    f"    ┗━► schedule: last @ {last} "
+                    + f"--> next in {aioctl.tmdelta_fmt(_next)}",
                     end="",
                 )
-                print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
+                print(f" @ {aioctl.get_datetime(time.localtime(time.time() + _next))}")
             else:
-                print(f"    ┗━► schedule: next in {tmdelta_fmt(_next)}", end="")
-                print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
+                print(f"    ┗━► schedule: next in {aioctl.tmdelta_fmt(_next)}", end="")
+                print(f" @ {aioctl.get_datetime(time.localtime(time.time() + _next))}")
 
         elif start_in:
-            print(f"    ┗━► schedule: starts in {tmdelta_fmt(_next)}", end="")
-            print(f" @ {get_datetime(time.localtime(time.time() + _next))}")
+            print(f"    ┗━► schedule: starts in {aioctl.tmdelta_fmt(_next)}", end="")
+            print(f" @ {aioctl.get_datetime(time.localtime(time.time() + _next))}")
 
         if debug:
             print(f"    ┗━► schedule opts: {_sch_str}")
