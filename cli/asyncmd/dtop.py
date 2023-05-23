@@ -5,6 +5,8 @@ import time
 from datetime import timedelta
 import datetime
 import curses
+import curses.ascii
+import curses.textpad
 import asyncio_mqtt as aiomqtt
 import json
 import asyncio
@@ -12,6 +14,7 @@ from . import __version__ as version
 from functools import wraps
 import yaml
 import textwrap
+from prompt_toolkit import PromptSession, shortcuts
 
 
 def convert_size(size_bytes):  # convert from bytes to other units
@@ -22,6 +25,14 @@ def convert_size(size_bytes):  # convert from bytes to other units
     p = math.pow(1000, i)
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
+
+
+def node_match(patt, nodes):
+    pattrn = re.compile(patt.replace(".", r"\.").replace("*", ".*") + "$")
+    try:
+        return [node for node in nodes if pattrn.match(node)]
+    except Exception:
+        return []
 
 
 def handle(f):
@@ -62,6 +73,7 @@ class DeviceTOP:
         self._close_flag = False
         self._client = None
         self._log_enabled = False
+        self._filt_dev = None
 
         self._status_colors = {
             "running": 5,
@@ -72,14 +84,16 @@ class DeviceTOP:
         }
 
     def bottom_status_bar(self):
-        local_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+        local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
-            f"asyncmd {version} | Local time {local_time}"
+            f"asyncmd {version} | {local_time}"
             " | KEYS: n/p: next/pevious device"
             ", s: time format (ISO/DELTA)"
             ", c: fetch services.config"
             ", i: toggle device info"
             ", l: toggle device log"
+            ", ESC: clear filter"
+            f" | filter: {self._filt_dev}"
         )
         return bottom_statusbar_str
 
@@ -309,6 +323,9 @@ class DeviceTOP:
         k = 0
         node_idx = 0
         show_config = False
+        cmd = False
+        _cmd_buff = ""
+        filt_dev = ""
         TM_FMT = "DELTA"
         _HL = [
             "DEVICE",
@@ -322,6 +339,9 @@ class DeviceTOP:
 
         stdscr.nodelay(True)
 
+        session_cmd = PromptSession()
+        session_filt = PromptSession()
+
         while True:
             k = stdscr.getch()
             nodes = list(self._data_buffer.keys())
@@ -334,7 +354,13 @@ class DeviceTOP:
             # set --> add from topic
             # n, p filter by topic
             # also all
+            cmd_inp = ""
+
+            ptr = Pointer()
+            height, width = stdscr.getmaxyx()
+            stdscr.erase()
             nodes_cnt = len(nodes)
+            # if not cmd:
             if k == ord("q"):
                 self._close_flag = True
                 break
@@ -360,17 +386,84 @@ class DeviceTOP:
             elif k == ord("l"):
                 self._log_enabled = not self._log_enabled
 
-            ptr = Pointer()
-            height, width = stdscr.getmaxyx()
-            stdscr.erase()
-            # stdscr.box()
+            elif k == ord("/"):
+                # cmd = True
+                # curses.setsyx(height - 1, 0)
+                # clear bottom line?
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
+                _cmdlw.addstr("/")
+                # _cmdlw.keypad(True)
 
+                # _cmdlw.attron(curses.color_pair(4))
+                # rect = curses.textpad.rectangle(_cmdlw, uly, ulx, lry, lrx)
+                # tb = Textbox(_cmdlw, insert_mode=True)
+
+                filt_dev = await session_filt.prompt_async("/")
+
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+                # filt_dev = tb.edit()
+                # filt_dev = filt_dev.replace("/", "").strip()
+
+                curses.curs_set(0)
+                # filt_dev = tb.gather()
+                # print(filt_dev.encode())
+            elif k == ord(":"):
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
+                _cmdlw.addstr(":")
+                # _cmdlw.keypad(True)
+
+                # _cmdlw.attron(curses.color_pair(4))
+                # rect = curses.textpad.rectangle(_cmdlw, uly, ulx, lry, lrx)
+
+                # with StdoutProxy():
+                cmd_inp = await session_cmd.prompt_async(":")
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+                curses.curs_set(0)
+
+            elif k == curses.ascii.ESC:
+                filt_dev = ""
+
+            self._filt_dev = filt_dev
             node = nodes[node_idx]
             _nodes = [node]
             _max_seps = {k: [] for k in _HL}
             _max_hns = []
             if _nodes == ["all"]:
                 _nodes = [nd for nd in list(self._data_buffer.keys()) if nd != "all"]
+                if filt_dev:
+                    _filt_nodes = node_match(filt_dev, _nodes)
+                    if _filt_nodes:
+                        _nodes = _filt_nodes
+
+                        if cmd_inp and cmd_inp.startswith("@"):
+                            for node in _nodes:
+                                await self._client.publish(
+                                    f"device/{node}/cmd",
+                                    payload=cmd_inp.replace("@", ""),
+                                )
+                else:
+                    # all --> publish to all (faster instead of looping)
+
+                    if cmd_inp and cmd_inp.startswith("@"):
+                        await self._client.publish(
+                            "device/all/cmd", payload=cmd_inp.replace("@", "")
+                        )
+            else:
+                if cmd_inp and cmd_inp.startswith("@"):
+                    for node in _nodes:
+                        await self._client.publish(
+                            f"device/{node}/cmd", payload=cmd_inp.replace("@", "")
+                        )
             for node in _nodes:
                 data = self._data_buffer[node]
                 _max_hn = self.get_sep("hostname", _HL, data, TM_FMT)
@@ -508,8 +601,8 @@ class DeviceTOP:
                         _log_lines.sort()
                         for line in _log_lines[-v_lines:]:
                             self.printline(stdscr, line, ptr, width)
-
-            self.print_bottom_status_bar(stdscr, width, height)
+            if not cmd:
+                self.print_bottom_status_bar(stdscr, width, height)
             stdscr.noutrefresh()
             curses.doupdate()
             stdscr.timeout(update_interval)
