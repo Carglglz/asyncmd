@@ -179,9 +179,17 @@ class MQTTService(Service):
                             )
                     elif _act in ["set", "enable", "disable"]:
                         if _act == "enable":
-                            aioservice.enable(_serv)
+                            if isinstance(_serv, list):
+                                for _sv in _serv:
+                                    aioservice.enable(_sv)
+                            else:
+                                aioservice.enable(_serv)
                         elif _act == "disable":
-                            aioservice.disable(_serv)
+                            if isinstance(_serv, list):
+                                for _sv in _serv:
+                                    aioservice.disable(_sv)
+                            else:
+                                aioservice.disable(_serv)
                         else:
                             for kserv, _conf in _serv.items():
                                 aioservice.config(

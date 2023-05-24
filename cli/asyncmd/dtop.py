@@ -1,3 +1,4 @@
+import os
 import re
 import math
 import ssl
@@ -6,15 +7,21 @@ from datetime import timedelta
 import datetime
 import curses
 import curses.ascii
-import curses.textpad
 import asyncio_mqtt as aiomqtt
 import json
 import asyncio
 from . import __version__ as version
+import asyncmd.cmd_parser as cmd_parser
 from functools import wraps
 import yaml
 import textwrap
-from prompt_toolkit import PromptSession, shortcuts
+from prompt_toolkit import PromptSession, shortcuts, patch_stdout
+
+
+def parse_config_file(config_file):
+    with open(config_file, "r") as tf:
+        _conf = tf.read()
+    return yaml.safe_load(_conf)
 
 
 def convert_size(size_bytes):  # convert from bytes to other units
@@ -74,6 +81,11 @@ class DeviceTOP:
         self._client = None
         self._log_enabled = False
         self._filt_dev = None
+        self._cmd_parser = cmd_parser.CmdParser()
+        self._subparses = cmd_parser.SHELL_CMD_SUBPARSERS
+        self._cmd_lib = cmd_parser.SHELL_CMD_DICT_PARSER
+        self._cmd_resps = {}
+        self._last_cmd = ""
 
         self._status_colors = {
             "running": 5,
@@ -271,6 +283,19 @@ class DeviceTOP:
         nod_info.append(" ")
         return nod_info
 
+    def draw_section(self, stdscr, ptr, title, section_str, width):
+        ptr.newline()
+        stdscr.attron(curses.color_pair(3))
+        self.printline(stdscr, f" {title} {' ' * (width - 7)}", ptr, width)
+        stdscr.attroff(curses.color_pair(3))
+        ptr.newline()
+        for line in section_str.split("\n"):
+            if line:
+                for _line in textwrap.wrap(line, width - 4):
+                    self.printline(stdscr, f"{_line}", ptr, width)
+            else:
+                self.printline(stdscr, " ", ptr, width)
+
     async def data_feed(self):
         tls_params = None
         if self.args.cafile:
@@ -291,14 +316,29 @@ class DeviceTOP:
                 await client.subscribe("device/+/status")
                 await client.subscribe("device/+/config")
                 await client.subscribe("device/+/log")
+                await client.subscribe("device/+/resp")
                 async for message in messages:
                     devname, topic = str(message.topic).split("/")[1:]
                     if topic == "status":
                         _servs = json.loads(message.payload.decode())
-                        self._data_buffer[devname] = _servs
+                        if "hostname" in _servs:
+                            self._data_buffer[devname] = _servs
+                        else:
+                            if devname not in self._cmd_resps:
+                                self._cmd_resps[devname] = {}
+                            if self._last_cmd:
+                                self._cmd_resps[devname][self._last_cmd] = _servs
                     elif topic == "config":
                         _confs = json.loads(message.payload.decode())
                         self._conf_buffer[devname] = _confs
+
+                    elif topic == "resp":
+                        resp = json.loads(message.payload.decode())
+
+                        if devname not in self._cmd_resps:
+                            self._cmd_resps[devname] = {}
+                        if self._last_cmd:
+                            self._cmd_resps[devname][self._last_cmd] = resp
                     elif topic == "log":
                         if not self._log_buffer.get(devname):
                             self._log_buffer[devname] = ""
@@ -326,6 +366,11 @@ class DeviceTOP:
         cmd = False
         _cmd_buff = ""
         filt_dev = ""
+        command = ""
+        rest_args = ""
+        help_command = ""
+        command_sent = False
+        refresh_devconfig = False
         TM_FMT = "DELTA"
         _HL = [
             "DEVICE",
@@ -341,6 +386,8 @@ class DeviceTOP:
 
         session_cmd = PromptSession()
         session_filt = PromptSession()
+        session_help = PromptSession()
+        _cmdlw = None
 
         while True:
             k = stdscr.getch()
@@ -351,16 +398,15 @@ class DeviceTOP:
                 self.printline(stdscr, "Fetching info...", ptr, width)
                 await asyncio.sleep(0.1)
                 continue
-            # set --> add from topic
-            # n, p filter by topic
-            # also all
-            cmd_inp = ""
 
+            cmd_inp = ""
+            cmd_help = ""
             ptr = Pointer()
             height, width = stdscr.getmaxyx()
             stdscr.erase()
             nodes_cnt = len(nodes)
-            # if not cmd:
+            curses.resizeterm(*stdscr.getmaxyx())
+
             if k == ord("q"):
                 self._close_flag = True
                 break
@@ -383,55 +429,70 @@ class DeviceTOP:
                         _msg = json.dumps({"config": {"get": "*"}})
 
                         await self._client.publish("device/all/service", payload=_msg)
+
+                command = ""
+                help_command = ""
             elif k == ord("l"):
                 self._log_enabled = not self._log_enabled
+                command = ""
+                help_command = ""
 
             elif k == ord("/"):
-                # cmd = True
-                # curses.setsyx(height - 1, 0)
-                # clear bottom line?
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
-                _cmdlw.addstr("/")
-                # _cmdlw.keypad(True)
-
-                # _cmdlw.attron(curses.color_pair(4))
-                # rect = curses.textpad.rectangle(_cmdlw, uly, ulx, lry, lrx)
-                # tb = Textbox(_cmdlw, insert_mode=True)
 
                 filt_dev = await session_filt.prompt_async("/")
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
+                _cmdlw.erase()
                 _cmdlw.refresh()
                 stdscr.erase()
                 stdscr.refresh()
-                # filt_dev = tb.edit()
-                # filt_dev = filt_dev.replace("/", "").strip()
 
                 curses.curs_set(0)
-                # filt_dev = tb.gather()
-                # print(filt_dev.encode())
             elif k == ord(":"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
-                _cmdlw.addstr(":")
-                # _cmdlw.keypad(True)
-
-                # _cmdlw.attron(curses.color_pair(4))
-                # rect = curses.textpad.rectangle(_cmdlw, uly, ulx, lry, lrx)
-
-                # with StdoutProxy():
-                cmd_inp = await session_cmd.prompt_async(":")
+                # cmd_inp = ""
+                with patch_stdout.patch_stdout():
+                    cmd_inp = await session_cmd.prompt_async(":")
                 shortcuts.clear()
                 _cmdlw.deleteln()
+                _cmdlw.erase()
                 _cmdlw.refresh()
                 stdscr.erase()
                 stdscr.refresh()
                 curses.curs_set(0)
+                if cmd_inp:
+                    command = ""
+                    help_command = ""
+                    self._last_cmd = ""
+                    # show_config = False
+                    # self._log_enabled = False
+
+            elif k == ord("?"):
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
+                cmd_help = await session_help.prompt_async("?")
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.erase()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+                curses.curs_set(0)
+                if cmd_help:
+                    command = ""
+                    help_command = ""
 
             elif k == curses.ascii.ESC:
                 filt_dev = ""
+                command = ""
+                help_command = ""
+                # self._log_enabled = False
+                show_config = False
+                self._last_cmd = ""
 
             self._filt_dev = filt_dev
             node = nodes[node_idx]
@@ -444,7 +505,7 @@ class DeviceTOP:
                     _filt_nodes = node_match(filt_dev, _nodes)
                     if _filt_nodes:
                         _nodes = _filt_nodes
-
+                        # Device cmds
                         if cmd_inp and cmd_inp.startswith("@"):
                             for node in _nodes:
                                 await self._client.publish(
@@ -464,6 +525,47 @@ class DeviceTOP:
                         await self._client.publish(
                             f"device/{node}/cmd", payload=cmd_inp.replace("@", "")
                         )
+
+            # Parse cmd line
+            if not cmd_inp.startswith("@") or cmd_help:
+                _cmd = cmd_inp or cmd_help
+                if "-h" in _cmd or cmd_help:
+                    _cmd = _cmd.replace("-h", "").strip()
+                    help_command = f"HELP: {_cmd}"
+                    if not _cmd:
+                        rest_args = self._cmd_parser.parser.format_help()
+                    else:
+                        subcmd = self._subparses.get(_cmd)
+                        if subcmd:
+                            rest_args = subcmd.format_help()
+                        else:
+                            rest_args = self._cmd_parser.parser.format_usage()
+                            rest_args += (
+                                f"\n asyncmd error: command {_cmd}"
+                                f" not in {list(self._cmd_lib.keys())}"
+                            )
+
+                elif _cmd:
+                    top_cmd = _cmd.split()[0]
+                    if top_cmd.replace("!", "") in self._cmd_lib:
+                        command, rest_args, args = self._cmd_parser.sh_cmd(_cmd)
+                        command_sent = False
+                        if "!" in _cmd:
+                            help_command = command
+                    else:
+                        help_command = f"ERROR: {_cmd}"
+
+                        rest_args = self._cmd_parser.parser.format_usage()
+                        rest_args += (
+                            f"\n asyncmd error: command {_cmd}"
+                            f" not in {list(self._cmd_lib.keys())}"
+                        )
+            else:
+                if cmd_inp.startswith("@"):
+                    self._last_cmd = cmd_inp.replace("@", "")
+                    command = self._last_cmd
+
+            # get info
             for node in _nodes:
                 data = self._data_buffer[node]
                 _max_hn = self.get_sep("hostname", _HL, data, TM_FMT)
@@ -528,7 +630,8 @@ class DeviceTOP:
                 self.print_vm_info(
                     stdscr, ptr, vm_status_list, status_bar_item_length, width
                 )
-            if show_config:
+
+            if show_config and not (self._last_cmd or help_command):
                 if len(_nodes) == 1:
                     ptr.newline()
                     stdscr.attron(curses.color_pair(3))
@@ -581,7 +684,14 @@ class DeviceTOP:
                                         stdscr.attroff(curses.color_pair(9))
                                     else:
                                         self.printline(stdscr, line, ptr, width)
-            elif self._log_enabled:
+                        if refresh_devconfig:
+                            _msg = json.dumps({"config": {"get": "*"}})
+
+                            await self._client.publish(
+                                f"device/{node}/service", payload=_msg
+                            )
+                    refresh_devconfig = False
+            elif self._log_enabled and not (self._last_cmd or help_command):
                 if len(_nodes) >= 1:
                     ptr.newline()
                     stdscr.attron(curses.color_pair(3))
@@ -601,6 +711,91 @@ class DeviceTOP:
                         _log_lines.sort()
                         for line in _log_lines[-v_lines:]:
                             self.printline(stdscr, line, ptr, width)
+            elif help_command:
+                self.draw_section(stdscr, ptr, help_command, str(rest_args), width)
+            if command:
+                if not command_sent:
+                    command_sent = not command_sent
+                    if command in ["start", "stop"]:
+                        msg = json.dumps({command: rest_args})
+                        if _nodes == [
+                            nd for nd in list(self._data_buffer.keys()) if nd != "all"
+                        ]:
+                            await self._client.publish(
+                                "device/all/service", payload=msg
+                            )
+                        else:
+                            for node in _nodes:
+                                await self._client.publish(
+                                    f"device/{node}/service", payload=msg
+                                )
+                        self._last_cmd = command
+
+                    elif command in ["enable", "disable", "config"]:
+                        refresh_devconfig = True
+                        if command in ["enable", "disable"]:
+                            msg = json.dumps({"config": {command: rest_args}})
+                        else:
+                            # config
+                            _serv = rest_args
+                            act = "set"
+                            _configf = False
+                            if os.path.exists(rest_args):
+                                _configf = parse_config_file(rest_args)
+                            if not _configf:
+                                if args.kwargs is None:
+                                    args.kwargs = {}
+                                if args.args is None:
+                                    args.args = []
+                                msg = json.dumps(
+                                    {
+                                        "config": {
+                                            act: {
+                                                _serv: {
+                                                    "args": args.args,
+                                                    "kwargs": args.kwargs,
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                            else:
+                                enabled_servs = {
+                                    serv: {
+                                        "args": _configf[serv].get("args", []),
+                                        "kwargs": _configf[serv].get("kwargs", {}),
+                                    }
+                                    for serv in _configf
+                                    if _configf[serv].get("enabled", False)
+                                }
+                                msg = json.dumps({"config": {act: enabled_servs}})
+
+                        if _nodes == [
+                            nd for nd in list(self._data_buffer.keys()) if nd != "all"
+                        ]:
+                            await self._client.publish(
+                                "device/all/service", payload=msg
+                            )
+                        else:
+                            for node in _nodes:
+                                await self._client.publish(
+                                    f"device/{node}/service", payload=msg
+                                )
+
+                if self._last_cmd:
+                    resp = ""
+                    for node in _nodes:
+                        dev_resp = self._cmd_resps.get(node)
+                        if dev_resp:
+                            last_cmd_resp = dev_resp.get(self._last_cmd)
+                            if last_cmd_resp:
+                                resp += f"{node}: [{self._last_cmd.upper()}]"
+                                resp += f" {str(last_cmd_resp)}\n\n"
+                    if resp:
+                        self.draw_section(
+                            stdscr, ptr, f"CMD: {command.upper()}", resp, width
+                        )
+
             if not cmd:
                 self.print_bottom_status_bar(stdscr, width, height)
             stdscr.noutrefresh()
