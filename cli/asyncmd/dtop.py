@@ -1,3 +1,6 @@
+import signal
+import shlex
+import subprocess
 import os
 import re
 import math
@@ -16,6 +19,7 @@ from functools import wraps
 import yaml
 import textwrap
 from prompt_toolkit import PromptSession, shortcuts, patch_stdout
+from prompt_toolkit.completion import WordCompleter, FuzzyWordCompleter, NestedCompleter
 
 
 def parse_config_file(config_file):
@@ -387,7 +391,10 @@ class DeviceTOP:
         session_cmd = PromptSession()
         session_filt = PromptSession()
         session_help = PromptSession()
+        session_dev = PromptSession()
         _cmdlw = None
+
+        cmd_completer = WordCompleter(self._cmd_lib.keys())
 
         while True:
             k = stdscr.getch()
@@ -437,11 +444,20 @@ class DeviceTOP:
                 command = ""
                 help_command = ""
 
+            elif k == ord("k"):
+                cmd_inp = "kb"
+                command = ""
+                help_command = ""
+                self._last_cmd = ""
+
             elif k == ord("/"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
+                dev_completer = FuzzyWordCompleter(nodes)
 
-                filt_dev = await session_filt.prompt_async("/")
+                filt_dev = await session_filt.prompt_async(
+                    "/", completer=dev_completer, complete_while_typing=False
+                )
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -454,9 +470,51 @@ class DeviceTOP:
             elif k == ord(":"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
+                cmd_comp_dict = {kcmd: None for kcmd in self._cmd_lib.keys()}
+                # add services to [start, stop, enable, disable, config]
+                # add os.listdir() to wconf, e
+                all_servs_active = set()
+                all_servs = set()
+                for _dev in self._data_buffer:
+                    for _serv in self._data_buffer[_dev]:
+                        if _serv != "hostname":
+                            all_servs_active.add(_serv)
+
+                for _dev in self._conf_buffer:
+                    for _serv in self._conf_buffer[_dev]:
+                        all_servs.add(f"{_serv}.service")
+
+                for kcmd in ["start", "stop", "enable", "disable", "config"]:
+                    cmd_comp_dict[kcmd] = all_servs_active
+
+                for kcmd in ["enable", "disable", "config"]:
+                    cmd_comp_dict[kcmd] = all_servs
+
+                cmd_completer = NestedCompleter.from_nested_dict(cmd_comp_dict)
+                with patch_stdout.patch_stdout():
+                    cmd_inp = await session_cmd.prompt_async(
+                        ":", completer=cmd_completer, complete_while_typing=False
+                    )
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.erase()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+                curses.curs_set(0)
+                if cmd_inp:
+                    command = ""
+                    help_command = ""
+                    self._last_cmd = ""
+                    # show_config = False
+                    # self._log_enabled = False
+
+            elif k == ord("@"):
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
                 # cmd_inp = ""
                 with patch_stdout.patch_stdout():
-                    cmd_inp = await session_cmd.prompt_async(":")
+                    cmd_inp = f"@{await session_dev.prompt_async('@')}"
                 shortcuts.clear()
                 _cmdlw.deleteln()
                 _cmdlw.erase()
@@ -474,6 +532,7 @@ class DeviceTOP:
             elif k == ord("?"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
+                # TODO: add completer self._cmd_lib.keys()
                 cmd_help = await session_help.prompt_async("?")
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -734,6 +793,11 @@ class DeviceTOP:
                     elif command in ["enable", "disable", "config"]:
                         refresh_devconfig = True
                         if command in ["enable", "disable"]:
+                            rest_args = [
+                                _serv.replace(".service", "")
+                                for _serv in rest_args
+                                if _serv.endswith(".service")
+                            ]
                             msg = json.dumps({"config": {command: rest_args}})
                         else:
                             # config
@@ -743,6 +807,8 @@ class DeviceTOP:
                             if os.path.exists(rest_args):
                                 _configf = parse_config_file(rest_args)
                             if not _configf:
+                                if _serv.endswith(".service"):
+                                    _serv = _serv.replace(".service", "")
                                 if args.kwargs is None:
                                     args.kwargs = {}
                                 if args.args is None:
@@ -781,6 +847,34 @@ class DeviceTOP:
                                 await self._client.publish(
                                     f"device/{node}/service", payload=msg
                                 )
+                    elif command == "wconf":
+                        config_file = rest_args
+                        dev = _nodes[0]  # first/current device
+                        if dev in self._conf_buffer:
+                            with open(config_file, "w") as cf:
+                                cf.write(yaml.dump(self._conf_buffer[dev]))
+
+                            self._last_cmd = command
+
+                    elif command == "e":
+                        file_to_edit = rest_args
+                        editor = os.environ.get("EDITOR", "vim")
+                        shell_cmd_str = shlex.split(f"{editor} {file_to_edit}")
+
+                        old_action = signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+                        def preexec_function(action=old_action):
+                            signal.signal(signal.SIGINT, action)
+
+                        try:
+                            subprocess.call(shell_cmd_str, preexec_fn=preexec_function)
+                            signal.signal(signal.SIGINT, old_action)
+                        except Exception:
+                            pass
+
+                        shortcuts.clear()
+                        stdscr.erase()
+                        stdscr.refresh()
 
                 if self._last_cmd:
                     resp = ""
@@ -794,6 +888,13 @@ class DeviceTOP:
                     if resp:
                         self.draw_section(
                             stdscr, ptr, f"CMD: {command.upper()}", resp, width
+                        )
+
+                    if self._last_cmd in ["wconf"]:
+                        resp = f"Device {dev} config saved in {config_file}"
+
+                        self.draw_section(
+                            stdscr, ptr, f"CMD: {self._last_cmd.upper()}", resp, width
                         )
 
             if not cmd:

@@ -68,8 +68,9 @@ CONFIG = dict(
     desc="",
     subcmd=dict(
         help="service or service.config file",
-        default="service.config",
+        default="services.config",
         metavar="service",
+        nargs="?",
     ),
     options={
         "--args": dict(
@@ -83,26 +84,53 @@ CONFIG = dict(
         ),
     },
 )
+
+
+WCONF = dict(
+    help="save/write device config in a file",
+    desc="",
+    subcmd=dict(
+        help="file to save", default="services.config", metavar="config file", nargs="?"
+    ),
+    options={},
+)
+
+EDIT = dict(
+    help="edit a file with $EDITOR ",
+    desc="",
+    subcmd=dict(
+        help="file to edit", default="services.config", metavar="file", nargs="?"
+    ),
+    options={},
+)
+
+
 SHELL_CMD_DICT_PARSER = {
     "start": START,
     "stop": STOP,
     "enable": ENABLE,
     "disable": DISABLE,
     "config": CONFIG,
+    "wconf": WCONF,
+    "e": EDIT,
 }
 
 SHELL_CMD_SUBPARSERS = {}
 
 
-usag = """command [options]\n
+usag = """
+:command [options] --> local commands\n
+@command [options] --> device commands\n
+/pattern* --> filter by device name (accepts * wildcards)\n
+?command --> see help of command
 """
 descmds = "asyncmd commands"
-_kb_info_cmd = "Do CTRL-k to see keybindings info"
+_kb_info_cmd = "Press k or :kb command to see more keybindings info"
 _help_subcmds = "[command] -h or ?[command] to see further help of any command"
 
 shparser = argparse.ArgumentParser(
     prog="asyncmd",
-    description=("asyncmd develop tool" "\n\n" + _kb_info_cmd + "\n" + _help_subcmds),
+    description=("asyncmd CLI tool" "\n\n" + _kb_info_cmd + "\n" + _help_subcmds),
     formatter_class=rawfmt,
     usage=usag,
     prefix_chars="-",
@@ -111,7 +139,7 @@ subshparser_cmd = shparser.add_subparsers(
     title="commands", prog="", dest="m", description="Available commands"
 )
 shparser.version = f"asyncmd : {version}"
-shparser.add_argument("-v", action="version")
+# shparser.add_argument("-v", action="version")
 
 for command, subcmd in SHELL_CMD_DICT_PARSER.items():
     if "desc" in subcmd.keys():
