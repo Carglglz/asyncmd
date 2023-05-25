@@ -47,3 +47,11 @@ mqtt_cmds = {
         "resp": {"topic": f"device/{NAME}/resp", "msg": "BLINK"},
     },
 }
+
+_help_mqtt_cmds = {
+    "help": {
+        k: {"args": v.get("args"), "kwargs": v.get("kwargs"), "help": v.get("help")}
+        for k, v in mqtt_cmds.items()
+    },
+}
+mqtt_cmds.update(**_help_mqtt_cmds)

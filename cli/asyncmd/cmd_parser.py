@@ -105,6 +105,14 @@ EDIT = dict(
 )
 
 
+RESET = dict(
+    help="reset device/s",
+    desc="",
+    subcmd={},
+    options={},
+)
+
+
 SHELL_CMD_DICT_PARSER = {
     "start": START,
     "stop": STOP,
@@ -113,24 +121,43 @@ SHELL_CMD_DICT_PARSER = {
     "config": CONFIG,
     "wconf": WCONF,
     "e": EDIT,
+    "reset": RESET,
 }
 
 SHELL_CMD_SUBPARSERS = {}
 
 
 usag = """
-:command [options] --> local commands\n
-@command [options] --> device commands\n
-/pattern* --> filter by device name (accepts * wildcards)\n
-?command --> see help of command
+Command line:
+
+    :command [options] --> local commands
+    @command [options] --> device commands
+    /pattern* --> filter by device name (accepts * wildcards)
+    /l/pattern* --> filter log by pattern
+    /s/*pattern* --> filter service info by pattern
+    ?command --> see help of command
+    @help --> see device commands help
+    @?command --> see help of device command
+
+Keybindings:
+
+    n: next device
+    p: previous device
+    i: toggle device info
+    c: fetch and toggle device config info
+    l: fetch and toggle device log
+    s: switch time format (ISO/DATETIME)
+    ESC: clear filters and cmd mode output
+
 """
 descmds = "asyncmd commands"
-_kb_info_cmd = "Press k or :kb command to see more keybindings info"
-_help_subcmds = "[command] -h or ?[command] to see further help of any command"
+_help_subcmds = (
+    "[command] -h or ?[command]/@?[command] to see further help of any command"
+)
 
 shparser = argparse.ArgumentParser(
     prog="asyncmd",
-    description=("asyncmd CLI tool" "\n\n" + _kb_info_cmd + "\n" + _help_subcmds),
+    description=("asyncmd CLI tool" "\n\n" + _help_subcmds),
     formatter_class=rawfmt,
     usage=usag,
     prefix_chars="-",

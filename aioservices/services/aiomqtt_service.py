@@ -269,6 +269,18 @@ class MQTTService(Service):
             else:
                 if self.log:
                     self.log.info(f"[{self.name}.service] No OTA service found")
+        elif action == "help" or "?" in action:
+            if action == "help":
+                _resp = service.get(action)
+            else:
+                action = action.replace("?", "")
+                _resp = service.get("help").get(action)
+            if _resp:
+                async with self.lock:
+                    await self.client.publish(
+                        f"device/{self.id}/help".encode("utf-8"),
+                        json.dumps(_resp),
+                    )
 
         else:
             # topic-command-lib {"on":{"cmd": led.on, args:[], kwargs:{}, log:"LED ON",
@@ -467,7 +479,10 @@ class MQTTService(Service):
                         else:
                             _cmd_name = act["cmd"]
 
-                        if _cmd_name in mqtt_cmds:
+                        if (
+                            _cmd_name in mqtt_cmds
+                            or _cmd_name.replace("?", "") in mqtt_cmds
+                        ):
                             _name = self._suid(
                                 aioctl, f"{self.name}.service.do_action.{_cmd_name}"
                             )

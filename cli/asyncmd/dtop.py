@@ -19,7 +19,13 @@ from functools import wraps
 import yaml
 import textwrap
 from prompt_toolkit import PromptSession, shortcuts, patch_stdout
-from prompt_toolkit.completion import WordCompleter, FuzzyWordCompleter, NestedCompleter
+from prompt_toolkit.completion import (
+    WordCompleter,
+    FuzzyWordCompleter,
+    NestedCompleter,
+    PathCompleter,
+    merge_completers,
+)
 
 
 def parse_config_file(config_file):
@@ -80,6 +86,7 @@ class DeviceTOP:
         self._data_buffer = {"all": {}}
         self._conf_buffer = {}
         self._log_buffer = {}
+        self._help_buffer = {}
         self._info_enabled = True
         self._close_flag = False
         self._client = None
@@ -99,7 +106,7 @@ class DeviceTOP:
             "done": 2,
         }
 
-    def bottom_status_bar(self):
+    def bottom_status_bar(self, n=0):
         local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
             f"asyncmd {version} | {local_time}"
@@ -110,6 +117,7 @@ class DeviceTOP:
             ", l: toggle device log"
             ", ESC: clear filter"
             f" | filter: {self._filt_dev}"
+            f" | #devices: {n}"
         )
         return bottom_statusbar_str
 
@@ -152,8 +160,8 @@ class DeviceTOP:
         curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     @handle
-    def print_bottom_status_bar(self, stdscr, width, height):
-        bottom_statusbar_str = self.bottom_status_bar()
+    def print_bottom_status_bar(self, stdscr, n, width, height):
+        bottom_statusbar_str = self.bottom_status_bar(n)
         stdscr.attron(curses.color_pair(4))
         stdscr.addnstr(height - 1, 0, bottom_statusbar_str, width)
         stdscr.addnstr(
@@ -321,6 +329,7 @@ class DeviceTOP:
                 await client.subscribe("device/+/config")
                 await client.subscribe("device/+/log")
                 await client.subscribe("device/+/resp")
+                await client.subscribe("device/+/help")
                 async for message in messages:
                     devname, topic = str(message.topic).split("/")[1:]
                     if topic == "status":
@@ -347,6 +356,12 @@ class DeviceTOP:
                         if not self._log_buffer.get(devname):
                             self._log_buffer[devname] = ""
                         self._log_buffer[devname] += message.payload.decode()
+                    elif topic == "help":
+                        _help = json.loads(message.payload.decode())
+                        if devname not in self._help_buffer:
+                            self._help_buffer[devname] = _help
+                        else:
+                            self._help_buffer[devname].update(**_help)
                     if self._close_flag:
                         return
 
@@ -370,6 +385,8 @@ class DeviceTOP:
         cmd = False
         _cmd_buff = ""
         filt_dev = ""
+        filt_log = ""
+        filt_serv = ""
         command = ""
         rest_args = ""
         help_command = ""
@@ -458,6 +475,12 @@ class DeviceTOP:
                 filt_dev = await session_filt.prompt_async(
                     "/", completer=dev_completer, complete_while_typing=False
                 )
+                if filt_dev.startswith("s/"):
+                    filt_serv = filt_dev.replace("s/", "")
+                    filt_dev = ""
+                elif filt_dev.startswith("l/"):
+                    filt_log = filt_dev.replace("l/", "")
+                    filt_dev = ""
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -475,6 +498,11 @@ class DeviceTOP:
                 # add os.listdir() to wconf, e
                 all_servs_active = set()
                 all_servs = set()
+
+                path_completer = PathCompleter(
+                    expanduser=True,
+                    file_filter=lambda file: file if file.endswith(".config") else None,
+                )
                 for _dev in self._data_buffer:
                     for _serv in self._data_buffer[_dev]:
                         if _serv != "hostname":
@@ -487,8 +515,15 @@ class DeviceTOP:
                 for kcmd in ["start", "stop", "enable", "disable", "config"]:
                     cmd_comp_dict[kcmd] = all_servs_active
 
-                for kcmd in ["enable", "disable", "config"]:
+                for kcmd in ["enable", "disable"]:
                     cmd_comp_dict[kcmd] = all_servs
+
+                for kcmd in ["wconf", "e"]:
+                    cmd_comp_dict[kcmd] = path_completer
+
+                cmd_comp_dict["config"] = merge_completers(
+                    (WordCompleter(list(all_servs)), path_completer)
+                )
 
                 cmd_completer = NestedCompleter.from_nested_dict(cmd_comp_dict)
                 with patch_stdout.patch_stdout():
@@ -513,8 +548,23 @@ class DeviceTOP:
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
                 # cmd_inp = ""
+                _dev_cmds_comps = [
+                    WordCompleter(list(_dcmd.keys()))
+                    for _dev, _dcmd in self._help_buffer.items()
+                ]
+
+                _dev_cmds_comps += [WordCompleter(["help"])]
+                dev_cmd_comp = merge_completers(
+                    _dev_cmds_comps,
+                    deduplicate=True,
+                )
+
                 with patch_stdout.patch_stdout():
-                    cmd_inp = f"@{await session_dev.prompt_async('@')}"
+                    cmd_inp = await session_dev.prompt_async(
+                        "@", completer=dev_cmd_comp, complete_while_typing=False
+                    )
+                    if cmd_inp:
+                        cmd_inp = f"@{cmd_inp}"
                 shortcuts.clear()
                 _cmdlw.deleteln()
                 _cmdlw.erase()
@@ -552,6 +602,8 @@ class DeviceTOP:
                 # self._log_enabled = False
                 show_config = False
                 self._last_cmd = ""
+                filt_log = ""
+                filt_serv = ""
 
             self._filt_dev = filt_dev
             node = nodes[node_idx]
@@ -565,7 +617,7 @@ class DeviceTOP:
                     if _filt_nodes:
                         _nodes = _filt_nodes
                         # Device cmds
-                        if cmd_inp and cmd_inp.startswith("@"):
+                        if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
                             for node in _nodes:
                                 await self._client.publish(
                                     f"device/{node}/cmd",
@@ -574,12 +626,12 @@ class DeviceTOP:
                 else:
                     # all --> publish to all (faster instead of looping)
 
-                    if cmd_inp and cmd_inp.startswith("@"):
+                    if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
                         await self._client.publish(
                             "device/all/cmd", payload=cmd_inp.replace("@", "")
                         )
             else:
-                if cmd_inp and cmd_inp.startswith("@"):
+                if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
                     for node in _nodes:
                         await self._client.publish(
                             f"device/{node}/cmd", payload=cmd_inp.replace("@", "")
@@ -686,6 +738,8 @@ class DeviceTOP:
                     if serv != "hostname"
                 ]  # --> services row
                 status_bar_item_length = 3
+                if filt_serv:
+                    vm_status_list = node_match(filt_serv, vm_status_list)
                 self.print_vm_info(
                     stdscr, ptr, vm_status_list, status_bar_item_length, width
                 )
@@ -764,7 +818,11 @@ class DeviceTOP:
                         if _log:
                             _n_lines = len(_log.splitlines())
                             for line in _log.splitlines()[-v_lines:]:
-                                _buffer_log += f"{line}\n"
+                                if filt_log:
+                                    if node_match(filt_log, [line]):
+                                        _buffer_log += f"{line}\n"
+                                else:
+                                    _buffer_log += f"{line}\n"
                     if _buffer_log:
                         _log_lines = _buffer_log.splitlines()
                         _log_lines.sort()
@@ -849,12 +907,17 @@ class DeviceTOP:
                                 )
                     elif command == "wconf":
                         config_file = rest_args
-                        dev = _nodes[0]  # first/current device
-                        if dev in self._conf_buffer:
-                            with open(config_file, "w") as cf:
-                                cf.write(yaml.dump(self._conf_buffer[dev]))
+                        resp_config = ""
+                        for dev in _nodes:
+                            if dev in self._conf_buffer:
+                                with open(f"{dev}_{config_file}", "w") as cf:
+                                    cf.write(yaml.dump(self._conf_buffer[dev]))
 
-                            self._last_cmd = command
+                                self._last_cmd = command
+                                resp_config += (
+                                    f"Device {dev} config saved in "
+                                    f"{dev}_{config_file}\n"
+                                )
 
                     elif command == "e":
                         file_to_edit = rest_args
@@ -878,27 +941,46 @@ class DeviceTOP:
 
                 if self._last_cmd:
                     resp = ""
-                    for node in _nodes:
-                        dev_resp = self._cmd_resps.get(node)
-                        if dev_resp:
-                            last_cmd_resp = dev_resp.get(self._last_cmd)
-                            if last_cmd_resp:
-                                resp += f"{node}: [{self._last_cmd.upper()}]"
-                                resp += f" {str(last_cmd_resp)}\n\n"
+
+                    if self._last_cmd == "help" or "?" in self._last_cmd:
+                        # device help
+
+                        for node in _nodes:
+                            dev_help = self._help_buffer.get(node)
+                            if dev_help:
+                                if "?" in self._last_cmd:
+                                    last_cmd_resp = dev_help.get(
+                                        self._last_cmd.replace("?", "")
+                                    )
+                                else:
+                                    last_cmd_resp = dev_help
+                                if last_cmd_resp:
+                                    resp += f"{node}: [{self._last_cmd.upper()}]"
+                                    resp += f" {str(last_cmd_resp)}\n\n"
+                    else:
+                        for node in _nodes:
+                            dev_resp = self._cmd_resps.get(node)
+                            if dev_resp:
+                                last_cmd_resp = dev_resp.get(self._last_cmd)
+                                if last_cmd_resp:
+                                    resp += f"{node}: [{self._last_cmd.upper()}]"
+                                    resp += f" {str(last_cmd_resp)}\n\n"
                     if resp:
                         self.draw_section(
                             stdscr, ptr, f"CMD: {command.upper()}", resp, width
                         )
 
                     if self._last_cmd in ["wconf"]:
-                        resp = f"Device {dev} config saved in {config_file}"
-
                         self.draw_section(
-                            stdscr, ptr, f"CMD: {self._last_cmd.upper()}", resp, width
+                            stdscr,
+                            ptr,
+                            f"CMD: {self._last_cmd.upper()}",
+                            resp_config,
+                            width,
                         )
 
             if not cmd:
-                self.print_bottom_status_bar(stdscr, width, height)
+                self.print_bottom_status_bar(stdscr, len(_nodes), width, height)
             stdscr.noutrefresh()
             curses.doupdate()
             stdscr.timeout(update_interval)
