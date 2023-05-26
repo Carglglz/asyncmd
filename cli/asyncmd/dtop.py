@@ -93,6 +93,7 @@ class DeviceTOP:
         self._log_enabled = False
         self._filt_dev = None
         self._cmd_parser = cmd_parser.CmdParser()
+        self._dev_cmd_parser = cmd_parser.CmdParser(cmd_parser.dev_parser)
         self._subparses = cmd_parser.SHELL_CMD_SUBPARSERS
         self._cmd_lib = cmd_parser.SHELL_CMD_DICT_PARSER
         self._cmd_resps = {}
@@ -564,6 +565,9 @@ class DeviceTOP:
                         "@", completer=dev_cmd_comp, complete_while_typing=False
                     )
                     if cmd_inp:
+                        dev_args = None
+                        if any(("--args" in cmd_inp, "--kwargs" in cmd_inp)):
+                            cmd_inp, _, dev_args = self._dev_cmd_parser.sh_cmd(cmd_inp)
                         cmd_inp = f"@{cmd_inp}"
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -610,6 +614,7 @@ class DeviceTOP:
             _nodes = [node]
             _max_seps = {k: [] for k in _HL}
             _max_hns = []
+            _cmd_inp = cmd_inp
             if _nodes == ["all"]:
                 _nodes = [nd for nd in list(self._data_buffer.keys()) if nd != "all"]
                 if filt_dev:
@@ -618,23 +623,47 @@ class DeviceTOP:
                         _nodes = _filt_nodes
                         # Device cmds
                         if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
+                            if dev_args:
+                                _cmd_inp = json.dumps(
+                                    {
+                                        "cmd": cmd_inp.replace("@", ""),
+                                        "args": dev_args.args,
+                                        "kwargs": dev_args.kwargs,
+                                    }
+                                )
                             for node in _nodes:
                                 await self._client.publish(
                                     f"device/{node}/cmd",
-                                    payload=cmd_inp.replace("@", ""),
+                                    payload=_cmd_inp.replace("@", ""),
                                 )
                 else:
                     # all --> publish to all (faster instead of looping)
 
                     if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
+                        if dev_args:
+                            _cmd_inp = json.dumps(
+                                {
+                                    "cmd": cmd_inp.replace("@", ""),
+                                    "args": dev_args.args,
+                                    "kwargs": dev_args.kwargs,
+                                }
+                            )
                         await self._client.publish(
-                            "device/all/cmd", payload=cmd_inp.replace("@", "")
+                            "device/all/cmd", payload=_cmd_inp.replace("@", "")
                         )
             else:
                 if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
+                    if dev_args:
+                        _cmd_inp = json.dumps(
+                            {
+                                "cmd": cmd_inp.replace("@", ""),
+                                "args": dev_args.args,
+                                "kwargs": dev_args.kwargs,
+                            }
+                        )
                     for node in _nodes:
                         await self._client.publish(
-                            f"device/{node}/cmd", payload=cmd_inp.replace("@", "")
+                            f"device/{node}/cmd", payload=_cmd_inp.replace("@", "")
                         )
 
             # Parse cmd line

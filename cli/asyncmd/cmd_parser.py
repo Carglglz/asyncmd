@@ -186,6 +186,25 @@ for command, subcmd in SHELL_CMD_DICT_PARSER.items():
 
     SHELL_CMD_SUBPARSERS[command] = _subparser
 
+# Device command parser
+dev_parser = argparse.ArgumentParser(
+    prog="asyncmd",
+    description="asyncmd CLI tool",
+    formatter_class=argparse.RawTextHelpFormatter,
+    usage=usag,
+)
+dev_parser.version = version
+dev_parser.add_argument("m", metavar="Mode")
+dev_parser.add_argument(
+    "--args", required=False, nargs="*", help="args for command", type=get_args
+)
+dev_parser.add_argument(
+    "--kwargs",
+    required=False,
+    help="kwargs for command",
+    type=yaml.safe_load,
+)
+
 
 class CmdParser:
     def __init__(self, parser=shparser):

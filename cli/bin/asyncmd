@@ -15,6 +15,7 @@ import asyncio_mqtt as aiomqtt
 import ssl
 from asyncmd.ota import OTAServer
 from asyncmd.async_ota import AOTAServer
+from asyncmd import __version__ as version
 import yaml
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
@@ -83,7 +84,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
     usage=usag,
 )
-parser.version = "0.0.1"
+parser.version = version
 parser.add_argument("cmd", metavar="Mode", help=helparg).completer = ChoicesCompleter(
     keywords_mode
 )
