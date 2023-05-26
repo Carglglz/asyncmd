@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 
 from setuptools import setup
+import sys
+import os
+
+sys.path.append(os.path.dirname(__file__))
+from asyncmd import __version__ as version
 
 setup(
     name="asyncmd",
-    version="0.0.1",
+    version=version,
     description="asyncmd CLI tool",
     url="http://github.com/Crglglz/asyncmd",
     author="Carlos Gil Gonzalez",
