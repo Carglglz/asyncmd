@@ -39,6 +39,18 @@ STOP = dict(
     options={},
 )
 
+STATS = dict(
+    help="get stats of a service",
+    desc="",
+    subcmd=dict(
+        help="service to get stats of",
+        default="watcher.service",
+        metavar="service",
+        nargs="?",
+    ),
+    options={},
+)
+
 
 ENABLE = dict(
     help="enable one or more services",
@@ -116,6 +128,7 @@ RESET = dict(
 SHELL_CMD_DICT_PARSER = {
     "start": START,
     "stop": STOP,
+    "stats": STATS,
     "enable": ENABLE,
     "disable": DISABLE,
     "config": CONFIG,

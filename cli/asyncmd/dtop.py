@@ -513,7 +513,7 @@ class DeviceTOP:
                     for _serv in self._conf_buffer[_dev]:
                         all_servs.add(f"{_serv}.service")
 
-                for kcmd in ["start", "stop", "enable", "disable", "config"]:
+                for kcmd in ["start", "stop", "stats", "enable", "disable", "config"]:
                     cmd_comp_dict[kcmd] = all_servs_active
 
                 for kcmd in ["enable", "disable"]:
@@ -968,6 +968,9 @@ class DeviceTOP:
                         stdscr.erase()
                         stdscr.refresh()
 
+                    elif command == "stats":
+                        self._last_cmd = command
+
                 if self._last_cmd:
                     resp = ""
 
@@ -986,6 +989,16 @@ class DeviceTOP:
                                 if last_cmd_resp:
                                     resp += f"{node}: [{self._last_cmd.upper()}]"
                                     resp += f" {str(last_cmd_resp)}\n\n"
+                    elif self._last_cmd == "stats":
+                        for node in _nodes:
+                            dev_data = self._data_buffer.get(node)
+                            dev_stats_serv = dev_data.get(rest_args, {}).get("stats")
+                            if dev_stats_serv:
+                                resp += f"> {node}: [{rest_args.upper()}]\n"
+                                for line in yaml.dump(dev_stats_serv).splitlines():
+                                    resp += f"    {line}\n"
+                                resp += "\n"
+
                     else:
                         for node in _nodes:
                             dev_resp = self._cmd_resps.get(node)
