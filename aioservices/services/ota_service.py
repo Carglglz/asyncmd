@@ -30,9 +30,9 @@ class OTAService(Service):
         self._tmp_buf = b""
         self.buflen = 0
         self.read_size = 512
-        self._key = f"SSL_key{binascii.hexlify(unique_id()).decode()}.der"
-        self._cert = f"SSL_certificate{binascii.hexlify(unique_id()).decode()}.der"
-        self._cadata = "ROOT_CA_cert.pem"
+        self._key = None
+        self._cert = None
+        self._cadata = None
         self.sslctx = None
         self._start_ota = False
         self.check_sha = ""
@@ -55,6 +55,9 @@ class OTAService(Service):
             "on_error": self.on_error,
             "save_sha": True,
             "new_sha_check": True,
+            "key": f"SSL_key{binascii.hexlify(unique_id()).decode()}.der",
+            "cert": f"SSL_certificate{binascii.hexlify(unique_id()).decode()}.der",
+            "ca": "ROOT_CA_cert.pem",
         }
 
     def show(self):
@@ -209,6 +212,9 @@ class OTAService(Service):
         read_size=512,
         save_sha=False,
         new_sha_check=True,
+        key=None,
+        cert=None,
+        ca=None,
     ):
         self._save_sha = save_sha
         self._new_sha_check = new_sha_check
@@ -221,6 +227,9 @@ class OTAService(Service):
             await asyncio.sleep(1)
 
         if tls:
+            self._key = key
+            self._cert = cert
+            self._cadata = ca
             if not self.sslctx:
                 self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
                 self.sslctx.load_verify_locations(cafile=self._cadata)
