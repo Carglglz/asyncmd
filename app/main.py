@@ -1,32 +1,19 @@
-import logging
+import wss_repl  # noqa
+import gc  # noqa
 import sys
-from aiolog import streamlog
+import machine
 import aioctl
-
-try:
-    from hostname import NAME
-except Exception:
-    NAME = "mpy"
-
+from aiolog import streamlog
 
 aioctl.set_log(streamlog)
-# Logger
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    stream=streamlog,
-)
+gc.collect()
+gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
 
-log = logging.getLogger(f"{sys.platform}@{NAME}")
-
-log.info("Device Ready")
-
+machine.freq(240000000)
 
 try:
     import app
 
-    app.run(log)
+    app.run(streamlog)
 except Exception as e:
-    log.error(e)
     sys.print_exception(e)
