@@ -390,6 +390,7 @@ class DeviceTOP:
         filt_serv = ""
         command = ""
         rest_args = ""
+        dev_args = ""
         help_command = ""
         command_sent = False
         refresh_devconfig = False
@@ -554,7 +555,7 @@ class DeviceTOP:
                     for _dev, _dcmd in self._help_buffer.items()
                 ]
 
-                _dev_cmds_comps += [WordCompleter(["help"])]
+                _dev_cmds_comps += [WordCompleter(["help", "reset"])]
                 dev_cmd_comp = merge_completers(
                     _dev_cmds_comps,
                     deduplicate=True,
