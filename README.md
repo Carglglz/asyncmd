@@ -2,16 +2,16 @@
 # Tools for MicroPython Async Development
 
 Inspired by [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl),
-asyncmd is an asyncio based set of tools to help with the development of asynchronous applications implemented in MicroPython.
+**asyncmd** is an *asyncio* based set of tools to help with the development of asynchronous applications implemented in MicroPython.
 
-Asyncio is ideal for running multiple tasks concurrently[^1], however an easy way to 
+*Asyncio* is ideal for running multiple tasks concurrently[^1], however an easy way to 
 **interactively** inspect running tasks in the event loop was not available
 until the introduction of [aiorepl](https://github.com/micropython/micropython-lib/tree/master/micropython/aiorepl),
 an asynchronous MicroPython REPL.
 
 This set of tools builds upon this *aiorepl* capacity to interact with tasks running in the event loop.
 
-**asyncmd** is intended to be flexible and extensible i.e. minium requirement is `aioctl.py`
+**asyncmd** is intended to be flexible and extensible i.e. minimum requirement is `aioctl.py`
 and then every script builds upon *aioctl* functionality.
 
 #### Features
@@ -249,7 +249,7 @@ True
 
 ```
 
-See more [examples](examples/) to know how to add async logging,
+See more [examples](examples/) to know how to add *"async" logging*,
 callbacks, debugging errors, get results, scheduling and finally some [examples](example-aioservices/) of `aioservice`
 implementation.
 
@@ -285,6 +285,23 @@ of these tools.
 
 - aioservices --> [example-aioservices](example-aioservices)
 
+
+#### Use cases for **aioctl**
+
+ - Building block for *asyncio* based applications that makes tasks
+  traceable, manageable and easily debugged
+
+#### Use cases for **aioservice**
+
+ - Debug, develop and manage complex *asyncio* applications
+ - Create reproducible/repeatable builds that can be fine tuned for each device using config files
+ - Long term running and modular applications that need to be resilient and to be monitored/debugged/updated remotely
+
+
+## Tested on ports:
+
+- esp32 (WROOM ESP32-D0WDQ6 revision v1.0)
+- stm32 (pyboard) (STM32F405RG)
 
 ### Notes
 
