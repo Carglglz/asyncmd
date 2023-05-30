@@ -605,8 +605,10 @@ class DeviceTOP:
             elif k == ord("?"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
-                # TODO: add completer self._cmd_lib.keys()
-                cmd_help = await session_help.prompt_async("?")
+                _help_completer = WordCompleter(list(self._cmd_lib.keys()))
+                cmd_help = await session_help.prompt_async(
+                    "?", completer=_help_completer, complete_while_typing=False
+                )
                 shortcuts.clear()
                 _cmdlw.deleteln()
                 _cmdlw.erase()

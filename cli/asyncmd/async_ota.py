@@ -318,7 +318,7 @@ class AOTAServer:
         await self.client.publish(
             self._topic,
             # payload="check"
-            payload=json.dumps(  # TODO: Fix
+            payload=json.dumps(
                 {
                     "host": self.host,
                     "port": self.port,
