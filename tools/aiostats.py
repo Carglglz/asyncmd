@@ -2,6 +2,7 @@ import aioctl
 import aioschedule
 import uasyncio as asyncio
 import sys
+import os
 from machine import unique_id
 from binascii import hexlify
 
@@ -228,3 +229,15 @@ async def pipelog(client, topic, from_idx=None, log=aioctl._AIOCTL_LOG):
     except Exception as e:
         log.seek(index)
         raise e
+
+
+async def pipefile(client, topic, file):
+    try:
+        os.stat(file)
+    except Exception:
+        return
+
+    with open(file, "r") as pfile:
+        for line in pfile:
+            if line.strip():
+                await client.publish(topic, line.encode("utf-8"))

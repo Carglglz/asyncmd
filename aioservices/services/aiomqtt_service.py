@@ -158,6 +158,13 @@ class MQTTService(Service):
                 )
 
             self._log_idx = aioctl._AIOCTL_LOG.tell()
+        elif action.startswith("error.log"):
+            async with self.lock:
+                await aiostats.pipefile(
+                    self.client,
+                    f"device/{NAME}/log".encode("utf-8"),
+                    file=action,
+                )
         elif action == "config":
             import aioservice
 
@@ -513,7 +520,9 @@ class MQTTService(Service):
 
                 elif topic.decode().endswith("logger"):
                     _name = self._suid(aioctl, f"{self.name}.service.do_action.logger")
-                    aioctl.add(self.do_action, self, "log", msg, name=_name, _id=_name)
+                    aioctl.add(
+                        self.do_action, self, msg.decode(), msg, name=_name, _id=_name
+                    )
 
         except Exception as e:
             if self.log:

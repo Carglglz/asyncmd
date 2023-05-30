@@ -86,11 +86,14 @@ class DeviceTOP:
         self._data_buffer = {"all": {}}
         self._conf_buffer = {}
         self._log_buffer = {}
+        self._errlog_buffer = {}
         self._help_buffer = {}
         self._info_enabled = True
         self._close_flag = False
         self._client = None
         self._log_enabled = False
+        self._log_mode = b"log"
+        self._errlog_query = False
         self._filt_dev = None
         self._cmd_parser = cmd_parser.CmdParser()
         self._dev_cmd_parser = cmd_parser.CmdParser(cmd_parser.dev_parser)
@@ -354,9 +357,14 @@ class DeviceTOP:
                         if self._last_cmd:
                             self._cmd_resps[devname][self._last_cmd] = resp
                     elif topic == "log":
-                        if not self._log_buffer.get(devname):
-                            self._log_buffer[devname] = ""
-                        self._log_buffer[devname] += message.payload.decode()
+                        if self._log_mode == b"log":
+                            if not self._log_buffer.get(devname):
+                                self._log_buffer[devname] = ""
+                            self._log_buffer[devname] += message.payload.decode()
+                        else:
+                            if not self._errlog_buffer.get(devname):
+                                self._errlog_buffer[devname] = ""
+                            self._errlog_buffer[devname] += message.payload.decode()
                     elif topic == "help":
                         _help = json.loads(message.payload.decode())
                         if devname not in self._help_buffer:
@@ -371,7 +379,16 @@ class DeviceTOP:
             if self._close_flag:
                 return
             if self._client and self._log_enabled:
-                await self._client.publish("device/all/logger", payload=b"log")
+                if self._log_mode == b"log":
+                    await self._client.publish(
+                        "device/all/logger", payload=self._log_mode
+                    )
+                else:
+                    if not self._errlog_query:
+                        await self._client.publish(
+                            "device/all/logger", payload=self._log_mode
+                        )
+                        self._errlog_query = True
                 if self._close_flag:
                     return
 
@@ -460,6 +477,7 @@ class DeviceTOP:
                 help_command = ""
             elif k == ord("l"):
                 self._log_enabled = not self._log_enabled
+                self._log_mode = b"log"
                 command = ""
                 help_command = ""
 
@@ -609,6 +627,9 @@ class DeviceTOP:
                 self._last_cmd = ""
                 filt_log = ""
                 filt_serv = ""
+                if self._log_mode != b"log":
+                    self._log_enabled = False
+                    self._log_mode = b"log"
 
             self._filt_dev = filt_dev
             node = nodes[node_idx]
@@ -838,21 +859,30 @@ class DeviceTOP:
                 if len(_nodes) >= 1:
                     ptr.newline()
                     stdscr.attron(curses.color_pair(3))
-                    self.printline(stdscr, f" LOG {' ' * (width - 7)}", ptr, width)
+                    if self._log_mode == b"log":
+                        self.printline(stdscr, f" LOG {' ' * (width - 7)}", ptr, width)
+                    else:
+                        self.printline(
+                            stdscr, f" ERROR.LOG {' ' * (width - 7)}", ptr, width
+                        )
                     stdscr.attroff(curses.color_pair(3))
                     ptr.newline()
                     _buffer_log = ""
                     v_lines = (height - 2) - ptr.x
                     for node in _nodes:
-                        _log = self._log_buffer.get(node)
+                        if self._log_mode == b"log":
+                            _log = self._log_buffer.get(node)
+                        else:
+                            _log = self._errlog_buffer.get(node)
                         if _log:
                             _n_lines = len(_log.splitlines())
                             for line in _log.splitlines()[-v_lines:]:
-                                if filt_log:
-                                    if node_match(filt_log, [line]):
+                                if line not in _buffer_log:
+                                    if filt_log:
+                                        if node_match(filt_log, [line]):
+                                            _buffer_log += f"{line}\n"
+                                    else:
                                         _buffer_log += f"{line}\n"
-                                else:
-                                    _buffer_log += f"{line}\n"
                     if _buffer_log:
                         _log_lines = _buffer_log.splitlines()
                         _log_lines.sort()
@@ -971,6 +1001,18 @@ class DeviceTOP:
 
                     elif command == "stats":
                         self._last_cmd = command
+
+                    elif command == "errlog":
+                        self._last_cmd = ""
+                        self._log_enabled = True
+                        if not args.n:
+                            self._log_mode = b"error.log"
+                        else:
+                            self._log_mode = f"error.log.{args.n}".encode("utf-8")
+                        self._errlog_query = False
+                    elif command == "q":
+                        self._close_flag = True
+                        break
 
                 if self._last_cmd:
                     resp = ""

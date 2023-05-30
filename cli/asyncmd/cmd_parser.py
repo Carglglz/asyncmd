@@ -125,6 +125,27 @@ RESET = dict(
 )
 
 
+ERRLOG = dict(
+    help="get device/s error.log",
+    desc="",
+    subcmd={},
+    options={
+        "--n": dict(
+            help="The nth log to get i.e. error.log.[n] log .e.g --n 1 --> error.log.1",
+            required=False,
+        )
+    },
+)
+
+
+QUIT = dict(
+    help="exit",
+    desc="",
+    subcmd={},
+    options={},
+)
+
+
 SHELL_CMD_DICT_PARSER = {
     "start": START,
     "stop": STOP,
@@ -135,6 +156,8 @@ SHELL_CMD_DICT_PARSER = {
     "wconf": WCONF,
     "e": EDIT,
     "reset": RESET,
+    "errlog": ERRLOG,
+    "q": QUIT,
 }
 
 SHELL_CMD_SUBPARSERS = {}
