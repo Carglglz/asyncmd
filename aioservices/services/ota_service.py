@@ -78,6 +78,7 @@ class OTAService(Service):
 
     def on_error(self, e, *args, **kwargs):
         self._start_ota = False
+        self.sha = hashlib.sha256()
         if self.log:
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
