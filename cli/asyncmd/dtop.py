@@ -1,3 +1,4 @@
+import sys
 import signal
 import shlex
 import subprocess
@@ -422,8 +423,6 @@ class DeviceTOP:
             "STATS",
         ]
 
-        stdscr.nodelay(True)
-
         session_cmd = PromptSession()
         session_filt = PromptSession()
         session_help = PromptSession()
@@ -448,7 +447,8 @@ class DeviceTOP:
             height, width = stdscr.getmaxyx()
             stdscr.erase()
             nodes_cnt = len(nodes)
-            curses.resizeterm(*stdscr.getmaxyx())
+            if sys.platform != "linux":
+                curses.resizeterm(*stdscr.getmaxyx())
 
             if k == ord("q"):
                 self._close_flag = True
