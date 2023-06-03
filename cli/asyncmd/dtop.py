@@ -102,6 +102,7 @@ class DeviceTOP:
         self._cmd_lib = cmd_parser.SHELL_CMD_DICT_PARSER
         self._cmd_resps = {}
         self._last_cmd = ""
+        self._line_index = 0
 
         self._status_colors = {
             "running": 5,
@@ -123,6 +124,7 @@ class DeviceTOP:
             ", ESC: clear filter"
             f" | filter: {self._filt_dev}"
             f" | #devices: {n}"
+            f" | line: {self._line_index}"
         )
         return bottom_statusbar_str
 
@@ -306,7 +308,7 @@ class DeviceTOP:
         self.printline(stdscr, f" {title} {' ' * (width - 7)}", ptr, width)
         stdscr.attroff(curses.color_pair(3))
         ptr.newline()
-        for line in section_str.split("\n"):
+        for line in section_str.split("\n")[self._line_index :]:
             if line:
                 for _line in textwrap.wrap(line, width - 4):
                     self.printline(stdscr, f"{_line}", ptr, width)
@@ -482,10 +484,11 @@ class DeviceTOP:
                 help_command = ""
 
             elif k == ord("k"):
-                cmd_inp = "kb"
-                command = ""
-                help_command = ""
-                self._last_cmd = ""
+                # if self._line_index > 0:
+                self._line_index -= 1
+
+            elif k == ord("j"):
+                self._line_index += 1
 
             elif k == ord("/"):
                 curses.curs_set(1)
@@ -561,6 +564,7 @@ class DeviceTOP:
                     command = ""
                     help_command = ""
                     self._last_cmd = ""
+                    self._line_index = 0
                     # show_config = False
                     # self._log_enabled = False
 
@@ -599,6 +603,7 @@ class DeviceTOP:
                     command = ""
                     help_command = ""
                     self._last_cmd = ""
+                    self._line_index = 0
                     # show_config = False
                     # self._log_enabled = False
 
@@ -619,6 +624,7 @@ class DeviceTOP:
                 if cmd_help:
                     command = ""
                     help_command = ""
+                    self._line_index = 0
 
             elif k == curses.ascii.ESC:
                 filt_dev = ""
@@ -627,6 +633,7 @@ class DeviceTOP:
                 # self._log_enabled = False
                 show_config = False
                 self._last_cmd = ""
+                self._line_index = 0
                 filt_log = ""
                 filt_serv = ""
                 if self._log_mode != b"log":
@@ -871,6 +878,7 @@ class DeviceTOP:
                     ptr.newline()
                     _buffer_log = ""
                     v_lines = (height - 2) - ptr.x
+                    v_lines += self._line_index
                     for node in _nodes:
                         if self._log_mode == b"log":
                             _log = self._log_buffer.get(node)

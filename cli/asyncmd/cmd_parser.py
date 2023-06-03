@@ -179,6 +179,7 @@ Keybindings:
 
     n: next device
     p: previous device
+    j/k: scroll down/up command output
     i: toggle device info
     c: fetch and toggle device config info
     l: fetch and toggle device log
