@@ -1,5 +1,5 @@
-import wss_repl  # noqa
-import gc  # noqa
+import webrepl  # noqa
+import gc
 import sys
 import machine
 import aioctl

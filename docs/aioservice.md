@@ -108,6 +108,7 @@ It takes at least two arguments: the name of the service and `bool` to indicate 
 Further `*args` and `**kwargs` are saved for configuring `args` and  `kwargs` of the service. 
 
 It returns a boolean indicating whether the service was successfully configured or not.
+Services configuration file is saved in `services.config`
 
 
 ### `enable(name)`
