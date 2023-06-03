@@ -274,6 +274,8 @@ implementation.
 ### [app](app/)
 
 ### [async_modules](async_modules/)
+
+### [asyncmd cli](cli/)
     
 
 ## Examples
@@ -295,7 +297,17 @@ of these tools.
 
  - Debug, develop and manage complex *asyncio* applications
  - Create reproducible/repeatable builds that can be fine tuned for each device using config files
- - Long term running and modular applications that need to be resilient and to be monitored/debugged/updated remotely
+ - Long term running and modular applications that need to be resilient and remotely:
+    - monitored
+    - debugged
+    - updated
+
+See an example of this in the [develop example]() using *MQTT*, *asyncmd* CLI, and services: 
+    
+- `aiomqtt.service` 
+- `aiomqtt_sensor_bme280.service`
+- `ota.service`
+- `network.service`
 
 
 ## Tested on ports:
