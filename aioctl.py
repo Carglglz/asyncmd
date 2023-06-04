@@ -62,7 +62,7 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
 
 
 def _dt_format(number):
-    n = str(number)
+    n = str(int(number))
     if len(n) == 1:
         n = "0{}".format(n)
         return n
@@ -86,7 +86,7 @@ def time_str(uptime_tuple):
         return up_str_1 + up_str_2
     elif uptime_tuple[-2] > 0 or uptime_tuple[-3] > 0:
         return up_str_2
-    return f"{uptime_tuple[-1]} s"
+    return f"{int(uptime_tuple[-1])} s"
 
 
 def tmdelta_fmt(dt):

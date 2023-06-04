@@ -3,12 +3,13 @@ import aioschedule
 import uasyncio as asyncio
 import sys
 import os
-from machine import unique_id
 from binascii import hexlify
 
 try:
     from hostname import NAME
 except Exception:
+    from machine import unique_id
+
     NAME = f"{sys.platform}-{hexlify(unique_id())}"
 
 
