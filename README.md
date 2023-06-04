@@ -308,6 +308,8 @@ See an example of this in the [develop example]() using *MQTT*, *asyncmd* CLI, a
 - `aiomqtt_sensor_bme280.service`
 - `ota.service`
 - `network.service`
+- `wpa_supplicant.service`
+- `watcher.service`
 
 
 ## Tested on ports:
