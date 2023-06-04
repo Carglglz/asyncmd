@@ -179,12 +179,13 @@ Keybindings:
 
     n: next device
     p: previous device
-    j/k: scroll down/up command output
+    j/k, space/. }/{: scroll down/up command output
     i: toggle device info
     c: fetch and toggle device config info
     l: fetch and toggle device log
     s: switch time format (ISO/DATETIME)
     ESC: clear filters and cmd mode output
+    q: exit
 
 """
 descmds = "asyncmd commands"

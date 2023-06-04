@@ -490,6 +490,18 @@ class DeviceTOP:
             elif k == ord("j"):
                 self._line_index += 1
 
+            elif k == ord(" "):
+                self._line_index += 20
+
+            elif k == ord("{"):
+                self._line_index -= 10
+
+            elif k == ord("}"):
+                self._line_index += 10
+
+            elif k == ord("."):
+                self._line_index = 0
+
             elif k == ord("/"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
@@ -878,7 +890,8 @@ class DeviceTOP:
                     ptr.newline()
                     _buffer_log = ""
                     v_lines = (height - 2) - ptr.x
-                    v_lines += self._line_index
+                    # if self._line_index > 0:
+                    v_lines -= self._line_index
                     for node in _nodes:
                         if self._log_mode == b"log":
                             _log = self._log_buffer.get(node)
@@ -886,7 +899,7 @@ class DeviceTOP:
                             _log = self._errlog_buffer.get(node)
                         if _log:
                             _n_lines = len(_log.splitlines())
-                            for line in _log.splitlines()[-v_lines:]:
+                            for line in _log.splitlines():
                                 if line not in _buffer_log:
                                     if filt_log:
                                         if node_match(filt_log, [line]):
