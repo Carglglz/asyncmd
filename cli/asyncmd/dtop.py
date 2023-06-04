@@ -96,6 +96,7 @@ class DeviceTOP:
         self._log_mode = b"log"
         self._errlog_query = False
         self._filt_dev = None
+        self._filt_nodes = []
         self._cmd_parser = cmd_parser.CmdParser()
         self._dev_cmd_parser = cmd_parser.CmdParser(cmd_parser.dev_parser)
         self._subparses = cmd_parser.SHELL_CMD_SUBPARSERS
@@ -383,14 +384,27 @@ class DeviceTOP:
                 return
             if self._client and self._log_enabled:
                 if self._log_mode == b"log":
-                    await self._client.publish(
-                        "device/all/logger", payload=self._log_mode
-                    )
-                else:
-                    if not self._errlog_query:
+                    if not self._filt_dev:
                         await self._client.publish(
                             "device/all/logger", payload=self._log_mode
                         )
+                    else:
+                        for _nodm in self._filt_nodes:
+                            await self._client.publish(
+                                f"device/{_nodm}/logger", payload=self._log_mode
+                            )
+                else:
+                    if not self._errlog_query:
+                        if not self._filt_dev:
+                            await self._client.publish(
+                                "device/all/logger", payload=self._log_mode
+                            )
+                        else:
+                            for _nodm in self._filt_nodes:
+                                await self._client.publish(
+                                    f"device/{_nodm}/logger", payload=self._log_mode
+                                )
+
                         self._errlog_query = True
                 if self._close_flag:
                     return
@@ -472,8 +486,16 @@ class DeviceTOP:
                 if show_config:
                     if self._client:
                         _msg = json.dumps({"config": {"get": "*"}})
-
-                        await self._client.publish("device/all/service", payload=_msg)
+                        # apply filter
+                        if not self._filt_dev:
+                            await self._client.publish(
+                                "device/all/service", payload=_msg
+                            )
+                        else:
+                            for _nodm in node_match(self._filt_dev, nodes):
+                                await self._client.publish(
+                                    f"device/{_nodm}/service", payload=_msg
+                                )
 
                 command = ""
                 help_command = ""
@@ -662,6 +684,7 @@ class DeviceTOP:
                 _nodes = [nd for nd in list(self._data_buffer.keys()) if nd != "all"]
                 if filt_dev:
                     _filt_nodes = node_match(filt_dev, _nodes)
+                    self._filt_nodes = _filt_nodes
                     if _filt_nodes:
                         _nodes = _filt_nodes
                         # Device cmds
@@ -695,6 +718,8 @@ class DeviceTOP:
                             "device/all/cmd", payload=_cmd_inp.replace("@", "")
                         )
             else:
+                self._filt_dev = node
+                self._filt_nodes = [node]
                 if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
                     if dev_args:
                         _cmd_inp = json.dumps(
@@ -881,10 +906,18 @@ class DeviceTOP:
                     ptr.newline()
                     stdscr.attron(curses.color_pair(3))
                     if self._log_mode == b"log":
-                        self.printline(stdscr, f" LOG {' ' * (width - 7)}", ptr, width)
+                        self.printline(
+                            stdscr,
+                            f" LOG | filter: {filt_log}{' ' * (width - 7)}",
+                            ptr,
+                            width,
+                        )
                     else:
                         self.printline(
-                            stdscr, f" ERROR.LOG {' ' * (width - 7)}", ptr, width
+                            stdscr,
+                            f" ERROR.LOG | filter: {filt_log} {' ' * (width - 7)}",
+                            ptr,
+                            width,
                         )
                     stdscr.attroff(curses.color_pair(3))
                     ptr.newline()
