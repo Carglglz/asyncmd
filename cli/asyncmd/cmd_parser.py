@@ -92,7 +92,9 @@ CONFIG = dict(
             type=get_args,
         ),
         "--kwargs": dict(
-            help="kwargs for seervice", required=False, type=yaml.safe_load
+            help="kwargs for service .e.g \"{'led': 1}\"",
+            required=False,
+            type=yaml.safe_load,
         ),
     },
 )
@@ -179,8 +181,9 @@ Keybindings:
 
     n: next device
     p: previous device
-    j/k, space/. }/{: scroll down/up command output
+    j/k, space/g }/{: scroll down/up command output
     i: toggle device info
+    f: set last device filter
     c: fetch and toggle device config info
     l: fetch and toggle device log
     s: switch time format (ISO/DATETIME)

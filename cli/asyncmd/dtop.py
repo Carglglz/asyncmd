@@ -96,6 +96,7 @@ class DeviceTOP:
         self._log_mode = b"log"
         self._errlog_query = False
         self._filt_dev = None
+        self._last_filt = None
         self._filt_nodes = []
         self._cmd_parser = cmd_parser.CmdParser()
         self._dev_cmd_parser = cmd_parser.CmdParser(cmd_parser.dev_parser)
@@ -521,8 +522,11 @@ class DeviceTOP:
             elif k == ord("}"):
                 self._line_index += 10
 
-            elif k == ord("."):
+            elif k == ord("g"):
                 self._line_index = 0
+
+            elif k == ord("f"):
+                filt_dev = self._last_filt
 
             elif k == ord("/"):
                 curses.curs_set(1)
@@ -538,6 +542,8 @@ class DeviceTOP:
                 elif filt_dev.startswith("l/"):
                     filt_log = filt_dev.replace("l/", "")
                     filt_dev = ""
+
+                self._last_filt = filt_dev
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
