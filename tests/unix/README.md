@@ -1,6 +1,6 @@
 
 Install `aiorepl`, `asyncmd` (.i.e `aioctl.py`, `aioservice.py`...), `logging`,
-`time`
+`time`, using `micropython -m mip install` see [mip](https://docs.micropython.org/en/latest/reference/packages.html?#using-mip-on-the-unix-port)
 
 Then in unix micropython run test.py
 
@@ -43,9 +43,9 @@ Starting asyncio REPL...
 Use `aioctl`, `aioservice ` or install `tools/aiostats.py` for real time debugging
 
 ```
->>> import aiostats
+--> import aiostats
 import aiostats
->>>  await aiostats.display("*.service")
+--> await aiostats.display("*.service")
  await aiostats.display("*.service")
 ● watcher.service: status: running since 2023-06-04 13:07:05; 00:08:24 ago
 ┗━► 2023-06-04 13:14:45 [darwin@unix] [INFO] [watcher.service] Restarting Task hello.service

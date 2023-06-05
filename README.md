@@ -276,6 +276,8 @@ implementation.
 ### [async_modules](async_modules/)
 
 ### [asyncmd cli](cli/)
+
+### [develop](develop/)
     
 
 ## Examples
@@ -302,7 +304,7 @@ of these tools.
     - debugged
     - updated
 
-See an example of this in the [develop example]() using *MQTT*, *asyncmd* CLI, and services: 
+See an example of this in the [develop example](develop/) using *MQTT*, *asyncmd* CLI, and services: 
     
 - `aiomqtt.service` 
 - `aiomqtt_sensor_bme280.service`
@@ -316,6 +318,7 @@ See an example of this in the [develop example]() using *MQTT*, *asyncmd* CLI, a
 
 - esp32 (WROOM ESP32-D0WDQ6 revision v1.0)
 - stm32 (pyboard) (STM32F405RG)
+- unix (see [tests/unix](tests/unix))
 
 ### Notes
 
