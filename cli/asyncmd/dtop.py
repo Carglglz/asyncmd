@@ -289,7 +289,7 @@ class DeviceTOP:
         _disk_ = f"[{convert_size(info['fsused'])}/{convert_size(info['fstotal'])}]"
         _disk_msg = (
             f"Disk[{'|'*int(_disk_b):{w}s}{_disk_pc:.1f}%]{_disk_:23}|"
-            f" Recv: {info['nrecv']}, Send: {info['npub']}"
+            f" Recv: {info['nrecv']}, Pub: {info['npub']}"
         )
         fmw_str = f"Firmware: {info['firmware']}"
         _uptime = self.get_val("SINCE", _all_info, "watcher.service", "DELTA").replace(

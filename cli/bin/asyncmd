@@ -22,7 +22,7 @@ _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
 _DEFAULT_ARGS = {
     "t": "device/{}/cmd",
-    "m": "on",
+    "m": "dtop",
     "d": "all",
     "ht": "localhost",
     "p": 1883,
@@ -85,8 +85,10 @@ parser = argparse.ArgumentParser(
     usage=usag,
 )
 parser.version = version
-parser.add_argument("cmd", metavar="Mode", help=helparg).completer = ChoicesCompleter(
-    keywords_mode
+parser.add_argument(
+    "cmd", metavar="Mode", nargs="?", default="dtop", help=helparg
+).completer = ChoicesCompleter(
+    keywords_mode,
 )
 parser.add_argument("-v", action="version")
 parser.add_argument(
