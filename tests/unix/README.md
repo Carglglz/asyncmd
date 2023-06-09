@@ -1,6 +1,6 @@
 
-Install `aiorepl`, `asyncmd` (.i.e `aioctl.py`, `aioservice.py`...), `logging`,
-`time`, using `micropython -m mip install` see [mip](https://docs.micropython.org/en/latest/reference/packages.html?#using-mip-on-the-unix-port)
+Install `aiorepl`, `logging` and
+`time` using `micropython -m mip install` see [mip](https://docs.micropython.org/en/latest/reference/packages.html?#using-mip-on-the-unix-port)
 
 Then in unix micropython run test.py
 
