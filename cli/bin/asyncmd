@@ -748,9 +748,12 @@ def main(log):
         curses.wrapper(dev_top.start, 5)
 
     elif args.cmd == "status":
+        s_port = 8888
+        if ":" in args.d:
+            args.d, s_port = args.d.split(":")
         if args.d != "localhost":
             args.d = f"{args.d}.local"
-        status = requests.get(f"http://{args.d}:8888/debug")
+        status = requests.get(f"http://{args.d}:{s_port}/debug")
         get_status(status.json())
 
 
