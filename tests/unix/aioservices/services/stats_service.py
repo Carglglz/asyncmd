@@ -37,7 +37,7 @@ class JSONAPIService(Service):
             + r"(#(.*))?"  # query                 # NOQA
         )  # fragment              # NOQA
         self.routes = {}
-        self._stat_buff = io.StringIO(2000)
+        self._stat_buff = io.StringIO(4000)
 
     def _szfmt(self, filesize):
         _kB = 1000
@@ -111,10 +111,10 @@ class JSONAPIService(Service):
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
 
-    async def send_stats(self, writer):
+    async def send_stats(self, writer, debug=False):
         self._stat_buff.seek(0)
 
-        json.dump(aiostats.stats("*.service"), self._stat_buff)
+        json.dump(aiostats.stats("*.service", debug), self._stat_buff)
         len_b = self._stat_buff.tell()
         self._stat_buff.seek(0)
         writer.write(b"HTTP/1.1 200 OK\r\n")
@@ -158,7 +158,8 @@ class JSONAPIService(Service):
                 self.log.debug(
                     f"[{self.name}.service] route: {route_req.decode('utf-8')}"
                 )
-            await self.send_stats(writer)
+
+            await self.send_stats(writer, debug=route_req.decode("utf-8"))
             self.n_msg += 1
             gc.collect()
         except Exception as e:
