@@ -16,7 +16,9 @@ import ssl
 from asyncmd.ota import OTAServer
 from asyncmd.async_ota import AOTAServer
 from asyncmd import __version__ as version
+from asyncmd.status import get_status
 import yaml
+import requests
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
@@ -66,6 +68,7 @@ keywords_mode = [
     "services",
     "devconfig",
     "dtop",
+    "status",
 ]
 
 
@@ -743,6 +746,12 @@ def main(log):
 
         dev_top = DeviceTOP(args)
         curses.wrapper(dev_top.start, 5)
+
+    elif args.cmd == "status":
+        if args.d != "localhost":
+            args.d = f"{args.d}.local"
+        status = requests.get(f"http://{args.d}:8888/debug")
+        get_status(status.json())
 
 
 if __name__ == "__main__":
