@@ -29,7 +29,7 @@ class MQTTService(Service):
         super().__init__(name)
         self.version = "1.0"
         self.info = f"Async MQTT Controller client v{self.version}"
-        self.type = "runtime.service"  # continuous running, other types are
+        self.type = "runtime.service"
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [NAME]
@@ -88,7 +88,7 @@ class MQTTService(Service):
         self._callbacks[topic] = callback
 
     def _df(self):
-        size_info = os.statvfs("")
+        size_info = os.statvfs(".")
         self._total_b = size_info[0] * size_info[2]
         self._used_b = (size_info[0] * size_info[2]) - (size_info[0] * size_info[3])
         self._free_b = size_info[0] * size_info[3]
@@ -561,9 +561,12 @@ class MQTTService(Service):
             if not self.sslctx:
                 self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
                 self.sslctx.load_verify_locations(cafile=ssl_params["ca"])
-                self.sslctx.load_cert_chain(ssl_params["cert"], ssl_params["key"])
+                if ssl_params.get("cert") and ssl_params.get("key"):
+                    self.sslctx.load_cert_chain(ssl_params["cert"], ssl_params["key"])
         ai = socket.getaddrinfo(server, port)
-        server = ai[0][-1][0]
+        _server = ai[0][-1]
+        if isinstance(_server, tuple):
+            server = _server[0]
         self.client = MQTTClient(
             client_id,
             server,

@@ -182,7 +182,7 @@ def stats(taskm="*", debug=False):
                 task_stats["stats"] = None
             if debug and debug == "/debug":
 
-                task_stats["log"] = logtail(grep=task),
+                task_stats["log"] = logtail(grep=task)
                 task_stats["ctasks"] = list(
                     aioctl.group().tasks[task].service._child_tasks
                 )
