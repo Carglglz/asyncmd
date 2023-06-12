@@ -119,11 +119,10 @@ class DeviceTOP:
         bottom_statusbar_str = (
             f"asyncmd {version} | {local_time}"
             " | KEYS: n/p: next/pevious device"
-            ", s: time format (ISO/DELTA)"
             ", c: fetch services.config"
             ", i: toggle device info"
             ", l: toggle device log"
-            ", ESC: clear filter"
+            ", ESC: clear filters"
             f" | filter: {self._filt_dev}"
             f" | #devices: {n}"
             f" | line: {self._line_index}"
@@ -145,7 +144,17 @@ class DeviceTOP:
         )
         s = re.split(pattern, string)
         for s in s:
-            stdscr.addstr(s, curses.color_pair(self._status_colors.get(s.lower(), 0)))
+            if s.lower() in self._status_colors:
+                stdscr.addstr(
+                    s,
+                    curses.color_pair(self._status_colors.get(s.lower(), 0))
+                    | curses.A_BOLD,
+                )
+            else:
+                stdscr.addstr(
+                    s, curses.color_pair(self._status_colors.get(s.lower(), 0))
+                )
+
         ptr.newline()
 
     @handle
@@ -244,8 +253,10 @@ class DeviceTOP:
     def get_val(self, col, info, serv, tmf):
         val = info[serv].get(col.lower(), "")
         if col in ["SINCE", "DONE_AT"]:
+            platform = info["aiomqtt.service"].get("stats").get("platform")
             if val is not None:
-                val += 946684800  # EPOCH DELTA # FIXME
+                if platform in ["esp32"]:
+                    val += 946684800  # EPOCH DELTA # FIXME
                 if tmf == "ISO":
                     return time.strftime("%Y-%m-%d  %H:%M:%S", time.localtime(val))
                 else:
@@ -820,6 +831,10 @@ class DeviceTOP:
                 ]
             )  # --> static : # DEVICE # SERVICE
             # STATUS # SINCE # DONE, # RESULT, # STATS
+            if filt_serv:
+                status_bar_str = status_bar_str.replace(
+                    "STATS", f"STATS | filter: {filt_serv}"
+                )
 
             self.print_upper_status_bar(
                 stdscr, width, status_bar_str, len(node_info_str)
