@@ -1,4 +1,5 @@
 import time
+import sys
 
 # stats = {
 #     "world.service": {
@@ -105,16 +106,16 @@ import time
 _dt_list = [0, 1, 2, 3, 4, 5]
 
 
-def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
+def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
     if kw == {}:
-        print(f"{sep}{kw}")
+        print(f"{sep}{kw}", file=file)
         return
     if fl:
         if lev == 0:
             ind += 2
         else:
             ind += 1
-        print(sep + "{", end="")
+        print(sep + "{", end="", file=file)
     for k, v in kw.items():
         if v == list(kw.values())[-1]:
             if lev == 0:
@@ -124,18 +125,23 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
         if isinstance(v, dict) and v:
             if fl:
                 fl = False
-                print(f"{sep}{repr(k)}:", end="")
+                print(f"{sep}{repr(k)}:", end="", file=file)
             else:
-                print(f"{sep*ind}{repr(k)}:", end="")
+                print(f"{sep*ind}{repr(k)}:", end="", file=file)
             pprint_dict(
-                v, sep=sep, ind=len(f"{sep*ind}{repr(k)}:" + " {"), fl=True, lev=lev + 1
+                v,
+                sep=sep,
+                ind=len(f"{sep*ind}{repr(k)}:" + " {"),
+                fl=True,
+                lev=lev + 1,
+                file=file,
             )
         else:
             if fl:
                 fl = False
-                print(f"{sep}{repr(k)}: {repr(v)}{ls}")
+                print(f"{sep}{repr(k)}: {repr(v)}{ls}", file=file)
             else:
-                print(f"{sep*ind}{repr(k)}: {repr(v)}{ls}")
+                print(f"{sep*ind}{repr(k)}: {repr(v)}{ls}", file=file)
 
 
 def _dt_format(number):
@@ -190,13 +196,24 @@ def tmdelta_fmt(dt):
     return time_str((dd, hh, mm, ss))
 
 
-def get_status(req, debug=True, log=True, indent="    "):
+def get_status(
+    req,
+    debug=True,
+    log=True,
+    indent="    ",
+    file=sys.stdout,
+    epoch_offset=0,
+    colored=True,
+):
     req.pop("hostname")
     for service in req:
         name = service
         _srv = req.get(service)
         _done_at = _srv["done_at"]
+        _since = _srv["since"] + epoch_offset
         if _done_at:
+            _done_at += epoch_offset
+            _done_at_const = _srv["done_at"] + epoch_offset
             _dot = "●"
             data = _srv.get("result")
             if _srv["status"] == "done":
@@ -208,7 +225,7 @@ def get_status(req, debug=True, log=True, indent="    "):
             if _done_at:
                 _done_at = time.localtime(_done_at)
                 _done_at = get_datetime(_done_at)
-                _done_delta = time.time() - _srv["done_at"]
+                _done_delta = time.time() - _done_at_const
                 _done_at += f"; {tmdelta_fmt(_done_delta)} ago"
             if _srv.get("type") == "schedule.service":
                 if _srv["status"] == "scheduled":
@@ -240,47 +257,47 @@ def get_status(req, debug=True, log=True, indent="    "):
                     path = _srv["path"]
                     docs = _srv["docs"]
                     _type = _srv["type"]
-                    print(f"{_dot} {name} - {info}")
-                    print(f"    Loaded: {path}")
-                    print(f"    Active: status: {_status} ", end="")
-                    print(f"@ {_done_at} --> result: " + f"{data}")
-                    print(f"    Type: {_type}")
-                    print(f"    Docs: {docs}")
+                    print(f"{_dot} {name} - {info}", file=file)
+                    print(f"    Loaded: {path}", file=file)
+                    print(f"    Active: status: {_status} ", end="", file=file)
+                    print(f"@ {_done_at} --> result: " + f"{data}", file=file)
+                    print(f"    Type: {_type}", file=file)
+                    print(f"    Docs: {docs}", file=file)
                     if _srv["stats"]:
                         _show = [
                             "Stats",
                             ", ".join([f"{k}={v}" for k, v in _srv["stats"].items()]),
                         ]
 
-                        print(f"    {_show[0]}:  {_show[1]}")
+                        print(f"    {_show[0]}:  {_show[1]}", file=file)
 
                     if _srv["ctasks"]:
-                        print(f"    CTasks: {_srv['ctasks']}")
+                        print(f"    CTasks: {_srv['ctasks']}", file=file)
                         # for _ctsk in c_task.service._child_tasks:
                         #     print("        ┗━► ", end="")
                         #     status(_ctsk, log=False, debug=True, indent=" " * 16)
                         # print("    " + "━" * 60)
                 else:
-                    print(f"{_dot} {name}: status: {_status} ", end="")
-                    print(f"@ {_done_at} --> result: " + f"{data}")
+                    print(f"{_dot} {name}: status: {_status} ", end="", file=file)
+                    print(f"@ {_done_at} --> result: " + f"{data}", file=file)
 
             else:
-                print(f"{_dot} {name}: status: {_status} ", end="")
-                print(f"@ {_done_at} --> result: " + f"{data}")
+                print(f"{_dot} {name}: status: {_status} ", end="", file=file)
+                print(f"@ {_done_at} --> result: " + f"{data}", file=file)
             if debug:
                 # c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"{indent}Task:")
+                print(f"{indent}Task:", file=file)
                 if _done_at:
-                    _delta_runtime = _srv["done_at"] - _srv["since"]
+                    _delta_runtime = _done_at_const - _since
                     _delta_runtime = tmdelta_fmt(_delta_runtime)
-                    print(f"{indent}┗━► runtime: {_delta_runtime}")
+                    print(f"{indent}┗━► runtime: {_delta_runtime}", file=file)
 
                 # if _SCHEDULE:
                 #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                 #         aioschedule.status_sc(name, debug=debug)
-                print(f"{indent}┗━► args: {_srv['args']}")
-                print(f"{indent}┗━► kwargs:", end="")
-                pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "))
+                print(f"{indent}┗━► args: {_srv['args']}", file=file)
+                print(f"{indent}┗━► kwargs:", end="", file=file)
+                pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "), file=file)
                 # if traceback(name, rtn=True):
                 #     print(f"{indent}┗━► traceback: ", end="")
                 #     traceback(name, indent=indent + " " * 14)
@@ -298,12 +315,12 @@ def get_status(req, debug=True, log=True, indent="    "):
                 #     _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
                 # else:
                 # _AIOCTL_LOG.cat(grep=f"[{name}])
-                print(_srv["log"])
-                print("<" + "-" * 80 + ">")
+                print(_srv["log"], file=file)
+                print("<" + "-" * 80 + ">", file=file)
         else:
             _dot = "\033[92m●\x1b[0m"
-            _since_str = time.localtime(_srv["since"])
-            _since_delta = time.time() - _srv["since"]
+            _since_str = time.localtime(_since)
+            _since_delta = time.time() - _since
             _since_str = get_datetime(_since_str)
             _since_str += f"; {tmdelta_fmt(_since_delta)}"
             if debug:
@@ -312,12 +329,24 @@ def get_status(req, debug=True, log=True, indent="    "):
                     path = _srv["path"]
                     docs = _srv["docs"]
                     _type = _srv["type"]
-                    print(f"{_dot} {name} - {info}")
-                    print(f"    Loaded: {path}")
-                    print("    Active: \033[92m(active) running\x1b[0m ", end="")
-                    print(f"since {_since_str} ago")
-                    print(f"    Type: {_type}")
-                    print(f"    Docs: {docs}")
+                    print(f"{_dot} {name} - {info}", file=file)
+                    print(f"    Loaded: {path}", file=file)
+                    if colored:
+                        print(
+                            "    Active: \u001b[32;1m(active) running\x1b[0m ",
+                            end="",
+                            file=file,
+                        )
+                    else:
+                        print(
+                            "    Active: (active) running ",
+                            end="",
+                            file=file,
+                        )
+
+                    print(f"since {_since_str} ago", file=file)
+                    print(f"    Type: {_type}", file=file)
+                    print(f"    Docs: {docs}", file=file)
 
                     if _srv["stats"]:
                         _show = [
@@ -325,10 +354,10 @@ def get_status(req, debug=True, log=True, indent="    "):
                             ", ".join([f"{k}={v}" for k, v in _srv["stats"].items()]),
                         ]
 
-                        print(f"    {_show[0]}:  {_show[1]}")
+                        print(f"    {_show[0]}:  {_show[1]}", file=file)
 
                     if _srv["ctasks"]:
-                        print(f"    CTasks: {_srv['ctasks']}")
+                        print(f"    CTasks: {_srv['ctasks']}", file=file)
 
                     # if c_task.service._child_tasks:
                     #     print(f"    CTasks: {len(c_task.service._child_tasks)}")
@@ -338,23 +367,31 @@ def get_status(req, debug=True, log=True, indent="    "):
                     #     print("    " + "━" * 60)
 
                 else:
-                    print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
-                    print(f"since {_since_str} ago")
+                    print(
+                        f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ",
+                        end="",
+                        file=file,
+                    )
+                    print(f"since {_since_str} ago", file=file)
 
             else:
-                print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
-                print(f"since {_since_str} ago")
+                print(
+                    f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ",
+                    end="",
+                    file=file,
+                )
+                print(f"since {_since_str} ago", file=file)
             if debug:
                 # c_task = _AIOCTL_GROUP.tasks[name]
-                print(f"{indent}Task: ")
+                print(f"{indent}Task: ", file=file)
 
                 # if _SCHEDULE:
                 #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                 #         aioschedule.status_sc(name, debug=debug)
 
-                print(f"{indent}┗━► args: {_srv['args']}")
-                print(f"{indent}┗━► kwargs:", end="")
-                pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "))
+                print(f"{indent}┗━► args: {_srv['args']}", file=file)
+                print(f"{indent}┗━► kwargs:", end="", file=file)
+                pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "), file=file)
             # if _SCHEDULE and not debug:
             #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
             #         aioschedule.status_sc(name, debug=debug)
@@ -368,9 +405,9 @@ def get_status(req, debug=True, log=True, indent="    "):
                 #     _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
                 # else:
                 #     _AIOCTL_LOG.cat(grep=f"[{name}]")
-                print(_srv["log"])
+                print(_srv["log"], file=file)
 
-                print("<" + "-" * 80 + ">")
+                print("<" + "-" * 80 + ">", file=file)
 
 
 # get_status(stats)

@@ -16,6 +16,8 @@ import json
 import asyncio
 from . import __version__ as version
 import asyncmd.cmd_parser as cmd_parser
+import asyncmd.status as debug_st
+import io
 from functools import wraps
 import yaml
 import textwrap
@@ -27,6 +29,9 @@ from prompt_toolkit.completion import (
     PathCompleter,
     merge_completers,
 )
+
+
+_EPOCH_2000 = 946684800
 
 
 def parse_config_file(config_file):
@@ -114,6 +119,15 @@ class DeviceTOP:
             "done": 2,
         }
 
+        self._color_flags = {
+            "\x1b[92m": 5,
+            "\x1b[0m": 0,
+            "\x1b[32;1m": 5,
+            "\x1b[31;1m": 6,
+            "\x1b[36m": 8,
+            "\x1b[33;1m": 7,
+        }
+
     def bottom_status_bar(self, n=0):
         local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
@@ -144,7 +158,7 @@ class DeviceTOP:
         )
         s = re.split(pattern, string)
         for s in s:
-            if s.lower() in self._status_colors:
+            if s in self._status_colors:
                 stdscr.addstr(
                     s,
                     curses.color_pair(self._status_colors.get(s.lower(), 0))
@@ -154,6 +168,27 @@ class DeviceTOP:
                 stdscr.addstr(
                     s, curses.color_pair(self._status_colors.get(s.lower(), 0))
                 )
+
+        ptr.newline()
+
+    @handle
+    def printline_debug_colors(self, stdscr, string, ptr, maxc):
+        stdscr.move(ptr.x, ptr.y)
+        pattern = r"(\x1b\[[0-9;]+m)"
+        s = re.split(pattern, string)
+        color_flag = 0
+        # stdscr.addstr(str(s))
+        for w in s:
+            if isinstance(self._color_flags.get(w), int):
+                color_flag = self._color_flags.get(w)
+            else:
+                if color_flag != 0:
+                    stdscr.addstr(
+                        w,
+                        curses.color_pair(color_flag) | curses.A_BOLD,
+                    )
+                else:
+                    stdscr.addstr(w, curses.color_pair(0))
 
         ptr.newline()
 
@@ -256,7 +291,7 @@ class DeviceTOP:
             platform = info["aiomqtt.service"].get("stats").get("platform")
             if val is not None:
                 if platform in ["esp32"]:
-                    val += 946684800  # EPOCH DELTA # FIXME
+                    val += _EPOCH_2000  # EPOCH DELTA # FIXME
                 if tmf == "ISO":
                     return time.strftime("%Y-%m-%d  %H:%M:%S", time.localtime(val))
                 else:
@@ -315,18 +350,26 @@ class DeviceTOP:
         nod_info.append(" ")
         return nod_info
 
-    def draw_section(self, stdscr, ptr, title, section_str, width):
+    def draw_section(self, stdscr, ptr, title, section_str, width, colored=False):
         ptr.newline()
         stdscr.attron(curses.color_pair(3))
         self.printline(stdscr, f" {title} {' ' * (width - 7)}", ptr, width)
         stdscr.attroff(curses.color_pair(3))
         ptr.newline()
-        for line in section_str.split("\n")[self._line_index :]:
-            if line:
-                for _line in textwrap.wrap(line, width - 4):
-                    self.printline(stdscr, f"{_line}", ptr, width)
-            else:
-                self.printline(stdscr, " ", ptr, width)
+        if not colored:
+            for line in section_str.split("\n")[self._line_index :]:
+                if line:
+                    for _line in textwrap.wrap(line, width - 4):
+                        self.printline(stdscr, f"{_line}", ptr, width)
+                else:
+                    self.printline(stdscr, " ", ptr, width)
+        else:
+            for line in section_str.split("\n")[self._line_index :]:
+                if line:
+                    # for _line in textwrap.wrap(line, width - 4):
+                    self.printline_debug_colors(stdscr, line, ptr, width)
+                else:
+                    self.printline(stdscr, " ", ptr, width)
 
     async def data_feed(self):
         tls_params = None
@@ -355,7 +398,14 @@ class DeviceTOP:
                     if topic == "status":
                         _servs = json.loads(message.payload.decode())
                         if "hostname" in _servs:
-                            self._data_buffer[devname] = _servs
+                            if not self._data_buffer.get(devname):
+                                self._data_buffer[devname] = _servs
+                            else:
+                                for service, vals in {
+                                    s: v for s, v in _servs.items() if s != "hostname"
+                                }.items():
+                                    self._data_buffer[devname][service].update(**vals)
+
                         else:
                             if devname not in self._cmd_resps:
                                 self._cmd_resps[devname] = {}
@@ -586,7 +636,15 @@ class DeviceTOP:
                     for _serv in self._conf_buffer[_dev]:
                         all_servs.add(f"{_serv}.service")
 
-                for kcmd in ["start", "stop", "stats", "enable", "disable", "config"]:
+                for kcmd in [
+                    "start",
+                    "stop",
+                    "stats",
+                    "debug",
+                    "enable",
+                    "disable",
+                    "config",
+                ]:
                     cmd_comp_dict[kcmd] = all_servs_active
 
                 for kcmd in ["enable", "disable"]:
@@ -970,8 +1028,11 @@ class DeviceTOP:
             if command:
                 if not command_sent:
                     command_sent = not command_sent
-                    if command in ["start", "stop"]:
-                        msg = json.dumps({command: rest_args})
+                    if command in ["start", "stop", "debug"]:
+                        if command == "debug":
+                            msg = json.dumps({"status": f"{rest_args}:/debug"})
+                        else:
+                            msg = json.dumps({command: rest_args})
                         if _nodes == [
                             nd for nd in list(self._data_buffer.keys()) if nd != "all"
                         ]:
@@ -1118,6 +1179,29 @@ class DeviceTOP:
                                 for line in yaml.dump(dev_stats_serv).splitlines():
                                     resp += f"    {line}\n"
                                 resp += "\n"
+                    elif self._last_cmd == "debug":
+                        for node in _nodes:
+                            e_offset = 0
+                            dev_data = self._data_buffer.get(node)
+                            dev_stats_serv = dev_data.get(rest_args, {})
+                            if dev_stats_serv and "info" in dev_stats_serv:
+                                if dev_data.get("aiomqtt.service")["stats"][
+                                    "platform"
+                                ] in ["esp32"]:
+                                    e_offset = _EPOCH_2000
+                                resp_buffer = io.StringIO()
+                                debug_st.get_status(
+                                    {rest_args: dev_stats_serv, "hostname": node},
+                                    file=resp_buffer,
+                                    epoch_offset=e_offset,
+                                    colored=True,
+                                )
+                                resp += f"[{node}] \n"
+                                resp_buffer.seek(0)
+                                resp += resp_buffer.read()
+                                # for line in yaml.dump(dev_stats_serv).splitlines():
+                                #     resp += f"    {line}\n"
+                                resp += "\n---\n\n"
 
                     else:
                         for node in _nodes:
@@ -1129,7 +1213,12 @@ class DeviceTOP:
                                     resp += f" {str(last_cmd_resp)}\n\n"
                     if resp:
                         self.draw_section(
-                            stdscr, ptr, f"CMD: {command.upper()}", resp, width
+                            stdscr,
+                            ptr,
+                            f"CMD: {command.upper()}",
+                            resp,
+                            width,
+                            colored=self._last_cmd == "debug",
                         )
 
                     if self._last_cmd in ["wconf"]:

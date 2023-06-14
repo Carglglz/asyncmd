@@ -275,9 +275,6 @@ implementation.
 
 ### [async_modules](async_modules/)
 
-### [asyncmd cli](cli/)
-
-### [develop](develop/)
     
 
 ## Examples
@@ -304,14 +301,22 @@ of these tools.
     - debugged
     - updated
 
-See an example of this in the [develop example](develop/) using *MQTT*, *asyncmd* CLI, and services: 
+
+## Tutorial
+
+See a tutorial for `esp32` port in [develop example](develop/) using *MQTT*, *asyncmd* CLI and the following services: 
     
-- `aiomqtt.service` 
-- `aiomqtt_sensor_bme280.service`
-- `ota.service`
-- `network.service`
-- `wpa_supplicant.service`
-- `watcher.service`
+- `aiomqtt.service` --> control/debug and get/check OTA updates notifications over MQTT 
+- `aiomqtt_sensor_bme280.service` --> sensor (simulated) reports Temperature,Humidity,Pressure over MQTT  
+- `ota.service` --> async OTA firmware upgrades using `asyncmd` CLI
+- `network.service` --> enable WiFi connection and WebREPL (optional)
+- `wpa_supplicant.service` --> check WiFi connection and reconnects if disconnected
+- `watcher.service` --> watch services tasks to add resiliency and enable watchdog to secure
+  device continuous operation with minimum downtime
+
+## asyncmd CLI
+
+### [asyncmd cli](cli/)
 
 
 ## Tested on ports:

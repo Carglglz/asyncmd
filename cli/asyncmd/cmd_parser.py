@@ -51,6 +51,17 @@ STATS = dict(
     options={},
 )
 
+DEBUG = dict(
+    help="get debug info of a service",
+    desc="",
+    subcmd=dict(
+        help="service to debug",
+        default="watcher.service",
+        metavar="service",
+        nargs="?",
+    ),
+    options={},
+)
 
 ENABLE = dict(
     help="enable one or more services",
@@ -152,6 +163,7 @@ SHELL_CMD_DICT_PARSER = {
     "start": START,
     "stop": STOP,
     "stats": STATS,
+    "debug": DEBUG,
     "enable": ENABLE,
     "disable": DISABLE,
     "config": CONFIG,

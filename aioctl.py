@@ -410,7 +410,7 @@ def status(name=None, log=True, debug=False, indent="    "):
                     c_task = _AIOCTL_GROUP.tasks[name]
                     print(f"{_dot} {name} - {c_task.service.info}")
                     print(f"    Loaded: {c_task.service}")
-                    print("    Active: \033[92m(active) running\x1b[0m ", end="")
+                    print("    Active: \u001b[32;1m(active) running\x1b[0m ", end="")
                     print(f"since {_since_str} ago")
                     print(f"    Type: {c_task.service.type}")
                     print(f"    Docs: {c_task.service.docs}")
@@ -427,11 +427,11 @@ def status(name=None, log=True, debug=False, indent="    "):
                         print("    " + "━" * 60)
 
                 else:
-                    print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
+                    print(f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ", end="")
                     print(f"since {_since_str} ago")
 
             else:
-                print(f"{_dot} {name}: status: \033[92mrunning\x1b[0m ", end="")
+                print(f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ", end="")
                 print(f"since {_since_str} ago")
             if debug:
                 c_task = _AIOCTL_GROUP.tasks[name]
