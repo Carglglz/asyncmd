@@ -1194,9 +1194,13 @@ class DeviceTOP:
                             # use regex
 
                             resp += f"[{node}] \n"
-                            for _dserv in set(
+
+                            if filt_serv:
+                                rest_args = filt_serv
+                            _debug_servs = set(
                                 [rest_args] + node_match(rest_args, dev_data.keys())
-                            ):
+                            )
+                            for _dserv in _debug_servs:
                                 dev_stats_serv = dev_data.get(_dserv, {})
                                 if dev_stats_serv and "info" in dev_stats_serv:
                                     if dev_data.get("aiomqtt.service")["stats"][
