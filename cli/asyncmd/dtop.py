@@ -56,6 +56,7 @@ def node_match(patt, nodes):
         return [node for node in nodes if pattrn.match(node)]
     except Exception:
         return []
+    return []
 
 
 def handle(f):
@@ -366,8 +367,8 @@ class DeviceTOP:
         else:
             for line in section_str.split("\n")[self._line_index :]:
                 if line:
-                    # for _line in textwrap.wrap(line, width - 4):
-                    self.printline_debug_colors(stdscr, line, ptr, width)
+                    for _line in textwrap.wrap(line, width - 4):
+                        self.printline_debug_colors(stdscr, _line, ptr, width)
                 else:
                     self.printline(stdscr, " ", ptr, width)
 
@@ -1030,7 +1031,14 @@ class DeviceTOP:
                     command_sent = not command_sent
                     if command in ["start", "stop", "debug"]:
                         if command == "debug":
-                            msg = json.dumps({"status": f"{rest_args}:/debug"})
+                            try:
+                                assert rest_args.endswith(".service")
+                                msg = json.dumps({"status": f"{rest_args}:/debug"})
+                            except Exception:
+                                msg = json.dumps(
+                                    {"status": f"{rest_args}.service:/debug"}
+                                )
+
                         else:
                             msg = json.dumps({command: rest_args})
                         if _nodes == [
@@ -1183,25 +1191,28 @@ class DeviceTOP:
                         for node in _nodes:
                             e_offset = 0
                             dev_data = self._data_buffer.get(node)
-                            dev_stats_serv = dev_data.get(rest_args, {})
-                            if dev_stats_serv and "info" in dev_stats_serv:
-                                if dev_data.get("aiomqtt.service")["stats"][
-                                    "platform"
-                                ] in ["esp32"]:
-                                    e_offset = _EPOCH_2000
-                                resp_buffer = io.StringIO()
-                                debug_st.get_status(
-                                    {rest_args: dev_stats_serv, "hostname": node},
-                                    file=resp_buffer,
-                                    epoch_offset=e_offset,
-                                    colored=True,
-                                )
-                                resp += f"[{node}] \n"
-                                resp_buffer.seek(0)
-                                resp += resp_buffer.read()
-                                # for line in yaml.dump(dev_stats_serv).splitlines():
-                                #     resp += f"    {line}\n"
-                                resp += "\n---\n\n"
+                            # use regex
+
+                            resp += f"[{node}] \n"
+                            for _dserv in set(
+                                [rest_args] + node_match(rest_args, dev_data.keys())
+                            ):
+                                dev_stats_serv = dev_data.get(_dserv, {})
+                                if dev_stats_serv and "info" in dev_stats_serv:
+                                    if dev_data.get("aiomqtt.service")["stats"][
+                                        "platform"
+                                    ] in ["esp32"]:
+                                        e_offset = _EPOCH_2000
+                                    resp_buffer = io.StringIO()
+                                    debug_st.get_status(
+                                        {_dserv: dev_stats_serv, "hostname": node},
+                                        file=resp_buffer,
+                                        epoch_offset=e_offset,
+                                        colored=True,
+                                    )
+                                    resp_buffer.seek(0)
+                                    resp += resp_buffer.read()
+                            resp += "\n\n"
 
                     else:
                         for node in _nodes:
