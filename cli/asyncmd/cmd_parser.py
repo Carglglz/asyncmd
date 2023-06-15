@@ -63,6 +63,18 @@ DEBUG = dict(
     options={},
 )
 
+TRACEBACK = dict(
+    help="get traceback info of a service",
+    desc="",
+    subcmd=dict(
+        help="service to debug",
+        default="watcher.service",
+        metavar="service",
+        nargs="?",
+    ),
+    options={},
+)
+
 ENABLE = dict(
     help="enable one or more services",
     desc="",
@@ -164,6 +176,7 @@ SHELL_CMD_DICT_PARSER = {
     "stop": STOP,
     "stats": STATS,
     "debug": DEBUG,
+    "traceback": TRACEBACK,
     "enable": ENABLE,
     "disable": DISABLE,
     "config": CONFIG,

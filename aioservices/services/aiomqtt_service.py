@@ -60,6 +60,7 @@ class MQTTService(Service):
         self.id = NAME
         self.lock = asyncio.Lock()
         self._stat_buff = io.StringIO(3000)
+        self._tb_buff = io.StringIO(500)
         self._callbacks = {}
         self._topics = {
             "device/all/cmd",
@@ -153,6 +154,27 @@ class MQTTService(Service):
                         self.log.info(
                             f"[{self.name}.service] @ [{action.upper()}]: {service}"
                         )
+        elif action == "traceback":
+            self._stat_buff.seek(0)
+            self._tb_buff.seek(0)
+            aioctl.traceback(service, file=self._tb_buff)
+            len_tb = self._tb_buff.tell()
+            self._tb_buff.seek(0)
+            json.dump(
+                {service: {action: self._tb_buff.read(len_tb)}, "hostname": self.id},
+                self._stat_buff,
+            )
+            len_b = self._stat_buff.tell()
+            self._stat_buff.seek(0)
+
+            async with self.lock:
+                await self.client.publish(
+                    self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
+                )
+            self.n_pub += 1
+            if self.log:
+                self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
+
         elif action == "log":
             async with self.lock:
                 await aiostats.pipelog(

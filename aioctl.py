@@ -584,27 +584,27 @@ def log(grep=""):
         return _AIOCTL_LOG.cat(grep=grep)
 
 
-def traceback(name=None, rtn=False, indent=""):
+def traceback(name=None, rtn=False, indent="", file=sys.stdout):
     if not name:
         return traceback_all()
     if "*" in name:
         for tm in tasks_match(name):
-            traceback(tm)
+            traceback(tm, file=file)
         return
     _tb = result(name)
     if issubclass(_tb.__class__, Exception):
         if rtn:
             return True
-        print(f"{name}: Traceback")
+        print(f"{name}: Traceback", file=file)
         if indent:
             ibuff = io.StringIO(150)
 
             sys.print_exception(_tb, ibuff)
             ibuff.seek(0)
             for line in ibuff:
-                print(f"{indent}{line}", end="")
+                print(f"{indent}{line}", end="", file=file)
         else:
-            sys.print_exception(_tb)
+            sys.print_exception(_tb, file)
     else:
         if rtn:
             return False

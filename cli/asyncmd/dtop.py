@@ -642,6 +642,7 @@ class DeviceTOP:
                     "stop",
                     "stats",
                     "debug",
+                    "traceback",
                     "enable",
                     "disable",
                     "config",
@@ -1029,7 +1030,7 @@ class DeviceTOP:
             if command:
                 if not command_sent:
                     command_sent = not command_sent
-                    if command in ["start", "stop", "debug"]:
+                    if command in ["start", "stop", "debug", "traceback"]:
                         if command == "debug":
                             try:
                                 assert rest_args.endswith(".service")
@@ -1185,6 +1186,15 @@ class DeviceTOP:
                             if dev_stats_serv:
                                 resp += f"> {node}: [{rest_args.upper()}]\n"
                                 for line in yaml.dump(dev_stats_serv).splitlines():
+                                    resp += f"    {line}\n"
+                                resp += "\n"
+                    elif self._last_cmd == "traceback":
+                        for node in _nodes:
+                            dev_data = self._data_buffer.get(node)
+                            dev_tb_serv = dev_data.get(rest_args, {}).get("traceback")
+                            if dev_tb_serv:
+                                resp += f"[{node}]:\n"
+                                for line in dev_tb_serv.splitlines():
                                     resp += f"    {line}\n"
                                 resp += "\n"
                     elif self._last_cmd == "debug":
