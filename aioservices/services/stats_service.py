@@ -38,6 +38,7 @@ class JSONAPIService(Service):
         )  # fragment              # NOQA
         self.routes = {}
         self._stat_buff = io.StringIO(4000)
+        self._tb_buff = io.StringIO(1000)
 
     def _szfmt(self, filesize):
         _kB = 1000
@@ -114,7 +115,9 @@ class JSONAPIService(Service):
     async def send_stats(self, writer, debug=False):
         self._stat_buff.seek(0)
 
-        json.dump(aiostats.stats("*.service", debug), self._stat_buff)
+        json.dump(
+            aiostats.stats("*.service", debug, traceback=self._tb_buff), self._stat_buff
+        )
         len_b = self._stat_buff.tell()
         self._stat_buff.seek(0)
         writer.write(b"HTTP/1.1 200 OK\r\n")

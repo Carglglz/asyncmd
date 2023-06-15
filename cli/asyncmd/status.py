@@ -298,10 +298,11 @@ def get_status(
                 print(f"{indent}┗━► args: {_srv['args']}", file=file)
                 print(f"{indent}┗━► kwargs:", end="", file=file)
                 pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "), file=file)
-                # if traceback(name, rtn=True):
-                #     print(f"{indent}┗━► traceback: ", end="")
-                #     traceback(name, indent=indent + " " * 14)
-                #     print("")
+                if _srv.get("traceback"):
+                    print(f"{indent}┗━► traceback: ", file=file)
+                    for tbline in _srv.get("traceback").splitlines()[1:]:
+                        print(indent + " " * 14 + tbline, file=file)
+                    print("", file=file)
             # if _SCHEDULE and not debug:
             #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
             #         aioschedule.status_sc(name, debug=debug)

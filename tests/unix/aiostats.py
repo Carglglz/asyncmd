@@ -160,7 +160,7 @@ def logtail(grep="", log=aioctl._AIOCTL_LOG):
 # --> time series database (influx) publisher --> aioctl status + metrics data
 
 
-def stats(taskm="*", debug=False):
+def stats(taskm="*", debug=False, traceback=None):
     _stats = {}
     for task in aioctl.tasks_match(taskm):
         task_stats = {
@@ -181,7 +181,6 @@ def stats(taskm="*", debug=False):
             else:
                 task_stats["stats"] = None
             if debug and debug == "/debug":
-
                 task_stats["log"] = logtail(grep=task)
                 task_stats["ctasks"] = list(
                     aioctl.group().tasks[task].service._child_tasks
@@ -195,6 +194,12 @@ def stats(taskm="*", debug=False):
                     k: str(v)
                     for k, v in aioctl.group().tasks[task].service.kwargs.items()
                 }
+                if traceback:
+                    traceback.seek(0)
+                    aioctl.traceback(taskm, file=traceback)
+                    len_tb = traceback.tell()
+                    traceback.seek(0)
+                    task_stats["traceback"] = traceback.read(len_tb)
 
         _stats[task] = task_stats
     _stats["hostname"] = NAME

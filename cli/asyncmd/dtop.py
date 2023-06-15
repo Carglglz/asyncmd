@@ -405,7 +405,10 @@ class DeviceTOP:
                                 for service, vals in {
                                     s: v for s, v in _servs.items() if s != "hostname"
                                 }.items():
-                                    self._data_buffer[devname][service].update(**vals)
+                                    if self._data_buffer[devname].get(service):
+                                        self._data_buffer[devname][service].update(
+                                            **vals
+                                        )
 
                         else:
                             if devname not in self._cmd_resps:

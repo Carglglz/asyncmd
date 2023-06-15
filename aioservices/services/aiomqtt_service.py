@@ -105,7 +105,10 @@ class MQTTService(Service):
             self._stat_buff.seek(0)
             if ":" in service:
                 service, _debug = service.split(":")
-                json.dump(aiostats.stats(service, debug=_debug), self._stat_buff)
+                json.dump(
+                    aiostats.stats(service, debug=_debug, traceback=self._tb_buff),
+                    self._stat_buff,
+                )
             else:
                 json.dump(aiostats.stats(service), self._stat_buff)
             len_b = self._stat_buff.tell()
