@@ -159,9 +159,10 @@ class DeviceTOP:
         )
         s = re.split(pattern, string)
         for s in s:
-            if s in self._status_colors:
+            if s.lower() in self._status_colors:
+                _s = s.lower() if s != "ERROR" else s
                 stdscr.addstr(
-                    s,
+                    _s,
                     curses.color_pair(self._status_colors.get(s.lower(), 0))
                     | curses.A_BOLD,
                 )
@@ -1221,6 +1222,16 @@ class DeviceTOP:
                                     ] in ["esp32"]:
                                         e_offset = _EPOCH_2000
                                     resp_buffer = io.StringIO()
+                                    if dev_stats_serv.get("status") == "error":
+                                        if not dev_stats_serv.get("traceback"):
+                                            msg = json.dumps(
+                                                {"status": f"{_dserv}:/debug"}
+                                            )
+
+                                            await self._client.publish(
+                                                f"device/{node}/service", payload=msg
+                                            )
+
                                     debug_st.get_status(
                                         {_dserv: dev_stats_serv, "hostname": node},
                                         file=resp_buffer,
