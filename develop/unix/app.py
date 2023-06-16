@@ -1,5 +1,5 @@
 import uasyncio as asyncio
-import aiorepl
+# import aiorepl
 import aioservice
 from hostname import NAME
 import logging
@@ -10,10 +10,11 @@ import aioctl
 async def _main(logger):
     await aioservice.boot(log=logger, debug_log=True)
     print("starting tasks...")
-    aioctl.add(aiorepl.task, name="repl")
+    # aioctl.add(aiorepl.task, name="repl")
     print(">>> ")
     aioservice.init(log=logger, debug_log=True)
     print(">>> ")
+    asyncio.create_task(aioctl.follow())
     await asyncio.gather(*aioctl.tasks())
 
 
