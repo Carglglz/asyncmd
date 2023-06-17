@@ -24,8 +24,10 @@ class UnittestService(Service):
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
-        self.kwargs = {"testdir": "tests", "modules": ["./lib"], "debug": False}
+        self.kwargs = {"testdir": "tests", "modules": ["./lib"], "root":'./' ,"debug":
+                       False}
         self.schedule = {"start_in": 20, "repeat": 60}
+        self._root = ""
         self.tests = []
         self.modules = []
         self._pmodules = {}
@@ -188,7 +190,7 @@ class UnittestService(Service):
             if "/" in mod:
                 rdir, mod = mod.rsplit("/", 1)
                 if rdir not in sys.path:
-                    sys.path.append(f"./{rdir}")
+                    sys.path.append(f"{self._root}{rdir}")
             mod = mod.replace(".py", "").replace(".mpy", "")
             if mod in sys.modules:
                 sys.modules.pop(mod)
@@ -203,7 +205,7 @@ class UnittestService(Service):
                 rdir, test = test.rsplit("/", 1)
                 test = test.replace(".py", "").replace(".mpy", "")
                 if rdir not in sys.path:
-                    sys.path.append(f"./{rdir}")
+                    sys.path.append(f"{self._root}{rdir}")
             if test in sys.modules:
                 sys.modules.pop(test)
                 gc.collect()
@@ -215,10 +217,11 @@ class UnittestService(Service):
             self.result += self.test_result[ab_test]
 
     @aioctl.aiotask
-    async def task(self, testdir=None, modules=None, debug=False, log=None):
+    async def task(self, testdir=None, modules=None, root="", debug=False, log=None):
         await asyncio.sleep(2)
         self.debug = debug
         self.log = log
+        self._root = root
         if testdir:
             if testdir not in sys.path:
                 sys.path.append(testdir)
