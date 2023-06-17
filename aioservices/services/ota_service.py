@@ -71,6 +71,14 @@ class OTAService(Service):
 
         return ("Stats", _progress)
 
+    def stats(self):
+        return {
+            "fw_csize": self.block * BLOCKLEN,
+            "fw_tsize": self._total_blocks * BLOCKLEN,
+            "dt": self._fmt_time(),
+            "progress": int(self._progress * 100),
+        }
+
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
