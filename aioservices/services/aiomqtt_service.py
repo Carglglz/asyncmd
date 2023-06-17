@@ -178,6 +178,21 @@ class MQTTService(Service):
             if self.log:
                 self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
 
+        elif action == "report":
+            try:
+                os.stat(f".{service}")
+                if self.log:
+                    self.log.info(f"sending {service} report...")
+                async with self.lock:
+                    await aiostats.pipefile(
+                        self.client,
+                        f"device/{NAME}/report/{service}".encode("utf-8"),
+                        file=f".{service}",
+                    )
+            except Exception as e:
+                if self.log:
+                    self.log.error(f"[{self.name}.service] @ [{action.upper()}]:{e}")
+
         elif action == "log":
             async with self.lock:
                 await aiostats.pipelog(

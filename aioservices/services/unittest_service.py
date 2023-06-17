@@ -1,3 +1,4 @@
+import time
 import aioctl
 from aioclass import Service
 import unittest
@@ -24,8 +25,13 @@ class UnittestService(Service):
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
-        self.kwargs = {"testdir": "tests", "modules": ["./lib"], "root":'./' ,"debug":
-                       False}
+        self.kwargs = {
+            "testdir": "tests",
+            "modules": ["./lib"],
+            "root": "./",
+            "debug": False,
+            "save_report": False,
+        }
         self.schedule = {"start_in": 20, "repeat": 60}
         self._root = ""
         self.tests = []
@@ -39,6 +45,7 @@ class UnittestService(Service):
         self._testsRun = 0
         self._errorsNum = 0
         self._failuresNum = 0
+        self._last_result = None
         self.debug = False
         self.log = None
 
@@ -217,7 +224,15 @@ class UnittestService(Service):
             self.result += self.test_result[ab_test]
 
     @aioctl.aiotask
-    async def task(self, testdir=None, modules=None, root="", debug=False, log=None):
+    async def task(
+        self,
+        testdir=None,
+        modules=None,
+        root="",
+        save_report=False,
+        debug=False,
+        log=None,
+    ):
         await asyncio.sleep(2)
         self.debug = debug
         self.log = log
@@ -278,9 +293,31 @@ class UnittestService(Service):
                 else:
                     self.log.info(f"[{self.name}.service] Tests up to date")
 
+                if save_report:
+                    _test_res = all(
+                        t.wasSuccessful() for t in self.test_result.values()
+                    )
+                    if _test_res != self._last_result:
+                        if self.log:
+                            self.log.info(f"[{self.name}.service] saving report..")
+
+                        done_at = aioctl.get_datetime(time.localtime())
+
+                        with open(f".{self.name}.service", "w") as rp:
+                            rp.write(
+                                f"{self.name}.service;{done_at} [ \x1b[92mOK\x1b[0m ]"
+                            )
+                            if _test_res:
+                                rp.write(f" {self._PASS}\n")
+                            else:
+                                rp.write(f" {self._FAIL}\n")
+                            self.report(rp)
+
                 if all(t.wasSuccessful() for t in self.test_result.values()):
+                    self._last_result = True
                     return self._PASS
                 else:
+                    self._last_result = False
                     return self._FAIL
 
 

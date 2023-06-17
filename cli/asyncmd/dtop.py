@@ -101,6 +101,7 @@ class DeviceTOP:
         self._log_buffer = {}
         self._errlog_buffer = {}
         self._help_buffer = {}
+        self._report_buffer = {}
         self._info_enabled = True
         self._close_flag = False
         self._client = None
@@ -418,8 +419,14 @@ class DeviceTOP:
                 await client.subscribe("device/+/log")
                 await client.subscribe("device/+/resp")
                 await client.subscribe("device/+/help")
+                await client.subscribe("device/+/report/#")
                 async for message in messages:
-                    devname, topic = str(message.topic).split("/")[1:]
+                    devname, *topic = str(message.topic).split("/")[1:]
+                    if isinstance(topic, list):
+                        if len(topic) == 1:
+                            (topic,) = topic
+                        else:
+                            topic, _rp_service = topic
                     if topic == "status":
                         _servs = json.loads(message.payload.decode())
                         if "hostname" in _servs:
@@ -465,6 +472,21 @@ class DeviceTOP:
                             self._help_buffer[devname] = _help
                         else:
                             self._help_buffer[devname].update(**_help)
+
+                    elif topic == "report":
+                        if devname not in self._report_buffer:
+                            self._report_buffer[devname] = {}
+
+                        if _rp_service not in self._report_buffer.get(devname):
+                            self._report_buffer[devname][_rp_service] = ""
+
+                        if f"{_rp_service};" in message.payload.decode():
+                            self._report_buffer[devname][_rp_service] = ""
+
+                        self._report_buffer[devname][
+                            _rp_service
+                        ] += message.payload.decode()
+
                     if self._close_flag:
                         return
 
@@ -675,6 +697,7 @@ class DeviceTOP:
                     "stop",
                     "stats",
                     "debug",
+                    "report",
                     "traceback",
                     "enable",
                     "disable",
@@ -1065,7 +1088,7 @@ class DeviceTOP:
             if command:
                 if not command_sent:
                     command_sent = not command_sent
-                    if command in ["start", "stop", "debug", "traceback"]:
+                    if command in ["start", "stop", "debug", "report", "traceback"]:
                         if command == "debug":
                             try:
                                 assert rest_args.endswith(".service")
@@ -1232,6 +1255,16 @@ class DeviceTOP:
                                 for line in dev_tb_serv.splitlines():
                                     resp += f"    {line}\n"
                                 resp += "\n"
+                    elif self._last_cmd == "report":
+                        for node in _nodes:
+                            dev_report = self._report_buffer.get(node)
+                            if dev_report:
+                                _rp = dev_report.get(rest_args)
+                                resp += f"[{node}]:\n"
+                                for line in _rp.splitlines():
+                                    resp += f"    {line}\n"
+                                resp += "\n"
+
                     elif self._last_cmd == "debug":
                         for node in _nodes:
                             e_offset = 0
@@ -1302,7 +1335,7 @@ class DeviceTOP:
                             f"CMD: {command.upper()}",
                             resp,
                             width,
-                            colored=self._last_cmd == "debug",
+                            colored=self._last_cmd in ("debug", "report"),
                         )
 
                     if self._last_cmd in ["wconf"]:
