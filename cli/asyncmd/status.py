@@ -174,7 +174,7 @@ def time_str(uptime_tuple):
 
 def tmdelta_fmt(dt):
     if dt < 0:
-        return f"the past by {tmdelta_fmt(abs(dt))} s"
+        return f"the past by {tmdelta_fmt(abs(dt))} "
     dd, hh, mm, ss = (0, 0, 0, 0)
     mm = dt // 60
     ss = dt % 60
@@ -194,6 +194,48 @@ def tmdelta_fmt(dt):
         return time_str((dd, hh, mm, ss))
 
     return time_str((dd, hh, mm, ss))
+
+
+def status_sc(schedule, file=sys.stdout, debug=False):
+    last = schedule.get("last_dt")
+    _last_tm = schedule.get("last")
+    repeat = schedule.get("repeat")
+    _schedule = schedule
+    _sch_str = ", ".join([f"{k}={v}" for k, v in _schedule.items()])
+    _next = None
+    start_in = None
+    if last:
+        last = get_datetime(last)
+        if repeat:
+            _next = repeat - (time.time() - _last_tm)
+    else:
+        start_in = schedule.get("start_in")
+        if start_in < 0:
+            start_in = None
+        if start_in > 0:
+            if isinstance(start_in, tuple):
+                _next = time.mktime(start_in) - time.time()
+            else:
+                _next = schedule.get("t0") + start_in - time.time()
+    if repeat:
+        if last:
+            print(
+                f"    ┗━► schedule: last @ {last} "
+                + f"--> next in {tmdelta_fmt(_next)}",
+                end="",
+                file=file,
+            )
+            print(f" @ {get_datetime(time.localtime(time.time() + _next))}", file=file)
+        else:
+            print(f"    ┗━► schedule: next in {tmdelta_fmt(_next)}", end="", file=file)
+            print(f" @ {get_datetime(time.localtime(time.time() + _next))}", file=file)
+
+    elif start_in:
+        print(f"    ┗━► schedule: starts in {tmdelta_fmt(_next)}", end="", file=file)
+        print(f" @ {get_datetime(time.localtime(time.time() + _next))}", file=file)
+
+    if debug:
+        print(f"    ┗━► schedule opts: {_sch_str}", file=file)
 
 
 def get_status(
@@ -292,9 +334,9 @@ def get_status(
                     _delta_runtime = tmdelta_fmt(_delta_runtime)
                     print(f"{indent}┗━► runtime: {_delta_runtime}", file=file)
 
-                # if _SCHEDULE:
-                #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
-                #         aioschedule.status_sc(name, debug=debug)
+                if "schedule" in _type:
+                    if _srv.get("schedule"):
+                        status_sc(_srv.get("schedule"), file=file, debug=debug)
                 print(f"{indent}┗━► args: {_srv['args']}", file=file)
                 print(f"{indent}┗━► kwargs:", end="", file=file)
                 pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "), file=file)
@@ -306,6 +348,11 @@ def get_status(
             # if _SCHEDULE and not debug:
             #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
             #         aioschedule.status_sc(name, debug=debug)
+
+            if "schedule" in _type and not debug:
+                if _srv.get("schedule"):
+                    status_sc(_srv.get("schedule"), file=file, debug=debug)
+
             if log:
                 # if (
                 #     _AIOCTL_GROUP.tasks[name]._is_service
@@ -386,6 +433,10 @@ def get_status(
                 # c_task = _AIOCTL_GROUP.tasks[name]
                 print(f"{indent}Task: ", file=file)
 
+                if "schedule" in _type:
+                    if _srv.get("schedule"):
+                        status_sc(_srv.get("schedule"), file=file, debug=debug)
+
                 # if _SCHEDULE:
                 #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
                 #         aioschedule.status_sc(name, debug=debug)
@@ -396,6 +447,10 @@ def get_status(
             # if _SCHEDULE and not debug:
             #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
             #         aioschedule.status_sc(name, debug=debug)
+
+            if "schedule" in _type and not debug:
+                if _srv.get("schedule"):
+                    status_sc(_srv.get("schedule"), file=file, debug=debug)
             if log:
                 # if (
                 #     _AIOCTL_GROUP.tasks[name]._is_service

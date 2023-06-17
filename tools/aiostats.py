@@ -196,11 +196,14 @@ def stats(taskm="*", debug=False, traceback=None):
                 }
                 if traceback:
                     traceback.seek(0)
-                    aioctl.traceback(taskm, file=traceback)
+                    aioctl.traceback(task, file=traceback)
                     len_tb = traceback.tell()
                     traceback.seek(0)
                     task_stats["traceback"] = traceback.read(len_tb)
-
+            if "schedule" in aioctl.group().tasks[task].service.type:
+                if task in aioschedule.group():
+                    task_stats["schedule"] = aioschedule.group()[task]
+                    task_stats["schedule"]["t0"] = aioschedule._AIOCTL_SCHEDULE_T0
         _stats[task] = task_stats
     _stats["hostname"] = NAME
     return _stats

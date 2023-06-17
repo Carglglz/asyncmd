@@ -158,6 +158,8 @@ class DeviceTOP:
             )
         )
         s = re.split(pattern, string)
+        ## colored text codes
+
         for s in s:
             if s.lower() in self._status_colors:
                 _s = s.lower() if s != "ERROR" else s
@@ -167,9 +169,24 @@ class DeviceTOP:
                     | curses.A_BOLD,
                 )
             else:
-                stdscr.addstr(
-                    s, curses.color_pair(self._status_colors.get(s.lower(), 0))
-                )
+                _pattern = r"(\x1b\[[0-9;]+m)"
+                ws = re.split(_pattern, s)
+                color_flag = 0
+
+                for w in ws:
+                    if isinstance(self._color_flags.get(w), int):
+                        color_flag = self._color_flags.get(w)
+                    else:
+                        if color_flag != 0:
+                            stdscr.addstr(
+                                w,
+                                curses.color_pair(color_flag) | curses.A_BOLD,
+                            )
+                        else:
+                            stdscr.addstr(w, curses.color_pair(0))
+                # stdscr.addstr(
+                #     s, curses.color_pair(self._status_colors.get(s.lower(), 0))
+                # )
 
         ptr.newline()
 
