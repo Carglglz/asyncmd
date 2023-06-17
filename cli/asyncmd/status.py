@@ -196,9 +196,9 @@ def tmdelta_fmt(dt):
     return time_str((dd, hh, mm, ss))
 
 
-def status_sc(schedule, file=sys.stdout, debug=False):
+def status_sc(schedule, file=sys.stdout, debug=False, epoch_offset=0):
     last = schedule.get("last_dt")
-    _last_tm = schedule.get("last")
+    _last_tm = schedule.get("last") + epoch_offset
     repeat = schedule.get("repeat")
     _schedule = schedule
     _sch_str = ", ".join([f"{k}={v}" for k, v in _schedule.items()])
@@ -216,7 +216,7 @@ def status_sc(schedule, file=sys.stdout, debug=False):
             if isinstance(start_in, tuple):
                 _next = time.mktime(start_in) - time.time()
             else:
-                _next = schedule.get("t0") + start_in - time.time()
+                _next = schedule.get("t0") + epoch_offset + start_in - time.time()
     if repeat:
         if last:
             print(
@@ -336,7 +336,12 @@ def get_status(
 
                 if "schedule" in _type:
                     if _srv.get("schedule"):
-                        status_sc(_srv.get("schedule"), file=file, debug=debug)
+                        status_sc(
+                            _srv.get("schedule"),
+                            file=file,
+                            debug=debug,
+                            epoch_offset=epoch_offset,
+                        )
                 print(f"{indent}┗━► args: {_srv['args']}", file=file)
                 print(f"{indent}┗━► kwargs:", end="", file=file)
                 pprint_dict(_srv["kwargs"], ind=len(f"{indent}┗━► kwargs: "), file=file)
@@ -351,7 +356,12 @@ def get_status(
 
             if "schedule" in _type and not debug:
                 if _srv.get("schedule"):
-                    status_sc(_srv.get("schedule"), file=file, debug=debug)
+                    status_sc(
+                        _srv.get("schedule"),
+                        file=file,
+                        debug=debug,
+                        epoch_offset=epoch_offset,
+                    )
 
             if log:
                 # if (
@@ -363,7 +373,9 @@ def get_status(
                 #     _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
                 # else:
                 # _AIOCTL_LOG.cat(grep=f"[{name}])
-                print(_srv["log"], file=file)
+
+                for logline in _srv["log"].splitlines()[-10:]:
+                    print(f"{logline}", file=file)
                 print("<" + "-" * 80 + ">", file=file)
         else:
             _dot = "\033[92m●\x1b[0m"
@@ -435,7 +447,12 @@ def get_status(
 
                 if "schedule" in _type:
                     if _srv.get("schedule"):
-                        status_sc(_srv.get("schedule"), file=file, debug=debug)
+                        status_sc(
+                            _srv.get("schedule"),
+                            file=file,
+                            debug=debug,
+                            epoch_offset=epoch_offset,
+                        )
 
                 # if _SCHEDULE:
                 #     if name in aioschedule._AIOCTL_SCHEDULE_GROUP:
@@ -450,7 +467,12 @@ def get_status(
 
             if "schedule" in _type and not debug:
                 if _srv.get("schedule"):
-                    status_sc(_srv.get("schedule"), file=file, debug=debug)
+                    status_sc(
+                        _srv.get("schedule"),
+                        file=file,
+                        debug=debug,
+                        epoch_offset=epoch_offset,
+                    )
             if log:
                 # if (
                 #     _AIOCTL_GROUP.tasks[name]._is_service
@@ -461,7 +483,8 @@ def get_status(
                 #     _AIOCTL_LOG.cat(grep=[f"*\[{name}\]*"] + _ctsks)
                 # else:
                 #     _AIOCTL_LOG.cat(grep=f"[{name}]")
-                print(_srv["log"], file=file)
+                for logline in _srv["log"].splitlines()[-10:]:
+                    print(f"{logline}", file=file)
 
                 print("<" + "-" * 80 + ">", file=file)
 

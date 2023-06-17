@@ -59,6 +59,12 @@ def node_match(patt, nodes):
     return []
 
 
+def service_match(service, line):
+    pattern = r"\[[^\]]+\]"
+    matches = re.findall(pattern, line)
+    return any([service in match for match in matches])
+
+
 def handle(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -586,14 +592,20 @@ class DeviceTOP:
             elif k == ord("l"):
                 self._log_enabled = not self._log_enabled
                 self._log_mode = b"log"
-                command = ""
+                if self._last_cmd != "debug":
+                    command = ""
                 help_command = ""
 
             elif k == ord("k"):
                 # if self._line_index > 0:
                 self._line_index -= 1
+            elif k == curses.KEY_UP:
+                self._line_index -= 1
 
             elif k == ord("j"):
+                self._line_index += 1
+
+            elif k == curses.KEY_DOWN:
                 self._line_index += 1
 
             elif k == ord(" "):
@@ -760,11 +772,13 @@ class DeviceTOP:
 
             elif k == curses.ascii.ESC:
                 filt_dev = ""
-                command = ""
                 help_command = ""
                 # self._log_enabled = False
                 show_config = False
-                self._last_cmd = ""
+                if not filt_serv or self._last_cmd != "debug":
+                    self._last_cmd = ""
+
+                    command = ""
                 self._line_index = 0
                 filt_log = ""
                 filt_serv = ""
@@ -1227,10 +1241,13 @@ class DeviceTOP:
                             resp += f"[{node}] \n"
 
                             if filt_serv:
-                                rest_args = filt_serv
-                            _debug_servs = set(
-                                [rest_args] + node_match(rest_args, dev_data.keys())
-                            )
+                                _debug_servs = set(
+                                    node_match(filt_serv, dev_data.keys())
+                                )
+                            else:
+                                _debug_servs = set(
+                                    [rest_args] + node_match(rest_args, dev_data.keys())
+                                )
                             for _dserv in _debug_servs:
                                 dev_stats_serv = dev_data.get(_dserv, {})
                                 if dev_stats_serv and "info" in dev_stats_serv:
@@ -1248,7 +1265,18 @@ class DeviceTOP:
                                             await self._client.publish(
                                                 f"device/{node}/service", payload=msg
                                             )
+                                            await asyncio.sleep(0.2)
 
+                                    if self._log_enabled and node in self._log_buffer:
+                                        # add new log lines match
+                                        for line in self._log_buffer[node].splitlines()[
+                                            -20:
+                                        ]:
+                                            if f"[{_dserv}]" in line or service_match(
+                                                _dserv, line
+                                            ):
+                                                if line not in dev_stats_serv["log"]:
+                                                    dev_stats_serv["log"] += f"{line}\n"
                                     debug_st.get_status(
                                         {_dserv: dev_stats_serv, "hostname": node},
                                         file=resp_buffer,
