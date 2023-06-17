@@ -198,7 +198,9 @@ def tmdelta_fmt(dt):
 
 def status_sc(schedule, file=sys.stdout, debug=False, epoch_offset=0):
     last = schedule.get("last_dt")
-    _last_tm = schedule.get("last") + epoch_offset
+    _last_tm = schedule.get("last")
+    if _last_tm:
+        _last_tm += epoch_offset
     repeat = schedule.get("repeat")
     _schedule = schedule
     _sch_str = ", ".join([f"{k}={v}" for k, v in _schedule.items()])

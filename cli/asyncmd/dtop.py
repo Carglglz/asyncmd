@@ -1267,7 +1267,7 @@ class DeviceTOP:
                                             )
                                             await asyncio.sleep(0.2)
 
-                                    if self._log_enabled and node in self._log_buffer:
+                                    if node in self._log_buffer:
                                         # add new log lines match
                                         for line in self._log_buffer[node].splitlines()[
                                             -20:
