@@ -216,17 +216,21 @@ Command line:
     @help --> see device commands help
     @?command --> see help of device command
 
+
 Keybindings:
 
     n: next device
     p: previous device
-    j/k, space/g }/{: scroll down/up command output
+    0: all devices
+    j/k, }/{, space/g : scroll down/up command output
     i: toggle device info
     f: set last device filter
     c: fetch and toggle device config info
     l: fetch and toggle device log
     s: switch time format (ISO/DATETIME)
     ESC: clear filters and cmd mode output
+    TAB: autocompletion in command line of
+         commands, devices, services and files
     q: exit
 
 """

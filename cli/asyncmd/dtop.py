@@ -585,6 +585,8 @@ class DeviceTOP:
                 node_idx = nodes_cnt - 1 if node_idx + 1 >= nodes_cnt else node_idx + 1
             elif k == ord("p"):
                 node_idx = 0 if node_idx - 1 < 0 else node_idx - 1
+            elif k == ord("0"):
+                node_idx = 0
             elif k == ord("s"):
                 if TM_FMT == "ISO":
                     TM_FMT = "DELTA"
@@ -655,10 +657,10 @@ class DeviceTOP:
                 )
                 if filt_dev.startswith("s/"):
                     filt_serv = filt_dev.replace("s/", "")
-                    filt_dev = ""
+                    filt_dev = self._last_filt
                 elif filt_dev.startswith("l/"):
                     filt_log = filt_dev.replace("l/", "")
-                    filt_dev = ""
+                    filt_dev = self._last_filt
 
                 self._last_filt = filt_dev
 
@@ -817,11 +819,13 @@ class DeviceTOP:
             _cmd_inp = cmd_inp
             if _nodes == ["all"]:
                 _nodes = [nd for nd in list(self._data_buffer.keys()) if nd != "all"]
+                _nodes.sort()
                 if filt_dev:
                     _filt_nodes = node_match(filt_dev, _nodes)
                     self._filt_nodes = _filt_nodes
                     if _filt_nodes:
                         _nodes = _filt_nodes
+                        _nodes.sort()
                         # Device cmds
                         if (cmd_inp and cmd_inp.startswith("@")) or cmd_inp == "reset":
                             if dev_args:
@@ -970,7 +974,7 @@ class DeviceTOP:
                             for hdr in ["STATUS", "SINCE", "DONE_AT", "RESULT", "STATS"]
                         ]
                     )
-                    for serv in data.keys()
+                    for serv in sorted(data)
                     if serv != "hostname"
                 ]  # --> services row
                 status_bar_item_length = 3
@@ -1281,7 +1285,7 @@ class DeviceTOP:
                                 _debug_servs = set(
                                     [rest_args] + node_match(rest_args, dev_data.keys())
                                 )
-                            for _dserv in _debug_servs:
+                            for _dserv in sorted(_debug_servs):
                                 dev_stats_serv = dev_data.get(_dserv, {})
                                 if dev_stats_serv and "info" in dev_stats_serv:
                                     if dev_data.get("aiomqtt.service")["stats"][
