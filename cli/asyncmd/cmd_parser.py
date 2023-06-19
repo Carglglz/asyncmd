@@ -210,8 +210,8 @@ Command line:
     :command [options] --> local commands
     @command [options] --> device commands
     /pattern* --> filter by device name (accepts * wildcards)
-    /l/pattern* --> filter log by pattern
-    /s/*pattern* --> filter service info by pattern
+    %%pattern* --> filter log by pattern
+    $pattern* --> filter service info by pattern
     ?command --> see help of command
     @help --> see device commands help
     @?command --> see help of device command

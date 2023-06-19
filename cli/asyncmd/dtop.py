@@ -112,6 +112,7 @@ class DeviceTOP:
         self._errlog_buffer = {}
         self._help_buffer = {}
         self._report_buffer = {}
+        self._services_path = {}
         self._info_enabled = True
         self._close_flag = False
         self._client = None
@@ -692,7 +693,9 @@ class DeviceTOP:
             elif k == ord("/"):
                 curses.curs_set(1)
                 _cmdlw = stdscr.derwin(height - 1, 0)
-                dev_completer = FuzzyWordCompleter(nodes)
+                autocomp_filt = set()
+                autocomp_filt.update(nodes)
+                dev_completer = FuzzyWordCompleter(autocomp_filt)
 
                 filt_dev = await session_filt.prompt_async(
                     "/", completer=dev_completer, complete_while_typing=False
@@ -705,6 +708,50 @@ class DeviceTOP:
                     filt_dev = self._last_filt
 
                 self._last_filt = filt_dev
+
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.erase()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+
+                curses.curs_set(0)
+            elif k == ord("$"):
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
+                autocomp_filt = set()
+                for _dev in self._data_buffer:
+                    for _serv in self._data_buffer[_dev]:
+                        if _serv != "hostname":
+                            autocomp_filt.add(_serv)
+                dev_completer = FuzzyWordCompleter(autocomp_filt)
+
+                filt_serv = await session_filt.prompt_async(
+                    "$", completer=dev_completer, complete_while_typing=False
+                )
+
+                shortcuts.clear()
+                _cmdlw.deleteln()
+                _cmdlw.erase()
+                _cmdlw.refresh()
+                stdscr.erase()
+                stdscr.refresh()
+
+                curses.curs_set(0)
+            elif k == ord("%"):
+                curses.curs_set(1)
+                _cmdlw = stdscr.derwin(height - 1, 0)
+                autocomp_filt = set()
+                for _dev in self._data_buffer:
+                    for _serv in self._data_buffer[_dev]:
+                        if _serv != "hostname":
+                            autocomp_filt.add(f"{_serv}")
+                dev_completer = FuzzyWordCompleter(autocomp_filt)
+
+                filt_log = await session_filt.prompt_async(
+                    "%", completer=dev_completer, complete_while_typing=False
+                )
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -752,8 +799,12 @@ class DeviceTOP:
                 for kcmd in ["enable", "disable"]:
                     cmd_comp_dict[kcmd] = all_servs
 
-                for kcmd in ["wconf", "e"]:
+                for kcmd in ["wconf"]:
                     cmd_comp_dict[kcmd] = path_completer
+
+                cmd_comp_dict["e"] = merge_completers(
+                    (WordCompleter(list(all_servs_active)), path_completer)
+                )
 
                 cmd_comp_dict["config"] = merge_completers(
                     (WordCompleter(list(all_servs)), path_completer)
@@ -1021,7 +1072,27 @@ class DeviceTOP:
                 ]  # --> services row
                 status_bar_item_length = 3
                 if filt_serv:
-                    vm_status_list = node_match(filt_serv, vm_status_list)
+                    data_filt = {
+                        ks: data[ks] for ks in node_match(filt_serv, data.keys())
+                    }
+                    vm_status_list = [
+                        f" {data['hostname']:{_max_hn}s}"
+                        f"{srv:{_max_sep['SERVICE']}s}"
+                        + "".join(
+                            [
+                                f"{self.get_val(hd, data, srv, TM_FMT):{_max_sep[hd]}s}"
+                                for hd in [
+                                    "STATUS",
+                                    "SINCE",
+                                    "DONE_AT",
+                                    "RESULT",
+                                    "STATS",
+                                ]
+                            ]
+                        )
+                        for srv in sorted(data_filt)
+                        if srv != "hostname"
+                    ]  # --> services row
                 self.print_vm_info(
                     stdscr, ptr, vm_status_list, status_bar_item_length, width
                 )
@@ -1232,6 +1303,12 @@ class DeviceTOP:
 
                     elif command == "e":
                         file_to_edit = rest_args
+                        if not os.path.exists(file_to_edit):
+                            if file_to_edit.endswith(".service"):
+                                if file_to_edit in self._services_path:
+                                    file_to_edit = self._services_path[file_to_edit]
+                        if file_to_edit.endswith(".mpy"):
+                            file_to_edit = file_to_edit.replace(".mpy", ".py")
                         editor = os.environ.get("EDITOR", "vim")
                         shell_cmd_str = shlex.split(f"{editor} {file_to_edit}")
 
@@ -1335,6 +1412,10 @@ class DeviceTOP:
                                     ] in ["esp32"]:
                                         e_offset = _EPOCH_2000
                                     resp_buffer = io.StringIO()
+                                    if not self._services_path.get(_dserv):
+                                        self._services_path[
+                                            _dserv
+                                        ] = dev_stats_serv.get("path")
                                     if dev_stats_serv.get("status") == "error":
                                         if not dev_stats_serv.get("traceback"):
                                             msg = json.dumps(
