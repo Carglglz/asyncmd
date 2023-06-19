@@ -33,6 +33,16 @@ from prompt_toolkit.completion import (
 
 _EPOCH_2000 = 946684800
 
+_OFFLINE = 60
+
+
+_RESET = "\x1b[0m"
+_GREEN = "\x1b[32;1m"
+_RED = "\x1b[31;1m"
+_BLUE = "\x1b[36m"
+_YELLOW = "\x1b[33;1m"
+_WHITE = "\x1b[37;1m"
+
 
 def parse_config_file(config_file):
     with open(config_file, "r") as tf:
@@ -134,6 +144,8 @@ class DeviceTOP:
             "\x1b[31;1m": 6,
             "\x1b[36m": 8,
             "\x1b[33;1m": 7,
+            "\x1b[37;1m": 0,
+            "\x1b[1m": curses.A_BOLD,
         }
 
     def bottom_status_bar(self, n=0):
@@ -198,23 +210,43 @@ class DeviceTOP:
         ptr.newline()
 
     @handle
-    def printline_debug_colors(self, stdscr, string, ptr, maxc):
+    def printline_debug_colors(self, stdscr, string, ptr, maxc, base=0):
         stdscr.move(ptr.x, ptr.y)
         pattern = r"(\x1b\[[0-9;]+m)"
         s = re.split(pattern, string)
-        color_flag = 0
+        color_flag = base
+        bold_flag = False
         # stdscr.addstr(str(s))
         for w in s:
             if isinstance(self._color_flags.get(w), int):
                 color_flag = self._color_flags.get(w)
+                bold_flag = ";" in w
+                if color_flag == curses.A_BOLD:
+                    color_flag = base
+                    bold_flag = True
+
             else:
-                if color_flag != 0:
-                    stdscr.addstr(
-                        w,
-                        curses.color_pair(color_flag) | curses.A_BOLD,
-                    )
+                if color_flag != base:
+                    if bold_flag:
+                        _color_attr = curses.color_pair(color_flag) | curses.A_BOLD
+                    else:
+                        _color_attr = curses.color_pair(color_flag)
+                    stdscr.addstr(w, _color_attr)
                 else:
-                    stdscr.addstr(w, curses.color_pair(0))
+                    if bold_flag:
+                        stdscr.addstr(w, curses.color_pair(base) | curses.A_BOLD)
+                    else:
+                        stdscr.addstr(w, curses.color_pair(base))
+            # if self._color_flags.get(w) is not None:
+            #     color_flag = self._color_flags.get(w)
+            # else:
+            #     if isinstance(color_flag, int):
+            #         stdscr.addstr(
+            #             w,
+            #             curses.color_pair(color_flag) | curses.A_BOLD,
+            #         )
+            #     else:
+            #         stdscr.addstr(w, curses.color_pair(base))
 
         ptr.newline()
 
@@ -257,7 +289,7 @@ class DeviceTOP:
         ptr.newline()
         for item in data:
             if item:
-                self.printline(stdscr, item, ptr, maxc)
+                self.printline_debug_colors(stdscr, item, ptr, maxc, base=1)
         ptr.newline()
         stdscr.attroff(curses.color_pair(1))
 
@@ -367,8 +399,15 @@ class DeviceTOP:
         _uptime = self.get_val("SINCE", _all_info, "watcher.service", "DELTA").replace(
             "ago", ""
         )
-        _fmw = f"{fmw_str:{_len_str}s}|" f" Uptime: {_uptime}"
-        _mach = f"Machine: {info['machine']}"
+        _lt_seen = (
+            str(timedelta(seconds=time.time() - info["lt_seen"])).split(".")[0] + " ago"
+        )
+        _fmw = f"{fmw_str:{_len_str}s}|" f" Uptime: {_uptime} Last: {_lt_seen}"
+        _mach_str = f"Machine: {info['machine']}"
+        _status_conn = f"{_WHITE}[{_RED} OFFLINE {_WHITE}]{_RESET}"
+        if time.time() - info["lt_seen"] < _OFFLINE:
+            _status_conn = f"{_WHITE}[{_GREEN} ONLINE {_WHITE}]{_RESET}"
+        _mach = f"{_mach_str:{_len_str}s}|" f" Status: {_status_conn}"
         nod_info.append(_mem_tasks)
         nod_info.append(_disk_msg)
         nod_info.append(_fmw)
@@ -440,6 +479,9 @@ class DeviceTOP:
                                         self._data_buffer[devname][service].update(
                                             **vals
                                         )
+                            self._data_buffer[devname]["aiomqtt.service"]["stats"][
+                                "lt_seen"
+                            ] = time.time()
 
                         else:
                             if devname not in self._cmd_resps:
@@ -1319,6 +1361,7 @@ class DeviceTOP:
                                         file=resp_buffer,
                                         epoch_offset=e_offset,
                                         colored=True,
+                                        highligth_services=True,
                                     )
                                     resp_buffer.seek(0)
                                     resp += resp_buffer.read()

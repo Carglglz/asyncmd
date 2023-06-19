@@ -248,10 +248,13 @@ def get_status(
     file=sys.stdout,
     epoch_offset=0,
     colored=True,
+    highligth_services=True,
 ):
     req.pop("hostname")
     for service in req:
         name = service
+        if highligth_services:
+            name = f"\x1b[1m{name}\x1b[0m"
         _srv = req.get(service)
         _done_at = _srv["done_at"]
         _since = _srv["since"] + epoch_offset
@@ -263,8 +266,8 @@ def get_status(
             if _srv["status"] == "done":
                 _status = "done"
             if _srv["status"] == "stopped":
-                _status = "\u001b[33;1mstopped\u001b[0m"
-                _dot = "\u001b[33;1m●\u001b[0m"
+                _status = "\x1b[33;1mstopped\x1b[0m"
+                _dot = "\x1b[33;1m●\x1b[0m"
 
             if _done_at:
                 _done_at = time.localtime(_done_at)
@@ -274,7 +277,7 @@ def get_status(
             if _srv.get("type") == "schedule.service":
                 if _srv["status"] == "scheduled":
                     _status = "scheduled"
-                    _dot = "\u001b[36m●\u001b[0m"
+                    _dot = "\x1b[36m●\x1b[0m"
                     # if _done_at is None:
                     #     _done_at = get_datetime(
                     #         time.localtime(
@@ -284,17 +287,17 @@ def get_status(
                     #     )
                 else:
                     _status = _srv["status"]
-                    _dot = "\u001b[36m●\u001b[0m"
+                    _dot = "\x1b[36m●\x1b[0m"
             if _srv["status"] == "error":
                 _err = "ERROR"
                 if _srv["service"]:
                     _err = "failed"
-                _status = f"\u001b[31;1m{_err}\u001b[0m"
+                _status = f"\x1b[31;1m{_err}\x1b[0m"
                 data = (
-                    f"\u001b[31;1m{_srv['result']}\u001b[0m:"
+                    f"\x1b[31;1m{_srv['result']}\x1b[0m:"
                     # + f" {data.value.value}"
                 )
-                _dot = "\u001b[31;1m●\u001b[0m"
+                _dot = "\x1b[31;1m●\x1b[0m"
             if debug:
                 if _srv["service"]:
                     info = _srv["info"]
@@ -380,7 +383,7 @@ def get_status(
                     print(f"{logline}", file=file)
                 print("<" + "-" * 80 + ">", file=file)
         else:
-            _dot = "\033[92m●\x1b[0m"
+            _dot = "\x1b[32;1m●\x1b[0m"
             _since_str = time.localtime(_since)
             _since_delta = time.time() - _since
             _since_str = get_datetime(_since_str)
@@ -395,7 +398,7 @@ def get_status(
                     print(f"    Loaded: {path}", file=file)
                     if colored:
                         print(
-                            "    Active: \u001b[32;1m(active) running\x1b[0m ",
+                            "    Active: \x1b[32;1m(active) running\x1b[0m ",
                             end="",
                             file=file,
                         )
@@ -430,7 +433,7 @@ def get_status(
 
                 else:
                     print(
-                        f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ",
+                        f"{_dot} {name}: status: \x1b[32;1mrunning\x1b[0m ",
                         end="",
                         file=file,
                     )
@@ -438,7 +441,7 @@ def get_status(
 
             else:
                 print(
-                    f"{_dot} {name}: status: \u001b[32;1mrunning\x1b[0m ",
+                    f"{_dot} {name}: status: \x1b[32;1mrunning\x1b[0m ",
                     end="",
                     file=file,
                 )
