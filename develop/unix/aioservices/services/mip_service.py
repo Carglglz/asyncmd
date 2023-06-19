@@ -1,5 +1,5 @@
 import os
-import uasyncio as asyncio
+import asyncio
 import aioctl
 from aioclass import Service
 import async_mip

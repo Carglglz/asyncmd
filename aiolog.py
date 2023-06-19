@@ -1,6 +1,6 @@
 import io
 import re
-import uasyncio as asyncio
+import asyncio
 
 
 class AioStream(io.StringIO):

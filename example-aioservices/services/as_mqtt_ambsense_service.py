@@ -2,7 +2,7 @@ import ssl as _ssl
 from aioclass import Service
 import aioctl
 from async_mqtt import MQTTClient
-import uasyncio as asyncio
+import asyncio
 import json
 import random
 import gc

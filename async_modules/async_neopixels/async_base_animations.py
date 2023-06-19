@@ -3,7 +3,7 @@ import time
 import random
 from neopixel import NeoPixel
 from machine import Pin
-import uasyncio as asyncio
+import asyncio
 
 
 class Animation:

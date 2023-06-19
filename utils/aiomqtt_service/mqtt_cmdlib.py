@@ -1,6 +1,6 @@
 from machine import Pin
 import sys
-import uasyncio as asyncio
+import asyncio
 
 try:
     from hostname import NAME

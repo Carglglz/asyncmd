@@ -1,4 +1,4 @@
-import uasyncio as asyncio
+import asyncio
 import pyb
 import aiorepl
 import aioctl

@@ -1,4 +1,4 @@
-import uasyncio as asyncio
+import asyncio
 import aiorepl
 import aioservice
 from hostname import NAME

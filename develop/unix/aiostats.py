@@ -1,6 +1,6 @@
 import aioctl
 import aioschedule
-import uasyncio as asyncio
+import asyncio
 import sys
 import os
 from binascii import hexlify

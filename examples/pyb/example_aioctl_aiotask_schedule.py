@@ -1,6 +1,6 @@
 import aioctl
 import aioschedule
-import uasyncio as asyncio
+import asyncio
 import aiorepl
 from aiolog import streamlog
 import logging

@@ -1,6 +1,6 @@
 # sysctl for async tasks
 
-import uasyncio as asyncio
+import asyncio
 import sys
 import time
 import re

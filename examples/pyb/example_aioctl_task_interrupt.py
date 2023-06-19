@@ -2,7 +2,7 @@ from aiolog import streamlog
 import pyb
 import random
 import aiorepl
-import uasyncio as asyncio
+import asyncio
 import aioctl
 import logging
 import sys

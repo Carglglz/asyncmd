@@ -7,7 +7,7 @@ import os
 from binascii import hexlify
 import re
 import hashlib
-import uasyncio as asyncio
+import asyncio
 import gc
 
 

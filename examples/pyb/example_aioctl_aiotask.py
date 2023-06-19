@@ -3,7 +3,7 @@ import pyb
 import random
 import logging
 import aiorepl
-import uasyncio as asyncio
+import asyncio
 import aioctl
 import sys
 

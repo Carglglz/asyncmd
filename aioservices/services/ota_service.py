@@ -1,7 +1,7 @@
 import ssl as _ssl
 from aioclass import Service
 import aioctl
-import uasyncio as asyncio
+import asyncio
 from esp32 import Partition
 import hashlib
 from micropython import const

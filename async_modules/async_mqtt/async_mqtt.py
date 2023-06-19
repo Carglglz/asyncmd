@@ -1,5 +1,5 @@
 import ustruct as struct
-import uasyncio as asyncio
+import asyncio
 
 
 class MQTTException(Exception):

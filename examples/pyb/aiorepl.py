@@ -4,7 +4,7 @@ import micropython
 import re
 import sys
 import time
-import uasyncio as asyncio
+import asyncio
 
 _AIOREPL = False
 try:
@@ -40,7 +40,7 @@ async def execute(code, g, s):
                 code = f"return {code}"
 
             code = f"""
-import uasyncio as asyncio
+import asyncio
 async def __code():
     {code}
 

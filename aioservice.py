@@ -246,7 +246,7 @@ def init(debug=True, log=None, debug_log=False, config=True, init_schedule=True)
 
 async def boot(debug=True, log=None, debug_log=False, config=True):
     import aioctl
-    import uasyncio as asyncio
+    import asyncio
 
     core_services = [
         srv for srv in _SERVICES_GROUP.values() if srv.type == "core.service"

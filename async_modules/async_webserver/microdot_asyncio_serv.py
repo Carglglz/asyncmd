@@ -7,7 +7,7 @@ HTTP-based servers for MicroPython and standard Python that use ``asyncio``
 and coroutines.
 """
 try:
-    import uasyncio as asyncio
+    import asyncio
 except ImportError:
     import asyncio
 
@@ -382,7 +382,6 @@ class Microdot(BaseMicrodot):
         if self.debug and req:  # pragma: no cover
             self.request_counter += 1
             if self.log:
-
                 self.log.info(
                     "[{name}] {method} {path} {status_code}".format(
                         name=self.webserver_name,
@@ -392,7 +391,6 @@ class Microdot(BaseMicrodot):
                     )
                 )
             else:
-
                 print(
                     "{method} {path} {status_code}".format(
                         method=req.method, path=req.path, status_code=res.status_code

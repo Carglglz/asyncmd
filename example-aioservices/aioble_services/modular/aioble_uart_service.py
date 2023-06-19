@@ -1,7 +1,7 @@
 from aioclass import Service
 import aioctl
 from micropython import const
-import uasyncio as asyncio
+import asyncio
 import aioble
 import bluetooth
 import sys

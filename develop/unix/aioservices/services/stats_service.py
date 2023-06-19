@@ -1,6 +1,6 @@
 from aioclass import Service
 import aioctl
-import uasyncio as asyncio
+import asyncio
 import aiostats
 import re
 import json
