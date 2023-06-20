@@ -1110,10 +1110,10 @@ class DeviceTOP:
                             _ptr_h0 = ptr.x
                             _config_str = yaml.dump(_conf).splitlines()
                             n_lines = len(_config_str)
-                            n_cols = int(n_lines / (height - _ptr_h0))
+                            n_cols = math.ceil(n_lines / (height - _ptr_h0))
                             cols_y_w = width
                             if n_cols > 1:
-                                cols_y_w = int(
+                                cols_y_w = math.ceil(
                                     (
                                         width
                                         - (
