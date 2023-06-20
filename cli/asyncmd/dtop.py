@@ -604,7 +604,7 @@ class DeviceTOP:
 
         while True:
             k = stdscr.getch()
-            nodes = list(self._data_buffer.keys())
+            nodes = sorted(list(self._data_buffer.keys()))
             if not nodes or nodes == ["all"]:
                 ptr = Pointer()
                 height, width = stdscr.getmaxyx()
