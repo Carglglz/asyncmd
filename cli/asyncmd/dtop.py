@@ -35,6 +35,8 @@ _EPOCH_2000 = 946684800
 
 _OFFLINE = 60
 
+_MAX_DEBUG_LOG_LINES = 500
+
 
 _RESET = "\x1b[0m"
 _GREEN = "\x1b[32;1m"
@@ -503,12 +505,12 @@ class DeviceTOP:
                     elif topic == "log":
                         if self._log_mode == b"log":
                             if not self._log_buffer.get(devname):
-                                self._log_buffer[devname] = ""
-                            self._log_buffer[devname] += message.payload.decode()
+                                self._log_buffer[devname] = io.StringIO()
+                            self._log_buffer[devname].write(message.payload.decode())
                         else:
                             if not self._errlog_buffer.get(devname):
-                                self._errlog_buffer[devname] = ""
-                            self._errlog_buffer[devname] += message.payload.decode()
+                                self._errlog_buffer[devname] = io.StringIO()
+                            self._errlog_buffer[devname].write(message.payload.decode())
                     elif topic == "help":
                         _help = json.loads(message.payload.decode())
                         if devname not in self._help_buffer:
@@ -730,6 +732,8 @@ class DeviceTOP:
                 filt_serv = await session_filt.prompt_async(
                     "$", completer=dev_completer, complete_while_typing=False
                 )
+                if filt_serv:
+                    self._line_index = 0
 
                 shortcuts.clear()
                 _cmdlw.deleteln()
@@ -889,14 +893,14 @@ class DeviceTOP:
                     self._line_index = 0
 
             elif k == curses.ascii.ESC:
-                filt_dev = ""
                 help_command = ""
                 # self._log_enabled = False
                 show_config = False
                 if not filt_serv or self._last_cmd != "debug":
                     self._last_cmd = ""
-
                     command = ""
+                    filt_dev = ""
+
                 self._line_index = 0
                 filt_log = ""
                 filt_serv = ""
@@ -1177,27 +1181,36 @@ class DeviceTOP:
                         )
                     stdscr.attroff(curses.color_pair(3))
                     ptr.newline()
-                    _buffer_log = ""
+                    _buffer_log = io.StringIO()
                     v_lines = (height - 2) - ptr.x
                     # if self._line_index > 0:
                     v_lines -= self._line_index
+                    _buffer_log_lines = 0
                     for node in _nodes:
                         if self._log_mode == b"log":
                             _log = self._log_buffer.get(node)
                         else:
                             _log = self._errlog_buffer.get(node)
                         if _log:
-                            _n_lines = len(_log.splitlines())
-                            for line in _log.splitlines():
-                                if line not in _buffer_log:
-                                    if filt_log:
-                                        if node_match(filt_log, [line]):
-                                            _buffer_log += f"{line}\n"
-                                    else:
-                                        _buffer_log += f"{line}\n"
-                    if _buffer_log:
-                        _log_lines = _buffer_log.splitlines()
-                        _log_lines.sort()
+                            _log.seek(0)
+                            for n_line, line in enumerate(_log):
+                                if filt_log:
+                                    if node_match(filt_log, [line]):
+                                        _buffer_log.write(line)
+                                        _buffer_log_lines += 1
+                                else:
+                                    _buffer_log.write(line)
+                                    _buffer_log_lines += 1
+                    if _buffer_log.tell():
+                        log_indx = _buffer_log_lines - v_lines
+                        _buffer_log.seek(0)
+                        _log_lines = sorted(
+                            set(
+                                line
+                                for n, line in enumerate(_buffer_log)
+                                if n > log_indx
+                            )
+                        )
                         for line in _log_lines[-v_lines:]:
                             self.printline(stdscr, line, ptr, width)
             elif help_command:
@@ -1428,15 +1441,26 @@ class DeviceTOP:
                                             await asyncio.sleep(0.2)
 
                                     if node in self._log_buffer:
+                                        # clear device buffer log
+                                        if len(dev_stats_serv["log"].splitlines()) > 20:
+                                            dev_stats_serv["log"] = (
+                                                "\n".join(
+                                                    dev_stats_serv["log"].splitlines()[
+                                                        1:
+                                                    ]
+                                                )
+                                                + "\n"
+                                            )
                                         # add new log lines match
-                                        for line in self._log_buffer[node].splitlines()[
+                                        self._log_buffer[node].seek(0)
+                                        for line in self._log_buffer[node].readlines()[
                                             -20:
                                         ]:
                                             if f"[{_dserv}]" in line or service_match(
                                                 _dserv, line
                                             ):
                                                 if line not in dev_stats_serv["log"]:
-                                                    dev_stats_serv["log"] += f"{line}\n"
+                                                    dev_stats_serv["log"] += line
                                     debug_st.get_status(
                                         {_dserv: dev_stats_serv, "hostname": node},
                                         file=resp_buffer,
