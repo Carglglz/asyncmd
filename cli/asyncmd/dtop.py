@@ -36,7 +36,7 @@ _EPOCH_2000 = 946684800
 _OFFLINE = 60
 
 _MAX_DEBUG_LOG_LINES = 500
-_MAX_LOG_SIZE = 100000
+_MAX_LOG_SIZE = 1000000
 
 
 _RESET = "\x1b[0m"
@@ -101,7 +101,7 @@ def check_dt(line, lines_buffer):
         return True
     try:
         dt = timestamp_line(line)
-        return any((dt >= timestamp_line(lb) for lb in lines_buffer))
+        return all((dt >= timestamp_line(lb) for lb in lines_buffer))
 
     except Exception:
         return False
@@ -567,7 +567,12 @@ class DeviceTOP:
                                 }.items():
                                     if self._data_buffer[devname].get(service):
                                         if "log" in vals:
-                                            vals["log"] = ""
+                                            if not self._data_buffer[devname][
+                                                service
+                                            ].get("log"):
+                                                vals["log"] = ""
+                                            else:
+                                                vals.pop("log")
                                         self._data_buffer[devname][service].update(
                                             **vals
                                         )
