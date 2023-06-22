@@ -36,6 +36,7 @@ _EPOCH_2000 = 946684800
 _OFFLINE = 60
 
 _MAX_DEBUG_LOG_LINES = 500
+_MAX_LOG_SIZE = 100000
 
 
 _RESET = "\x1b[0m"
@@ -77,6 +78,35 @@ def service_match(service, line):
     return any([service in match for match in matches])
 
 
+def get_tbline(tb):
+    try:
+        _errs = [line.strip() for line in tb.splitlines() if "line" in line]
+        _n_lines = [line.split(",")[1].strip() for line in _errs]
+        return _n_lines[-1].split()[-1]
+    except Exception:
+        return 0
+
+
+def timestamp_line(line):
+    try:
+        dtstr = " ".join(line.split()[:2])
+        l_dt = datetime.datetime.strptime(dtstr, "%Y-%m-%d %H:%M:%S").timestamp()
+        return l_dt
+    except Exception:
+        return 0
+
+
+def check_dt(line, lines_buffer):
+    if not lines_buffer:
+        return True
+    try:
+        dt = timestamp_line(line)
+        return any((dt >= timestamp_line(lb) for lb in lines_buffer))
+
+    except Exception:
+        return False
+
+
 def handle(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -86,6 +116,62 @@ def handle(f):
             pass
 
     return decorated
+
+
+class RingStream(io.StringIO):
+    def __init__(self, alloc_size):
+        super().__init__()
+        self._max_size = alloc_size
+        self._write = super().write
+        self._tmp = io.StringIO()
+        self._lw = 0
+        self._comp = False
+        self._lenlines = 0
+
+    def write(self, sdata):
+        if sdata.endswith("\n"):
+            if self.tell() + len(sdata) + self._tmp.tell() >= self._max_size:
+                # clean
+                self._write(" " * ((self._max_size - self.tell()) - 1))
+                self._write("\n")
+                # rotate
+                self.seek(0)
+                self._comp = True
+            self._tmp.seek(0)
+            self._write(self._tmp.read(self._lw))
+            self._tmp.seek(0)
+            self._write(sdata)
+            if not self._comp:
+                self._lenlines += 1
+        else:
+            self._lw = self._tmp.write(sdata)
+
+    def read_all(self):
+        index = self.tell()
+        if self._comp:
+            self.readline()
+            for line in self:
+                if line.strip():
+                    yield line
+        self.seek(0)
+        for line in self:
+            if self.tell() > index:
+                self.seek(index)
+                return
+            if line.strip():
+                yield line
+        self.seek(index)
+
+    def seek_lastlines(self, n):
+        if n > self.tell():
+            if not self._comp:
+                self.seek(0)
+
+            else:
+                self.seek(self._max_size - (n - self.tell()))
+        else:
+            self.seek(self.tell() - n)
+        self.readline()
 
 
 class Pointer:
@@ -120,6 +206,7 @@ class DeviceTOP:
         self._client = None
         self._log_enabled = False
         self._log_mode = b"log"
+        self._rflog = {}
         self._errlog_query = False
         self._filt_dev = None
         self._last_filt = None
@@ -479,12 +566,15 @@ class DeviceTOP:
                                     s: v for s, v in _servs.items() if s != "hostname"
                                 }.items():
                                     if self._data_buffer[devname].get(service):
+                                        if "log" in vals:
+                                            vals["log"] = ""
                                         self._data_buffer[devname][service].update(
                                             **vals
                                         )
                             self._data_buffer[devname]["aiomqtt.service"]["stats"][
                                 "lt_seen"
                             ] = time.time()
+                            self._rflog[devname] = True
 
                         else:
                             if devname not in self._cmd_resps:
@@ -505,11 +595,12 @@ class DeviceTOP:
                     elif topic == "log":
                         if self._log_mode == b"log":
                             if not self._log_buffer.get(devname):
-                                self._log_buffer[devname] = io.StringIO()
+                                self._log_buffer[devname] = RingStream(_MAX_LOG_SIZE)
                             self._log_buffer[devname].write(message.payload.decode())
+                            self._rflog[devname] = True
                         else:
                             if not self._errlog_buffer.get(devname):
-                                self._errlog_buffer[devname] = io.StringIO()
+                                self._errlog_buffer[devname] = RingStream(_MAX_LOG_SIZE)
                             self._errlog_buffer[devname].write(message.payload.decode())
                     elif topic == "help":
                         _help = json.loads(message.payload.decode())
@@ -1192,8 +1283,8 @@ class DeviceTOP:
                         else:
                             _log = self._errlog_buffer.get(node)
                         if _log:
-                            _log.seek(0)
-                            for n_line, line in enumerate(_log):
+                            # _log.seek(0)
+                            for n_line, line in enumerate(_log.read_all()):
                                 if filt_log:
                                     if node_match(filt_log, [line]):
                                         _buffer_log.write(line)
@@ -1220,6 +1311,8 @@ class DeviceTOP:
                     command_sent = not command_sent
                     if command in ["start", "stop", "debug", "report", "traceback"]:
                         if command == "debug":
+                            for node in _nodes:
+                                self._rflog[node] = True
                             try:
                                 assert rest_args.endswith(".service")
                                 msg = json.dumps({"status": f"{rest_args}:/debug"})
@@ -1316,14 +1409,28 @@ class DeviceTOP:
 
                     elif command == "e":
                         file_to_edit = rest_args
+                        n_line = 0
                         if not os.path.exists(file_to_edit):
                             if file_to_edit.endswith(".service"):
                                 if file_to_edit in self._services_path:
-                                    file_to_edit = self._services_path[file_to_edit]
+                                    file_to_edit = self._services_path[file_to_edit][
+                                        "path"
+                                    ]
+                                    for node in _nodes:
+                                        dev_data = self._data_buffer.get(node)
+                                        n_line = dev_data.get(rest_args, {}).get(
+                                            "tbline", 0
+                                        )
                         if file_to_edit.endswith(".mpy"):
                             file_to_edit = file_to_edit.replace(".mpy", ".py")
+
+                        # catch line if traceback:
+
                         editor = os.environ.get("EDITOR", "vim")
-                        shell_cmd_str = shlex.split(f"{editor} {file_to_edit}")
+                        at = ""
+                        if n_line:
+                            at = f"+{n_line}"
+                        shell_cmd_str = shlex.split(f"{editor} {at} {file_to_edit}")
 
                         old_action = signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -1426,9 +1533,9 @@ class DeviceTOP:
                                         e_offset = _EPOCH_2000
                                     resp_buffer = io.StringIO()
                                     if not self._services_path.get(_dserv):
-                                        self._services_path[
-                                            _dserv
-                                        ] = dev_stats_serv.get("path")
+                                        self._services_path[_dserv] = {
+                                            "path": dev_stats_serv.get("path")
+                                        }
                                     if dev_stats_serv.get("status") == "error":
                                         if not dev_stats_serv.get("traceback"):
                                             msg = json.dumps(
@@ -1440,27 +1547,50 @@ class DeviceTOP:
                                             )
                                             await asyncio.sleep(0.2)
 
-                                    if node in self._log_buffer:
+                                        dev_tb_serv = dev_data.get(_dserv, {}).get(
+                                            "traceback"
+                                        )
+                                        if dev_tb_serv:
+                                            dev_data[_dserv]["tbline"] = get_tbline(
+                                                dev_tb_serv
+                                            )
+
+                                    if node in self._log_buffer and self._rflog.get(
+                                        node
+                                    ):
                                         # clear device buffer log
                                         if len(dev_stats_serv["log"].splitlines()) > 20:
                                             dev_stats_serv["log"] = (
                                                 "\n".join(
                                                     dev_stats_serv["log"].splitlines()[
-                                                        1:
+                                                        -20:
                                                     ]
                                                 )
                                                 + "\n"
                                             )
                                         # add new log lines match
-                                        self._log_buffer[node].seek(0)
-                                        for line in self._log_buffer[node].readlines()[
-                                            -20:
-                                        ]:
-                                            if f"[{_dserv}]" in line or service_match(
-                                                _dserv, line
+                                        # self._log_buffer[node].seek(0)
+                                        for nl, line in enumerate(
+                                            self._log_buffer[node].read_all()
+                                        ):
+                                            if (
+                                                nl
+                                                >= self._log_buffer[node]._lenlines
+                                                - 100
                                             ):
-                                                if line not in dev_stats_serv["log"]:
-                                                    dev_stats_serv["log"] += line
+                                                if (
+                                                    f"[{_dserv}]" in line
+                                                    or service_match(_dserv, line)
+                                                ):
+                                                    if line not in dev_stats_serv[
+                                                        "log"
+                                                    ] and check_dt(
+                                                        line,
+                                                        dev_stats_serv[
+                                                            "log"
+                                                        ].splitlines(),
+                                                    ):
+                                                        dev_stats_serv["log"] += line
                                     debug_st.get_status(
                                         {_dserv: dev_stats_serv, "hostname": node},
                                         file=resp_buffer,
@@ -1471,6 +1601,7 @@ class DeviceTOP:
                                     resp_buffer.seek(0)
                                     resp += resp_buffer.read()
                             resp += "\n\n"
+                            self._rflog[node] = False
 
                     else:
                         for node in _nodes:
@@ -1481,10 +1612,13 @@ class DeviceTOP:
                                     resp += f"{node}: [{self._last_cmd.upper()}]"
                                     resp += f" {str(last_cmd_resp)}\n\n"
                     if resp:
+                        _cmd_title = f"CMD: {command.upper()}"
+                        if self._log_enabled and self._last_cmd == "debug":
+                            _cmd_title += " + LOG"
                         self.draw_section(
                             stdscr,
                             ptr,
-                            f"CMD: {command.upper()}",
+                            _cmd_title,
                             resp,
                             width,
                             colored=self._last_cmd in ("debug", "report"),
