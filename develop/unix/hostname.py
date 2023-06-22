@@ -1,1 +1,1 @@
-NAME = "unix"
+NAME = "macos"

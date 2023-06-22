@@ -38,8 +38,8 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0):
         else:
             ind += 1
         print(sep + "{", end="")
-    for k, v in kw.items():
-        if v == list(kw.values())[-1]:
+    for n, (k, v) in enumerate(kw.items()):
+        if n == len(kw) - 1:
             if lev == 0:
                 ls = " }"
             else:
@@ -458,7 +458,7 @@ def status(name=None, log=True, debug=False, indent="    "):
                 print("<" + "-" * 80 + ">")
     else:
         if "*" in name:
-            for tm in tasks_match(name):
+            for tm in sorted(tasks_match(name)):
                 status(tm, log=log, debug=debug)
 
         else:
@@ -500,7 +500,7 @@ def result_all(as_dict=False):
 
 def status_all(log=True, debug=False):
     global _AIOCTL_GROUP
-    for name in _AIOCTL_GROUP.tasks.keys():
+    for name in sorted(_AIOCTL_GROUP.tasks):
         if name:
             status(name, log=log, debug=debug)
 

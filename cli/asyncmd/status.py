@@ -116,8 +116,8 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
         else:
             ind += 1
         print(sep + "{", end="", file=file)
-    for k, v in kw.items():
-        if v == list(kw.values())[-1]:
+    for n, (k, v) in enumerate(kw.items()):
+        if n == len(kw) - 1:
             if lev == 0:
                 ls = " }"
             else:
@@ -251,7 +251,7 @@ def get_status(
     highligth_services=True,
 ):
     req.pop("hostname")
-    for service in req:
+    for service in sorted(req):
         name = service
         if highligth_services:
             name = f"\x1b[1m{name}\x1b[0m"

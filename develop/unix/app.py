@@ -1,5 +1,5 @@
 import asyncio
-# import aiorepl
+import aiorepl
 import aioservice
 from hostname import NAME
 import logging
@@ -7,18 +7,20 @@ import sys
 import aioctl
 
 
-async def _main(logger):
+async def _main(logger, repl=False):
     await aioservice.boot(log=logger, debug_log=True)
     print("starting tasks...")
-    # aioctl.add(aiorepl.task, name="repl")
+    if repl:
+        aioctl.add(aiorepl.task, name="repl")
     print(">>> ")
     aioservice.init(log=logger, debug_log=True)
     print(">>> ")
-    asyncio.create_task(aioctl.follow())
+    if not repl:
+        asyncio.create_task(aioctl.follow())
     await asyncio.gather(*aioctl.tasks())
 
 
-def run(log_stream):
+def run(log_stream, repl=False):
     # Logger
     logging.basicConfig(
         level=logging.INFO,
@@ -37,4 +39,4 @@ def run(log_stream):
 
     log.info("Device Ready")
 
-    asyncio.run(_main(log))
+    asyncio.run(_main(log, repl=repl))

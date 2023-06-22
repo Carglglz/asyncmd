@@ -1,11 +1,11 @@
 {
   "urls": [
-	  ["mymodule.py", "http://127.0.0.1:8000/mymodule.py"],
+	  ["mymodule.py", "http://192.168.1.66:8000/mymodule.py"],
 
-	  ["tests/mymodule/test_mymodule.py", "http://127.0.0.1:8000/tests/mymodule/test_mymodule.py"],
+	  ["tests/mymodule/test_mymodule.py", "http://192.168.1.66:8000/tests/mymodule/test_mymodule.py"],
 
   ],
   "deps": [
   ],
-  "version": "1.7"
+  "version": "2.5"
 }
