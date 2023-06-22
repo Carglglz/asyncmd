@@ -700,6 +700,16 @@ class DeviceTOP:
 
         cmd_completer = WordCompleter(self._cmd_lib.keys())
 
+        # device discovery
+        d_msg = json.dumps({"status": ["*.service"]})
+        while not self._client:
+            ptr = Pointer()
+            height, width = stdscr.getmaxyx()
+            self.printline(stdscr, "Fetching info...", ptr, width)
+            await asyncio.sleep(0.1)
+        await self._client.publish("device/all/service", payload=d_msg)
+
+        # draw loop
         while True:
             k = stdscr.getch()
             nodes = sorted(list(self._data_buffer.keys()))
