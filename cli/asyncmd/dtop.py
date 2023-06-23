@@ -242,7 +242,7 @@ class DeviceTOP:
         local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
             f"asyncmd {version} | {local_time}"
-            " | KEYS: n/p: next/pevious device"
+            " | KEYS: n/p: next/previous device"
             ", c: fetch services.config"
             ", i: toggle device info"
             ", l: toggle device log"
