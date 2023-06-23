@@ -1569,6 +1569,8 @@ class DeviceTOP:
                                             dev_data[_dserv]["tbline"] = get_tbline(
                                                 dev_tb_serv
                                             )
+                                        else:
+                                            dev_stats_serv["traceback"] = " "
 
                                     if node in self._log_buffer and self._rflog.get(
                                         node
