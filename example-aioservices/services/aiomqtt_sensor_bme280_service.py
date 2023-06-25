@@ -220,7 +220,8 @@ class MQTTService(Service):
             while not self.aiomqtt_service.client.a_writer:
                 await asyncio.sleep(1)
 
-            await asyncio.sleep(1)
+            await self.aiomqtt_service.client_ready.wait()
+
             self.client = self.aiomqtt_service.client
             self.lock = self.aiomqtt_service.lock
 

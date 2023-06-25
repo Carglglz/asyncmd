@@ -22,6 +22,7 @@ class WatcherService(Service):
             "max_errors": 0,
             "watchdog": True,
             "wdfeed": 30000,
+            "debug": False,
         }
         self.err_count = 0
         self.err_report = {}
@@ -77,7 +78,9 @@ class WatcherService(Service):
                 self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
 
     @aioctl.aiotask
-    async def task(self, sleep, max_errors=0, watchdog=True, wdfeed=10000, log=None):
+    async def task(
+        self, sleep, max_errors=0, watchdog=True, wdfeed=10000, debug=False, log=None
+    ):
         self.log = log
         await asyncio.sleep(10)
         excl = []
@@ -90,6 +93,7 @@ class WatcherService(Service):
                     name=f"{self.name}.service.wdt",
                     _id=f"{self.name}.service.wdt",
                     on_error=self.on_error,
+                    debug=debug,
                 )
                 if self.log:
                     self.log.info(f"[{self.name}.service] WDT task enabled")
@@ -107,17 +111,19 @@ class WatcherService(Service):
                     else:
                         continue
                     if log:
-                        self.log.info(f"[{self.name}.service] Restarting Task {name}")
+                        self.log.info(f"[{self.name}.service] Restarting Task: {name}")
                     res = aioctl.group().tasks[name].kwargs.get("restart", True)
                     if isinstance(res, list):
                         for _name in res:
                             if _name not in excl:
                                 try:
-                                    aioctl.stop(_name)
+                                    aioctl.stop(f"{_name}.*")
                                     if self.log:
                                         self.log.info(
-                                            f"[{self.name}.service] Restarting {name}"
+                                            f"[{self.name}.service] Restarting Service:"
+                                            + f" {_name}"
                                         )
+                                    await asyncio.sleep_ms(500)
                                     aioctl.start(_name)
                                     excl.append(_name)
                                 except Exception as e:
@@ -135,12 +141,14 @@ class WatcherService(Service):
                 machine.reset()
 
     @aioctl.aiotask
-    async def wdt(self, timeout):
+    async def wdt(self, timeout, debug=False):
         self._wdt = machine.WDT(timeout=timeout)
         _asleep = int(timeout / 2)
         while True:
             self._wdt.feed()
             await asyncio.sleep_ms(_asleep)
+            if self.log and debug:
+                self.log.info("[watcher.service.wdt] feeding WDT")
 
 
 service = WatcherService("watcher")

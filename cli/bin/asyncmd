@@ -19,6 +19,7 @@ from asyncmd import __version__ as version
 from asyncmd.status import get_status
 import yaml
 import requests
+import time
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
@@ -744,8 +745,14 @@ def main(log):
         from asyncmd.dtop import DeviceTOP
         import curses
 
-        dev_top = DeviceTOP(args)
-        curses.wrapper(dev_top.start, 5)
+        while True:
+            dev_top = DeviceTOP(args)
+            try:
+                curses.wrapper(dev_top.start, 5)
+                break
+            except aiomqtt.MqttError as e:
+                log.error(e)
+                time.sleep(5)
 
     elif args.cmd == "status":
         s_port = 8888

@@ -59,6 +59,7 @@ class MQTTService(Service):
         self.td = 0
         self.id = NAME
         self.lock = asyncio.Lock()
+        self.client_ready = asyncio.Event()
         self._stat_buff = io.StringIO(3000)
         self._tb_buff = io.StringIO(500)
         self._callbacks = {}
@@ -448,6 +449,7 @@ class MQTTService(Service):
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         # self.app awaits self.app.server.wait_closed which
         # consumes Cancelled error so this does not run
+        self.client_ready.clear()
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
         if f"{self.name}.service.disconnect" in aioctl.group().tasks:
@@ -592,6 +594,8 @@ class MQTTService(Service):
         log=None,
     ):
         self.log = log
+
+        self.client_ready.clear()
         for top in topics:
             self._topics.add(top)
         self._ota_check = ota_check
@@ -700,6 +704,8 @@ class MQTTService(Service):
         # Wait for messages
         async with self.lock:
             await self.client.ping()
+
+        self.client_ready.set()
         while True:
             try:
                 # prevent waiting forever, blocking incoming messages
@@ -734,17 +740,21 @@ class MQTTService(Service):
     async def stats_pub(self, *args, **kwargs):
         service = kwargs.get("services")
         while True:
-            self._stat_buff.seek(0)
-            json.dump(aiostats.stats(service), self._stat_buff)
-            len_b = self._stat_buff.tell()
-            self._stat_buff.seek(0)
-            async with self.lock:
-                await self.client.publish(
-                    self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
-                )
-            self.n_pub += 1
-            if self.log:
-                self.log.info(f"[{self.name}.service] @ [STATUS]: {service}")
+            try:
+                self._stat_buff.seek(0)
+                json.dump(aiostats.stats(service), self._stat_buff)
+                len_b = self._stat_buff.tell()
+                self._stat_buff.seek(0)
+                async with self.lock:
+                    await self.client.publish(
+                        self._STATUS_TOPIC, self._stat_buff.read(len_b).encode("utf-8")
+                    )
+                self.n_pub += 1
+                if self.log:
+                    self.log.info(f"[{self.name}.service] @ [STATUS]: {service}")
+            except TypeError as e:
+                if self.log:
+                    self.log.error(f"[{self.name}.service.stats] ERROR {e}")
             await asyncio.sleep(10)
 
     @aioctl.aiotask
