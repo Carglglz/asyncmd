@@ -557,7 +557,11 @@ class DeviceTOP:
                         else:
                             topic, _rp_service = topic
                     if topic == "status":
-                        _servs = json.loads(message.payload.decode())
+                        try:
+                            _servs = json.loads(message.payload.decode())
+
+                        except Exception:
+                            _servs = {}
                         if "hostname" in _servs:
                             if not self._data_buffer.get(devname):
                                 self._data_buffer[devname] = _servs
