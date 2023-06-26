@@ -752,7 +752,7 @@ class MQTTService(Service):
                 self.n_pub += 1
                 if self.log:
                     self.log.info(f"[{self.name}.service] @ [STATUS]: {service}")
-            except TypeError as e:
+            except Exception as e:
                 if self.log:
                     self.log.error(f"[{self.name}.service.stats] ERROR {e}")
             await asyncio.sleep(10)

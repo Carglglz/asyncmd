@@ -37,7 +37,7 @@ class JSONAPIService(Service):
             + r"(#(.*))?"  # query                 # NOQA
         )  # fragment              # NOQA
         self.routes = {}
-        self._stat_buff = io.StringIO(4000)
+        self._stat_buff = io.StringIO(5000)
         self._tb_buff = io.StringIO(1000)
 
     def _szfmt(self, filesize):

@@ -597,7 +597,7 @@ def traceback(name=None, rtn=False, indent="", file=sys.stdout):
             return True
         print(f"{name}: Traceback", file=file)
         if indent:
-            ibuff = io.StringIO(150)
+            ibuff = io.StringIO(250)
 
             sys.print_exception(_tb, ibuff)
             ibuff.seek(0)
