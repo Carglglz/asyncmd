@@ -750,7 +750,7 @@ def main(log):
             try:
                 curses.wrapper(dev_top.start, 5)
                 break
-            except aiomqtt.MqttError as e:
+            except (aiomqtt.MqttError, ValueError) as e:
                 log.error(e)
                 time.sleep(5)
 

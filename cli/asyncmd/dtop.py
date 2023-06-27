@@ -260,85 +260,92 @@ class DeviceTOP:
 
     @handle
     def printline_colors(self, stdscr, string, ptr, maxc):
-        stdscr.move(ptr.x, ptr.y)
-        pattern = r"({0:s})".format(
-            "|".join(
-                r"\b{0:s}\b".format(word.upper()) for word in self._status_colors.keys()
-            )
-        )
-        s = re.split(pattern, string)
-        ## colored text codes
-
-        for s in s:
-            if s.lower() in self._status_colors:
-                _s = s.lower() if s != "ERROR" else s
-                stdscr.addstr(
-                    _s,
-                    curses.color_pair(self._status_colors.get(s.lower(), 0))
-                    | curses.A_BOLD,
+        try:
+            stdscr.move(ptr.x, ptr.y)
+            pattern = r"({0:s})".format(
+                "|".join(
+                    r"\b{0:s}\b".format(word.upper())
+                    for word in self._status_colors.keys()
                 )
-            else:
-                _pattern = r"(\x1b\[[0-9;]+m)"
-                ws = re.split(_pattern, s)
-                color_flag = 0
+            )
+            s = re.split(pattern, string)
+            ## colored text codes
 
-                for w in ws:
-                    if isinstance(self._color_flags.get(w), int):
-                        color_flag = self._color_flags.get(w)
-                    else:
-                        if color_flag != 0:
-                            stdscr.addstr(
-                                w,
-                                curses.color_pair(color_flag) | curses.A_BOLD,
-                            )
+            for s in s:
+                if s.lower() in self._status_colors:
+                    _s = s.lower() if s != "ERROR" else s
+                    stdscr.addstr(
+                        _s,
+                        curses.color_pair(self._status_colors.get(s.lower(), 0))
+                        | curses.A_BOLD,
+                    )
+                else:
+                    _pattern = r"(\x1b\[[0-9;]+m)"
+                    ws = re.split(_pattern, s)
+                    color_flag = 0
+
+                    for w in ws:
+                        if isinstance(self._color_flags.get(w), int):
+                            color_flag = self._color_flags.get(w)
                         else:
-                            stdscr.addstr(w, curses.color_pair(0))
-                # stdscr.addstr(
-                #     s, curses.color_pair(self._status_colors.get(s.lower(), 0))
-                # )
+                            if color_flag != 0:
+                                stdscr.addstr(
+                                    w,
+                                    curses.color_pair(color_flag) | curses.A_BOLD,
+                                )
+                            else:
+                                stdscr.addstr(w, curses.color_pair(0))
+                    # stdscr.addstr(
+                    #     s, curses.color_pair(self._status_colors.get(s.lower(), 0))
+                    # )
 
-        ptr.newline()
+            ptr.newline()
+        except Exception:
+            pass
 
     @handle
     def printline_debug_colors(self, stdscr, string, ptr, maxc, base=0):
-        stdscr.move(ptr.x, ptr.y)
-        pattern = r"(\x1b\[[0-9;]+m)"
-        s = re.split(pattern, string)
-        color_flag = base
-        bold_flag = False
-        # stdscr.addstr(str(s))
-        for w in s:
-            if isinstance(self._color_flags.get(w), int):
-                color_flag = self._color_flags.get(w)
-                bold_flag = ";" in w
-                if color_flag == curses.A_BOLD:
-                    color_flag = base
-                    bold_flag = True
+        try:
+            stdscr.move(ptr.x, ptr.y)
+            pattern = r"(\x1b\[[0-9;]+m)"
+            s = re.split(pattern, string)
+            color_flag = base
+            bold_flag = False
+            # stdscr.addstr(str(s))
+            for w in s:
+                if isinstance(self._color_flags.get(w), int):
+                    color_flag = self._color_flags.get(w)
+                    bold_flag = ";" in w
+                    if color_flag == curses.A_BOLD:
+                        color_flag = base
+                        bold_flag = True
 
-            else:
-                if color_flag != base:
-                    if bold_flag:
-                        _color_attr = curses.color_pair(color_flag) | curses.A_BOLD
-                    else:
-                        _color_attr = curses.color_pair(color_flag)
-                    stdscr.addstr(w, _color_attr)
                 else:
-                    if bold_flag:
-                        stdscr.addstr(w, curses.color_pair(base) | curses.A_BOLD)
+                    if color_flag != base:
+                        if bold_flag:
+                            _color_attr = curses.color_pair(color_flag) | curses.A_BOLD
+                        else:
+                            _color_attr = curses.color_pair(color_flag)
+                        stdscr.addstr(w, _color_attr)
                     else:
-                        stdscr.addstr(w, curses.color_pair(base))
-            # if self._color_flags.get(w) is not None:
-            #     color_flag = self._color_flags.get(w)
-            # else:
-            #     if isinstance(color_flag, int):
-            #         stdscr.addstr(
-            #             w,
-            #             curses.color_pair(color_flag) | curses.A_BOLD,
-            #         )
-            #     else:
-            #         stdscr.addstr(w, curses.color_pair(base))
+                        if bold_flag:
+                            stdscr.addstr(w, curses.color_pair(base) | curses.A_BOLD)
+                        else:
+                            stdscr.addstr(w, curses.color_pair(base))
+                # if self._color_flags.get(w) is not None:
+                #     color_flag = self._color_flags.get(w)
+                # else:
+                #     if isinstance(color_flag, int):
+                #         stdscr.addstr(
+                #             w,
+                #             curses.color_pair(color_flag) | curses.A_BOLD,
+                #         )
+                #     else:
+                #         stdscr.addstr(w, curses.color_pair(base))
 
-        ptr.newline()
+            ptr.newline()
+        except Exception:
+            pass
 
     @handle
     def init(self, stdscr):
