@@ -304,7 +304,16 @@ of these tools.
 
 ## Tutorial
 
-See a tutorial for `esp32` port in [develop example](develop/) using *MQTT*, *asyncmd* CLI and the following services: 
+See a tutorial for `unix` port in [develop example](develop/unix) using *MQTT*, *asyncmd* CLI and the following services: 
+    
+- `aiomqtt.service` --> control/debug and get/check OTA updates notifications over MQTT 
+- `aiomqtt_sensor_bme280.service` --> sensor (simulated) reports Temperature,Humidity,Pressure over MQTT  
+- `mip.service` --> check and update mip installable packages
+- `unittest.service` --> check and run new tests regularly.
+- `watcher.service` --> watch services tasks to add resiliency and enable watchdog to secure
+  device continuous operation with minimum downtime
+
+See a tutorial for `esp32` port in [develop example](develop/esp32) using *MQTT*, *asyncmd* CLI and the following services: 
     
 - `aiomqtt.service` --> control/debug and get/check OTA updates notifications over MQTT 
 - `aiomqtt_sensor_bme280.service` --> sensor (simulated) reports Temperature,Humidity,Pressure over MQTT  
@@ -323,7 +332,7 @@ See a tutorial for `esp32` port in [develop example](develop/) using *MQTT*, *as
 
 - esp32 (WROOM ESP32-D0WDQ6 revision v1.0)
 - stm32 (pyboard) (STM32F405RG)
-- unix (see [tests/unix](tests/unix))
+- unix (see [develop/unix](develop/unix))
 
 ### Notes
 

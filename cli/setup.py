@@ -24,5 +24,6 @@ setup(
         "asyncio_mqtt",
         "pyyaml",
         "tqdm",
+        "prompt_toolkit",
     ],
 )
