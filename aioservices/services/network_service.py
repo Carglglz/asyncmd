@@ -30,7 +30,10 @@ class NetworkService(Service):
             "notify": True,
             "led": 2,
             "webrepl_on": True,
+            "rsyslog": False,
+            "timeoffset": "+00:00",
         }
+        # TODO: add wlan.config
         self.wlan = network.WLAN(network.STA_IF)
         self.net_status = "Disconnected"
         self.ssid = ""
@@ -134,6 +137,8 @@ class NetworkService(Service):
         log=None,
         led=None,
         webrepl_on=True,
+        rsyslog=False,
+        timeoffset="+00:00",
     ):
         self.log = log
         if led:
@@ -161,6 +166,25 @@ class NetworkService(Service):
         self.led.value(False)
 
         if connected:
+            if rsyslog and self.log:
+                try:
+                    from ursyslogger import RsysLogger
+                    from rsysloghandler import RsysLogHandler
+                    import logging
+
+                    self.rsysloghandler = RsysLogHandler(
+                        RsysLogger(rsyslog, hostname=hostname, t_offset=timeoffset)
+                    )
+                    formatter = logging.Formatter(
+                        "%(asctime)s [%(name)s] [%(levelname)s] %(message)s"
+                    )
+                    self.rsysloghandler.setLevel(logging.INFO)
+                    self.rsysloghandler.setFormatter(formatter)
+                    self.log.addHandler(self.rsysloghandler)
+
+                except Exception as e:
+                    if self.log:
+                        self.log.error(e)
             return "WLAN: ENABLED"
         else:
             return "AP: ENABLED"
