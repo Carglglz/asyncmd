@@ -1529,10 +1529,11 @@ class DeviceTOP:
                             dev_report = self._report_buffer.get(node)
                             if dev_report:
                                 _rp = dev_report.get(rest_args)
-                                resp += f"[{node}]:\n"
-                                for line in _rp.splitlines():
-                                    resp += f"    {line}\n"
-                                resp += "\n"
+                                if _rp:
+                                    resp += f"[{node}]:\n"
+                                    for line in _rp.splitlines():
+                                        resp += f"    {line}\n"
+                                    resp += "\n"
 
                     elif self._last_cmd == "debug":
                         for node in _nodes:

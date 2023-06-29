@@ -3,6 +3,7 @@ import aioctl
 from aioclass import Service
 import sys
 import machine
+import time
 
 
 class WatcherService(Service):
@@ -23,9 +24,11 @@ class WatcherService(Service):
             "watchdog": True,
             "wdfeed": 30000,
             "debug": False,
+            "save_report": False,
         }
         self.err_count = 0
         self.err_report = {}
+        self._report_updated = False
         self.log = None
         self._wdt = None
         # core.service --> run one time at boot
@@ -71,17 +74,27 @@ class WatcherService(Service):
     def update_report(self, name, res):
         if name not in self.err_report:
             self.err_report[name] = {res.__class__.__name__: {"count": 1, "err": res}}
+            self._report_updated = True
         else:
             if res.__class__.__name__ in self.err_report[name]:
                 self.err_report[name][res.__class__.__name__]["count"] += 1
             else:
                 self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
+                self._report_updated = True
 
     @aioctl.aiotask
     async def task(
-        self, sleep, max_errors=0, watchdog=True, wdfeed=10000, debug=False, log=None
+        self,
+        sleep,
+        max_errors=0,
+        watchdog=True,
+        wdfeed=10000,
+        debug=False,
+        save_report=False,
+        log=None,
     ):
         self.log = log
+        self._save_report = save_report
         await asyncio.sleep(10)
         excl = []
         if watchdog:
@@ -136,6 +149,15 @@ class WatcherService(Service):
                         if name not in excl:
                             aioctl.start(name)
             excl = []
+            if self._save_report and self._report_updated:
+                if self.log:
+                    self.log.info(f"[{self.name}.service] saving report..")
+
+                    done_at = aioctl.get_datetime(time.localtime())
+
+                    with open(f".{self.name}.service", "w") as rp:
+                        rp.write(f"{self.name}.service;{done_at} [\x1b[92mOK\x1b[0m]\n")
+                        self.display_report(rp)
             await asyncio.sleep(sleep)
             if self.err_count > max_errors and max_errors > 0:
                 machine.reset()
