@@ -153,11 +153,13 @@ class WatcherService(Service):
                 if self.log:
                     self.log.info(f"[{self.name}.service] saving report..")
 
-                    done_at = aioctl.get_datetime(time.localtime())
+                done_at = aioctl.get_datetime(time.localtime())
 
-                    with open(f".{self.name}.service", "w") as rp:
-                        rp.write(f"{self.name}.service;{done_at} [\x1b[92mOK\x1b[0m]\n")
-                        self.display_report(rp)
+                with open(f".{self.name}.service", "w") as rp:
+                    rp.write(f"{self.name}.service;{done_at} [\x1b[92mOK\x1b[0m]\n")
+                    self.display_report(rp)
+                self._report_updated = False
+
             await asyncio.sleep(sleep)
             if self.err_count > max_errors and max_errors > 0:
                 machine.reset()
