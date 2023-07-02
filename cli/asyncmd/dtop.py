@@ -478,10 +478,10 @@ class DeviceTOP:
         _mem_pc = (info["mused"] / info["mtotal"]) * 100
         _mem_b = (info["mused"] / info["mtotal"]) * w
         _mem_ = f"[{convert_size(info['mused'])}/{convert_size(info['mtotal'])}]"
-        _len_str = len(f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:.1f}%]{_mem_:23}")
+        _len_str = len(f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:>4.1f}%]{_mem_:23}")
 
         _mem_tasks = (
-            f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:.1f}%]{_mem_:23}|"
+            f"Mem [{'|'*int(_mem_b):{w}s}{_mem_pc:>4.1f}%]{_mem_:23}|"
             f" Tasks: {info['tasks']}, Services: {info['services']}"
             f", CTasks: {info['ctasks']}"
         )
@@ -489,7 +489,7 @@ class DeviceTOP:
         _disk_b = (info["fsused"] / info["fstotal"]) * w
         _disk_ = f"[{convert_size(info['fsused'])}/{convert_size(info['fstotal'])}]"
         _disk_msg = (
-            f"Disk[{'|'*int(_disk_b):{w}s}{_disk_pc:.1f}%]{_disk_:23}|"
+            f"Disk[{'|'*int(_disk_b):{w}s}{_disk_pc:>4.1f}%]{_disk_:23}|"
             f" Recv: {info['nrecv']}, Pub: {info['npub']}"
         )
         fmw_str = f"Firmware: {info['firmware']}"
