@@ -1,9 +1,5 @@
 import gc
 import sys
-
-sys.path.append("..")
-sys.path.append("../tools")
-
 import aioctl
 from aiolog import streamlog
 
