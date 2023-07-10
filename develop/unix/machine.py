@@ -16,7 +16,7 @@ def deepsleep(n=0):
     if not n:
         sys.exit(1)
     else:
-        time.sleep(n)
+        time.sleep_ms(n)
 
 
 class Pin:

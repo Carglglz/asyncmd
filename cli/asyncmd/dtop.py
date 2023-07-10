@@ -573,11 +573,13 @@ class DeviceTOP:
                             if not self._data_buffer.get(devname):
                                 self._data_buffer[devname] = _servs
                             else:
+                                _is_debug_msg = False
                                 for service, vals in {
                                     s: v for s, v in _servs.items() if s != "hostname"
                                 }.items():
                                     if self._data_buffer[devname].get(service):
                                         if "log" in vals:
+                                            _is_debug_msg = True
                                             if not self._data_buffer[devname][
                                                 service
                                             ].get("log"):
@@ -587,6 +589,18 @@ class DeviceTOP:
                                         self._data_buffer[devname][service].update(
                                             **vals
                                         )
+                                    else:
+                                        self._data_buffer[devname][service] = vals
+                                # clean old service
+                                if not _is_debug_msg:
+                                    _old_servs = [
+                                        _srv
+                                        for _srv in self._data_buffer[devname]
+                                        if _srv not in _servs
+                                    ]
+                                    for old_srv in _old_servs:
+                                        self._data_buffer[devname].pop(old_srv)
+
                             self._data_buffer[devname]["aiomqtt.service"]["stats"][
                                 "lt_seen"
                             ] = time.time()
