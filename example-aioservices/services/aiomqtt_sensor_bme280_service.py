@@ -221,7 +221,6 @@ class MQTTService(Service):
                 await asyncio.sleep(1)
 
             await self.aiomqtt_service.client_ready.wait()
-
             self.client = self.aiomqtt_service.client
             self.lock = self.aiomqtt_service.lock
 
@@ -322,6 +321,8 @@ class MQTTService(Service):
                 self.log.info(
                     f"[{self.name}.service.sense] {temp} C {press} Pa {hum} %"
                 )
+
+            await self.aiomqtt_service.client_ready.wait()
             async with self.lock:
                 await self.client.publish(
                     self._stat_t,

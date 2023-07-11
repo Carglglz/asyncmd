@@ -712,7 +712,9 @@ class MQTTService(Service):
                 async with self.lock:
                     await asyncio.sleep_ms(200)
 
+                self.client_ready.clear()
                 await asyncio.wait_for(self.client.wait_msg(), 30)
+                self.client_ready.set()
                 await asyncio.sleep_ms(500)
 
                 if self.log and debug:

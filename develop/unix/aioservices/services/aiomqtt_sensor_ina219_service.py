@@ -325,6 +325,8 @@ class MQTTService(Service):
                     f"[{self.name}.service.sense] {volt} V "
                     + f"{current} mA {power} mW"
                 )
+
+            await self.aiomqtt_service.client_ready.wait()
             async with self.lock:
                 await self.client.publish(
                     self._stat_t,
