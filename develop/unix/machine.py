@@ -20,6 +20,8 @@ def deepsleep(n=0):
 
 
 class Pin:
+    OUT = 0
+    IN = 1
     def __init__(self, *args, **kwargs):
         ...
 
