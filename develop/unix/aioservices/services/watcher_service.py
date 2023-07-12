@@ -22,7 +22,7 @@ class WatcherService(Service):
             "on_error": self.on_error,
             "max_errors": 0,
             "watchdog": True,
-            "wdfeed": 30000,
+            "wdfeed": 60000,
             "debug": False,
             "save_report": False,
         }
