@@ -3,6 +3,12 @@ import os
 import random
 import time
 
+PWRON_RESET = 1
+HARD_RESET = 2
+WDT_RESET = 3
+DEEPSLEEP_RESET = 4
+SOFT_RESET = 0
+
 
 def unique_id():
     return os.urandom(8)
@@ -22,6 +28,7 @@ def deepsleep(n=0):
 class Pin:
     OUT = 0
     IN = 1
+
     def __init__(self, *args, **kwargs):
         ...
 
@@ -56,3 +63,7 @@ class ADC:
 
     def read(self):
         return random.randint(1024, 2500)
+
+
+def reset_cause():
+    return random.randint(0, 4)

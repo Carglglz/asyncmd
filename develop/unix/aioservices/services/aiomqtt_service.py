@@ -76,6 +76,13 @@ class MQTTService(Service):
         self._ota_check = False
         self._fwfile = None
         self._log_idx = None
+        self._reset_causes = {
+            machine.PWRON_RESET: "POWER ON",
+            machine.HARD_RESET: "HARD RESET",
+            machine.WDT_RESET: "WDT RESET",
+            machine.DEEPSLEEP_RESET: "DEEP SLEEP",
+            machine.SOFT_RESET: "SOFT RESET",
+        }
 
     def _suid(self, _aioctl, name):
         _name = name
@@ -445,6 +452,7 @@ class MQTTService(Service):
             "platform": sys.platform,
             "npub": self.n_pub,
             "nrecv": self.n_msg,
+            "reset": self._reset_causes.get(machine.reset_cause()),
         }
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
