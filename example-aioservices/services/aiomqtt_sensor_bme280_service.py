@@ -214,6 +214,10 @@ class MQTTService(Service):
 
             self.aiomqtt_service = aioctl.group().tasks[main].service
 
+            # add restart
+            if isinstance(restart, list):
+                aioctl.group().tasks[main].kwargs["restart"] += restart
+
             while not self.aiomqtt_service.client:
                 await asyncio.sleep(1)
 
@@ -281,12 +285,6 @@ class MQTTService(Service):
 
                 if self.log and debug:
                     self.log.info(f"[{self.name}.service] MQTT sensor OK")
-
-    # @aioctl.aiotask
-    # async def pulse(self, *args, **kwargs):
-    #     if self.log:
-    #         self.log.info(f"[as_mqtt.service.pulse] {args} {kwargs} pulse")
-    #     await self.anm.pulse(*args, **kwargs)
 
     @aioctl.aiotask
     async def sense_cb(self, topic, msg):

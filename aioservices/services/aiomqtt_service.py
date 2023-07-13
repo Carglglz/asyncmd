@@ -465,6 +465,7 @@ class MQTTService(Service):
         return
 
     def on_error(self, e, *args, **kwargs):
+        self.client_ready.clear()
         if self.log:
             self.log.error(f"[{self.name}.service] Error callback {e}")
         return e
@@ -713,7 +714,6 @@ class MQTTService(Service):
                 async with self.lock:
                     await asyncio.sleep_ms(200)
 
-                self.client_ready.clear()
                 await asyncio.wait_for(self.client.wait_msg(), 30)
                 self.client_ready.set()
                 await asyncio.sleep_ms(500)
@@ -726,6 +726,7 @@ class MQTTService(Service):
                 aioctl.stop(f"{self.name}.service.*")
                 await asyncio.sleep(1)
                 raise e
+            self.client_ready.clear()
 
     @aioctl.aiotask
     async def ping(self, *args, **kwargs):
