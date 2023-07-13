@@ -238,6 +238,15 @@ class DeviceTOP:
             "\x1b[1m": curses.A_BOLD,
         }
 
+        self._reset_causes = {
+            "HARD RESET": _GREEN,
+            "WDT RESET": _RED,
+            "POWER ON": _YELLOW,
+            "DEEP SLEEP": _WHITE,
+            "UNKNOWN": _WHITE,
+            "SOFT RESET": _BLUE,
+        }
+
     def bottom_status_bar(self, n=0):
         local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
@@ -509,7 +518,7 @@ class DeviceTOP:
         _mach = (
             f"{_mach_str:{_len_str}s}|"
             f" Status: {_status_conn} "
-            f"Reset: {_YELLOW}{_reset_cause}"
+            f"Reset: {self._reset_causes[_reset_cause]}{_reset_cause}"
         )
         nod_info.append(_mem_tasks)
         nod_info.append(_disk_msg)

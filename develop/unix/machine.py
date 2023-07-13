@@ -9,6 +9,8 @@ WDT_RESET = 3
 DEEPSLEEP_RESET = 4
 SOFT_RESET = 0
 
+_RESET_CAUSE = random.randint(0,4)
+
 
 def unique_id():
     return os.urandom(8)
@@ -66,4 +68,4 @@ class ADC:
 
 
 def reset_cause():
-    return random.randint(0, 4)
+    return _RESET_CAUSE
