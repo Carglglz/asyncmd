@@ -320,7 +320,7 @@ class MQTTService(Service):
                     f"[{self.name}.service.sense] {temp} C {press} Pa {hum} %"
                 )
 
-            await self.aiomqtt_service.client_ready.wait()
+            # await self.aiomqtt_service.client_ready.wait()
             async with self.lock:
                 await self.client.publish(
                     self._stat_t,

@@ -723,7 +723,7 @@ class MQTTService(Service):
                     await asyncio.sleep_ms(200)
 
                 await asyncio.wait_for(self.client.wait_msg(), 30)
-                self.client_ready.set()
+                # self.client_ready.set()
                 await asyncio.sleep_ms(500)
 
                 if self.log and debug:
@@ -734,7 +734,7 @@ class MQTTService(Service):
                 aioctl.stop(f"{self.name}.service.*")
                 await asyncio.sleep(1)
                 raise e
-            self.client_ready.clear()
+            # self.client_ready.clear()
 
     @aioctl.aiotask
     async def ping(self, *args, **kwargs):
