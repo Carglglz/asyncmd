@@ -167,7 +167,7 @@ class WatcherService(Service):
     @aioctl.aiotask
     async def wdt(self, timeout, debug=False):
         self._wdt = machine.WDT(timeout=timeout)
-        _asleep = int(timeout / 2)
+        _asleep = int(timeout / 3)
         while True:
             self._wdt.feed()
             await asyncio.sleep_ms(_asleep)
