@@ -10,9 +10,15 @@ class Battery:
         self.bat = batt_pin
 
     def status(self):
-        volt = ((self.bat.read() * 2) / 4095) * 3.6
+        volt = self.read()
         percentage = round((volt - 3.3) / (4.23 - 3.3) * 100, 1)
         return (round(volt, 2), percentage)
+
+    def read(self):
+        if hasattr(self.bat, "voltage"):
+            return self.bat.voltage()
+        else:
+            return ((self.bat.read() * 2) / 4095) * 3.6
 
 
 class PowerMgService(Service):
@@ -35,9 +41,23 @@ class PowerMgService(Service):
         self._volt = None
         self.battery = None
 
-    def setup(self, batt_pin):
-        bat = ADC(Pin(batt_pin))
-        bat.atten(ADC.ATTN_11DB)
+    async def setup(self, batt_pin):
+        if isinstance(batt_pin, int):
+            bat = ADC(Pin(batt_pin))
+            bat.atten(ADC.ATTN_11DB)
+        else:
+            while batt_pin not in aioctl.group().tasks:
+                await asyncio.sleep(1)
+            bat = aioctl.group().tasks.get(batt_pin).service
+
+            while not hasattr(bat, "sensor"):
+                await asyncio.sleep(1)
+
+            while not hasattr(bat.sensor, "voltage"):
+                await asyncio.sleep(1)
+
+            bat = bat.sensor
+
 
         self.battery = Battery(bat)
 
@@ -63,7 +83,7 @@ class PowerMgService(Service):
     @aioctl.aiotask
     async def task(self, batt_pin=35, deepsleep=True, threshold=40, log=None):
         self.log = log
-        self.setup(batt_pin)
+        await self.setup(batt_pin)
         await asyncio.sleep(5)
         while True:
             self._volt, self._batt = self.battery.status()

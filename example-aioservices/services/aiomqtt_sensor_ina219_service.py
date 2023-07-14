@@ -16,22 +16,26 @@ try:
 except Exception:
     NAME = sys.platform
 
+try:
+    from ina219 import INA219
 
-class FakeINA219:
-    def __init__(self, *args, **kwargs):
-        pass
+except Exception:
 
-    def configure(self):
-        pass
+    class INA219:
+        def __init__(self, *args, **kwargs):
+            pass
 
-    def voltage(self):  # V
-        return random.random() + 3
+        def configure(self):
+            pass
 
-    def current(self):  # mA
-        return random.random() + 50
+        def voltage(self):  # V
+            return random.random() + 3
 
-    def power(self):  # mW
-        return random.random() + 150
+        def current(self):  # mA
+            return random.random() + 50
+
+        def power(self):  # mW
+            return random.random() + 150
 
 
 class MQTTService(Service):
@@ -66,7 +70,9 @@ class MQTTService(Service):
             "on_error": self.on_error,
             "restart": ["aiomqtt_sensor_ina219.service"],
             "topics": [f"device/{NAME}/state", "device/all/state"],
-            "i2c": (22, 21),
+            "i2c": (22, 23),
+            "address": 0x44,
+            "shunt_ohms": 0.1,
         }
 
         self.sslctx = False
@@ -81,9 +87,9 @@ class MQTTService(Service):
         self.id = NAME
         self.i2c = None
 
-    def setup(self):
+    def setup(self, shunt, addr):
         self.unique_id = "PowerSensor_{}".format(self.id.split()[0].lower())
-        self.sensor = FakeINA219(i2c=self.i2c)
+        self.sensor = INA219(shunt, self.i2c, address=addr, log=self.log)
         self.sensor.configure()
         self._cfg_volt = {"topic": self._CONFIG_TOPIC.format(NAME + "V"), "payload": ""}
         self._cfg_curr = {"topic": self._CONFIG_TOPIC.format(NAME + "C"), "payload": ""}
@@ -177,12 +183,14 @@ class MQTTService(Service):
         debug=True,
         restart=True,
         topics=[],
-        i2c=(22, 21),
+        i2c=(22, 23),
+        shunt_ohms=0.1,
+        address=0x44,
         log=None,
     ):
         self.log = log
         self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
-        self.setup()
+        self.setup(shunt_ohms, address)
         if not main:
             if ssl:
                 if not self.sslctx:
@@ -295,7 +303,7 @@ class MQTTService(Service):
 
         if self.log:
             self.log.info(
-                f"[{self.name}.service.sense_cb] {volt} V" + f"{current} mA {power} mW"
+                f"[{self.name}.service.sense_cb] {volt} V " + f"{current} mA {power} mW"
             )
         async with self.lock:
             await self.client.publish(

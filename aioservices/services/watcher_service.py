@@ -165,7 +165,7 @@ class WatcherService(Service):
                 if self.log:
                     self.log.info(f"[{self.name}.service] Error limit reached")
                     self.log.info(f"[{self.name}.service] Rebooting now...")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(5)
                 machine.reset()
 
     @aioctl.aiotask
