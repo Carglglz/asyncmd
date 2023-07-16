@@ -510,7 +510,7 @@ class DeviceTOP:
         )
         _fmw = f"{fmw_str:{_len_str}s}|" f" Uptime: {_uptime} Last: {_lt_seen}"
         _mach_str = f"Machine: {info['machine']}"
-        _status_conn = f"{_WHITE}[{_RED} OFFLINE {_WHITE}]{_RESET}"
+        _status_conn = f"{_WHITE}[{_RED} OFFLINE {_WHITE}]{_BLUE}"
         _reset_cause = info.get("reset", "UNKNOWN")
         if time.time() - info["lt_seen"] < _OFFLINE:
             _status_conn = f"{_WHITE}[{_GREEN} ONLINE {_WHITE}]{_BLUE}"
