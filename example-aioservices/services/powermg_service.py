@@ -3,16 +3,19 @@ import aioctl
 from aioclass import Service
 from machine import ADC, Pin
 import machine
+from array import array
 
 
 class Battery:
     def __init__(self, batt_pin):
         self.bat = batt_pin
+        self.db = array("f", (0 for i in range(2)))
 
     def status(self):
-        volt = self.read()
-        percentage = round((volt - 3.3) / (4.23 - 3.3) * 100, 1)
-        return (round(volt, 2), percentage)
+        self.db[0] = self.read()
+        self.db[1] = round((self.db[0] - 3.3) / (4.23 - 3.3) * 100, 1)
+        self.db[0] = round(self.db[0], 2)
+        # return (round(volt, 2), percentage)
 
     def read(self):
         if hasattr(self.bat, "voltage"):
@@ -37,8 +40,6 @@ class PowerMgService(Service):
             "threshold": 40,
         }
         self.log = None
-        self._batt = None
-        self._volt = None
         self.battery = None
 
     async def setup(self, batt_pin):
@@ -58,18 +59,19 @@ class PowerMgService(Service):
 
             bat = bat.sensor
 
-
         self.battery = Battery(bat)
 
     def show(self):
-        self._volt, self._batt = self.battery.status()
-        _stat_1 = f"   Battery: {self._batt} %"
-        _stat_2 = f"   Voltage: {self._volt} V"
+        self.battery.status()
+        _stat_1 = f"   Battery: {self.battery.db[1]} %"
+        _stat_2 = f"   Voltage: {self.battery.db[0]} V"
         return "Stats", f"{_stat_1}{_stat_2}"  # return Tuple, "Name",
         # "info" to display
 
     def stats(self):
-        return {"battery": self._batt, "voltage": self._volt}
+        if not self.battery:
+            return {"battery": None, "voltage": None}
+        return {"battery": self.battery.db[1], "voltage": self.battery.db[0]}
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
@@ -86,16 +88,18 @@ class PowerMgService(Service):
         await self.setup(batt_pin)
         await asyncio.sleep(5)
         while True:
-            self._volt, self._batt = self.battery.status()
-            if self._batt <= threshold:
-                self.log.warning(f"[{self.name}.service] Battery @ {self._batt} %")
+            self.battery.status()
+            if self.battery.db[1] <= threshold:
+                self.log.warning(
+                    f"[{self.name}.service] Battery @ {self.battery.db[1]} %"
+                )
                 if deepsleep is not False:
                     if self.log:
                         self.log.info(f"[{self.name}.service] Deep sleep now...")
                         await asyncio.sleep(2)
                         machine.deepsleep(deepsleep)
             else:
-                self.log.info(f"[{self.name}.service] Battery @ {self._batt} %")
+                self.log.info(f"[{self.name}.service] Battery @ {self.battery.db[1]} %")
             await asyncio.sleep(60)
 
 
