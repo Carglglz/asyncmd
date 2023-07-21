@@ -86,6 +86,7 @@ class RsysLogger:
         self.connect(tls=tls, tls_params=tls_params)
         self._tls = tls
         self._tls_params = tls_params
+        self._err_print = True
 
 
     def connect(self, tls=False, tls_params={}):
@@ -131,7 +132,8 @@ class RsysLogger:
             try:
                 self.connect(self._tls, self._tls_params)
             except Exception as e:
-                sys.print_exception(e)
+                if self._err_print:
+                    sys.print_exception(e)
 
 
     def build_msg(self, record, level, timestamp, appname):

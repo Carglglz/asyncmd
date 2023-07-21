@@ -6,6 +6,7 @@ class RsysLogHandler(StreamHandler):
     def __init__(self, rsyslogger):
         super().__init__(stream=None)
         self.rsyslog = rsyslogger
+        self.rsyslog._err_print = False
 
     def close(self):
         super().close()
