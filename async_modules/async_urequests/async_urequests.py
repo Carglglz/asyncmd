@@ -2,10 +2,11 @@ import asyncio
 
 
 class Response:
-    def __init__(self, f):
+    def __init__(self, f, length=None):
         self.raw = f
         self.encoding = "utf-8"
         self._cached = None
+        self._length = length
 
     async def close(self):
         if self.raw:
@@ -18,7 +19,10 @@ class Response:
     async def content(self):
         if self._cached is None:
             try:
-                self._cached = await self.raw.read()
+                if self._length is None:
+                    self._cached = await self.raw.read()
+                else:
+                    self._cached = await self.raw.read(self._length)
             finally:
                 self.raw.close()
                 await self.raw.wait_closed()
@@ -198,7 +202,7 @@ async def request(
         else:
             return await request(method, redirect, data, json, headers, stream)
     else:
-        resp = Response(reader)
+        resp = Response(reader, headers.get("Content-Length"))
         resp.status_code = status
         resp.reason = reason
         if resp_d is not None:
