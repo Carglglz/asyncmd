@@ -472,7 +472,10 @@ def result(name=None):
 
     if name in _AIOCTL_GROUP.tasks:
         if _AIOCTL_GROUP.tasks[name].task.done():
-            return _AIOCTL_GROUP.tasks[name].task.data.value
+            try:
+                return _AIOCTL_GROUP.tasks[name].task.data.value
+            except Exception as e:
+                return e
     else:
         if "*" in name:
             for tm in tasks_match(name):
@@ -597,7 +600,7 @@ def traceback(name=None, rtn=False, indent="", file=sys.stdout):
             return True
         print(f"{name}: Traceback", file=file)
         if indent:
-            ibuff = io.StringIO(150)
+            ibuff = io.StringIO(250)
 
             sys.print_exception(_tb, ibuff)
             ibuff.seek(0)
