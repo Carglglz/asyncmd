@@ -126,7 +126,7 @@ class WatcherService(Service):
                     if log:
                         self.log.info(f"[{self.name}.service] Restarting Task: {name}")
                     res = aioctl.group().tasks[name].kwargs.get("restart", True)
-                    if isinstance(res, list):
+                    if isinstance(res, (list, set)):
                         for _name in res:
                             if _name not in excl:
                                 try:

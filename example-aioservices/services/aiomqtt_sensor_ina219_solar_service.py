@@ -228,7 +228,8 @@ class MQTTService(Service):
 
             # add restart
             if isinstance(restart, list):
-                aioctl.group().tasks[main].kwargs["restart"] += restart
+                for _tsk in restart:
+                    aioctl.group().tasks[main].kwargs["restart"].add(_tsk)
 
             while not self.aiomqtt_service.client:
                 await asyncio.sleep(1)
@@ -239,6 +240,7 @@ class MQTTService(Service):
             await self.aiomqtt_service.client_ready.wait()
             self.client = self.aiomqtt_service.client
             self.lock = self.aiomqtt_service.lock
+            await asyncio.sleep_ms(1000)
 
             # add callback
 
