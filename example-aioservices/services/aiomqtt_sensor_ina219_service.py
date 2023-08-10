@@ -233,7 +233,7 @@ class MQTTService(Service):
             await self.aiomqtt_service.client_ready.wait()
             self.client = self.aiomqtt_service.client
             self.lock = self.aiomqtt_service.lock
-            await asyncio.sleep_ms(1000)
+            # await asyncio.sleep_ms(1000)
 
             # add callback
 
