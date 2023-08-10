@@ -45,7 +45,7 @@ class MQTTService(Service):
             "on_error": self.on_error,
             "stats": False,
             "services": "*.service",
-            "restart": ["aiomqtt.service"],
+            "restart": {"aiomqtt.service"},
             "topics": [],
             "ota_check": True,
             "fwfile": None,
@@ -732,6 +732,7 @@ class MQTTService(Service):
                 if self.log:
                     self.log.error(f"[{self.name}.service] Error: Client Timeout {e}")
                 aioctl.stop(f"{self.name}.service.*")
+                self.client_ready.clear()
                 await asyncio.sleep(1)
                 raise e
             # self.client_ready.clear()
