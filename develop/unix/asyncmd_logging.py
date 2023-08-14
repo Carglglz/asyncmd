@@ -1,3 +1,5 @@
+#!/usr/bin/env micropython
+
 import gc
 import sys
 import aioctl

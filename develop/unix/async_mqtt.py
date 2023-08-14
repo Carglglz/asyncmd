@@ -202,8 +202,15 @@ class MQTTClient:
             raise OSError(-1)
         if res == b"\xd0":  # PINGRESP
             _sz = await self.a_reader.read(1)
+            if _sz[0] != 0:
+                await asyncio.sleep_ms(1000)
+                _sz = await self.a_reader.read(1)
             sz = _sz[0]
-            assert sz == 0
+            try:
+                assert sz == 0, f"sz should be 0 but got {sz}, byte: {_sz}"
+            except Exception as e:
+                print(e)
+
             return None
         op = res[0]
         if op & 0xF0 != 0x30:
