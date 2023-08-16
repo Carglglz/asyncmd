@@ -55,6 +55,7 @@ class OTAService(Service):
             "on_error": self.on_error,
             "save_sha": True,
             "new_sha_check": True,
+            "mark_valid": True,
             "key": f"SSL_key{binascii.hexlify(unique_id()).decode()}.der",
             "cert": f"SSL_certificate{binascii.hexlify(unique_id()).decode()}.der",
             "ca": "ROOT_CA_cert.pem",
@@ -224,11 +225,14 @@ class OTAService(Service):
         key=None,
         cert=None,
         ca=None,
+        mark_valid=True,
     ):
         self._save_sha = save_sha
         self._new_sha_check = new_sha_check
         self.log = log
         self._start_ota = False
+        if mark_valid:
+            Partition.mark_app_valid_cancel_rollback()
         if not hasattr(self, "buf"):
             self.buf = bytearray(BLOCKLEN)
 
