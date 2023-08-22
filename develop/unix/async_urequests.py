@@ -230,5 +230,5 @@ async def patch(url, **kw):
     return await request("PATCH", url, **kw)
 
 
-def delete(url, **kw):
+async def delete(url, **kw):
     return await request("DELETE", url, **kw)
