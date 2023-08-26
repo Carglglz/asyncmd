@@ -106,7 +106,9 @@ class MQTTClient:
             i += 1
         premsg[i] = sz
 
+        self.a_writer.s.setblocking(True)
         self.a_writer.s.write(premsg, i + 2)
+        self.a_writer.s.setblocking(False)
         self.a_writer.write(msg)
         await self.a_writer.drain()
         # print(hex(len(msg)), hexlify(msg, ":"))
