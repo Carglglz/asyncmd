@@ -107,6 +107,10 @@ def check_dt(line, lines_buffer):
         return False
 
 
+def get_uid_service(serv_line):
+    return "@".join(serv_line.split()[:2])
+
+
 def handle(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -202,6 +206,12 @@ class DeviceTOP:
         self._report_buffer = {}
         self._services_path = {}
         self._info_enabled = True
+        self._services_info_enabled = True
+        self._index_service_item = 0
+        self._cursor_enabled = False
+        self._current_service_index = 0
+        self._current_selected_service = ""
+        self._max_index_item = 0
         self._close_flag = False
         self._client = None
         self._log_enabled = False
@@ -268,7 +278,7 @@ class DeviceTOP:
         ptr.newline()
 
     @handle
-    def printline_colors(self, stdscr, string, ptr, maxc):
+    def printline_colors(self, stdscr, string, ptr, maxc, colorpair=0):
         try:
             stdscr.move(ptr.x, ptr.y)
             pattern = r"({0:s})".format(
@@ -285,7 +295,7 @@ class DeviceTOP:
                     _s = s.lower() if s != "ERROR" else s
                     stdscr.addstr(
                         _s,
-                        curses.color_pair(self._status_colors.get(s.lower(), 0))
+                        curses.color_pair(self._status_colors.get(s.lower(), colorpair))
                         | curses.A_BOLD,
                     )
                 else:
@@ -303,7 +313,7 @@ class DeviceTOP:
                                     curses.color_pair(color_flag) | curses.A_BOLD,
                                 )
                             else:
-                                stdscr.addstr(w, curses.color_pair(0))
+                                stdscr.addstr(w, curses.color_pair(colorpair))
                     # stdscr.addstr(
                     #     s, curses.color_pair(self._status_colors.get(s.lower(), 0))
                     # )
@@ -405,7 +415,15 @@ class DeviceTOP:
         for item in vm_status_list:
             if item:
                 item_str = item
-                self.printline_colors(stdscr, item_str, ptr, maxc)
+                if (
+                    self._current_service_index
+                    == self._index_service_item % max(self._max_index_item, 1)
+                ) and self._cursor_enabled:
+                    self.printline_colors(stdscr, item_str, ptr, maxc, colorpair=9)
+                    self._current_selected_service = get_uid_service(item)
+                else:
+                    self.printline_colors(stdscr, item_str, ptr, maxc)
+                self._current_service_index += 1
         stdscr.attroff(curses.color_pair(2))
 
     @handle
@@ -786,6 +804,22 @@ class DeviceTOP:
 
             elif k == ord("i"):
                 self._info_enabled = not self._info_enabled
+
+            elif k == ord("h"):
+                self._services_info_enabled = not self._services_info_enabled
+            elif k == ord("e"):
+                self._cursor_enabled = not self._cursor_enabled
+                if not self._cursor_enabled:
+                    self._current_selected_service = ""
+            elif k == ord("\n"):
+                if self._cursor_enabled:
+                    command_sent = False
+                    command = "debug"
+                    rest_args = "*.service"
+            elif k == ord("\t"):
+                self._index_service_item += 1
+            elif k == ord("š"):
+                self._index_service_item -= 1
             elif k == ord("c"):
                 show_config = not show_config
                 if show_config:
@@ -1201,9 +1235,12 @@ class DeviceTOP:
                     "STATS", f"STATS | filter: {filt_serv}"
                 )
 
-            self.print_upper_status_bar(
-                stdscr, width, status_bar_str, len(node_info_str)
-            )
+            if self._services_info_enabled:
+                self.print_upper_status_bar(
+                    stdscr, width, status_bar_str, len(node_info_str)
+                )
+            if self._cursor_enabled:
+                self._current_service_index = 0
 
             for node in _nodes:
                 data = self._data_buffer[node]
@@ -1243,10 +1280,13 @@ class DeviceTOP:
                         for srv in sorted(data_filt)
                         if srv != "hostname"
                     ]  # --> services row
-                self.print_vm_info(
-                    stdscr, ptr, vm_status_list, status_bar_item_length, width
-                )
 
+                if self._services_info_enabled:
+                    self.print_vm_info(
+                        stdscr, ptr, vm_status_list, status_bar_item_length, width
+                    )
+            if self._cursor_enabled:
+                self._max_index_item = self._current_service_index
             if show_config and not (self._last_cmd or help_command):
                 if len(_nodes) == 1:
                     ptr.newline()
@@ -1385,6 +1425,19 @@ class DeviceTOP:
                                 "device/all/service", payload=msg
                             )
                         else:
+                            if (
+                                self._cursor_enabled
+                                and command == "debug"
+                                and self._current_selected_service
+                            ):
+                                (
+                                    _nodes,
+                                    _sel_serv,
+                                ) = self._current_selected_service.split("@")
+                                _nodes = [_nodes]
+                                if rest_args == "*.service":
+                                    _sel_serv = rest_args
+                                msg = json.dumps({"status": f"{_sel_serv}:/debug"})
                             for node in _nodes:
                                 await self._client.publish(
                                     f"device/{node}/service", payload=msg
@@ -1565,6 +1618,17 @@ class DeviceTOP:
                                     resp += "\n"
 
                     elif self._last_cmd == "debug":
+                        if (
+                            self._cursor_enabled
+                            and command == "debug"
+                            and self._current_selected_service
+                        ):
+                            _nodes, _sel_serv = self._current_selected_service.split(
+                                "@"
+                            )
+                            _nodes = [_nodes]
+                            rest_args = _sel_serv
+
                         for node in _nodes:
                             e_offset = 0
                             dev_data = self._data_buffer.get(node)
