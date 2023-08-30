@@ -106,9 +106,7 @@ class MQTTClient:
             i += 1
         premsg[i] = sz
 
-        self.a_writer.s.setblocking(True)
-        self.a_writer.s.write(premsg, i + 2)
-        self.a_writer.s.setblocking(False)
+        self.a_writer.write(premsg[: i + 2])
         self.a_writer.write(msg)
         await self.a_writer.drain()
         # print(hex(len(msg)), hexlify(msg, ":"))
@@ -152,9 +150,7 @@ class MQTTClient:
         pkt[i] = sz
         # print(hex(len(pkt)), hexlify(pkt, ":"))
 
-        # self.a_writer.s.setblocking(True)
         self.a_writer.s.write(pkt, i + 1)
-        # self.a_writer.s.setblocking(False)
         await self.a_writer.drain()
         await self._send_str(topic)
         if qos > 0:
