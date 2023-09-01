@@ -158,7 +158,8 @@ class MQTTClient:
             self.pid += 1
             pid = self.pid
             struct.pack_into("!H", pkt, 0, pid)
-            self.a_writer.write(pkt, 2)
+            self.a_writer.write(pkt[:2])
+            await self.a_writer.drain()
         self.a_writer.write(msg)
         await self.a_writer.drain()
         if qos == 1:
