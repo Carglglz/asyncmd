@@ -30,6 +30,7 @@ class NetworkService(Service):
             "notify": True,
             "led": 2,
             "webrepl_on": True,
+            "ntp_host": None,
             "rsyslog": False,
             "timeoffset": "+00:00",
         }
@@ -137,6 +138,7 @@ class NetworkService(Service):
         log=None,
         led=None,
         webrepl_on=True,
+        ntp_host=None,
         rsyslog=False,
         timeoffset="+00:00",
     ):
@@ -148,6 +150,10 @@ class NetworkService(Service):
             timeout=timeout, hostname=hostname, notify=True
         )
         if connected:
+            if ntp_host:
+                import ntptime
+
+                ntptime.host = ntp_host
             settime()
         else:
             await self.setup_ap()
