@@ -1,48 +1,59 @@
-import random
+import os
 from microdot_asyncio_serv import Microdot, send_file
 from aioclass import Service
 import aioctl
 import ssl as _ssl
 
 
-htmldoc_color = """
-<!DOCTYPE html>
-<html>
+def serve_path(path):
+    html_links = ""
+    for nm in os.listdir(f"./{path}"):
+        if not path.endswith("/"):
+            if os.stat(f"{path}/{nm}")[0] & 0x4000:
+                html_links += f'<li><a href="{path}/{nm}/">{nm}/</a></li>\n'
+            else:
+                html_links += f'<li><a href="{path}/{nm}">{nm}</a></li>\n'
+        else:
+            if os.stat(f"{path}/{nm}")[0] & 0x4000:
+                html_links += f'<li><a href="{nm}/">{nm}/</a></li>\n'
+            else:
+                html_links += f'<li><a href="{nm}">{nm}</a></li>\n'
+    html_tmp = f"""
+<!DOCTYPE HTML>
+<html lang="en">
     <head>
-        <title>Microdot Example Page</title>
+        <meta charset="utf-8">
+        <title>Directory listing for {path}</title>
     </head>
     <body>
-        <div>
-            <h1>Microdot Example Page</h1>
-            <p>Hello from Microdot colored {}!</p>
-            <p><a href="/shutdown">Click to shutdown the server</a></p>
-        </div>
+        <h1>Directory listing for {path}</h1>
+        <hr>
+        <ul>
+        {html_links}
+        </ul>
+        <hr>
     </body>
 </html>
 """
 
-htmldoc_sensor = """<!DOCTYPE HTML><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-  </head><body><h2>ESP32 Microdot WebServer</h2>
-  <p><i class="fas fa-thermometer-half" style="color:#059e8a;"></i>
-    <span class="ds-labels">Temperature</span>
-    <span id="temperature">{}</span>
-    <sup class="units">&deg;C</sup>
-  </p></body></html>"""
+    return (
+        html_tmp,
+        200,
+        {"Content-Type": "text/html"},
+    )
 
 
-class MicrodotService(Service):
+class WebFileService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Microdot Async Webserver v1.0"
+        self.info = "Microdot Async File Webserver v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "host": "0.0.0.0",
-            "port": 8042,
+            "port": 4444,
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
@@ -60,54 +71,16 @@ class MicrodotService(Service):
 
         @self.app.route("/")
         async def index(request):
-            return send_file("static/index.html")
+            return serve_path(".")
 
-        @self.app.route("/favicon.ico")
-        async def favicon(request):
-            return send_file("static/favicon.ico")
-
-        @self.app.route("/static/<path:path>")
-        async def static(request, path):
+        @self.app.route("/<path:path>")
+        async def fileserv(request, path):
             if ".." in path:
                 # directory traversal is not allowed
                 return "Not found", 404
-            return send_file("static/" + path)
-
-        @self.app.route("/shutdown")
-        async def shutdown(request):
-            await request.app.shutdown()
-            return "The server is shutting down..."
-
-        @self.app.route("/color")
-        async def color(request):
-            R = int(request.args.get("r", "0"))
-            G = int(request.args.get("g", "0"))
-            B = int(request.args.get("b", "0"))
-            return (
-                htmldoc_color.format(str((R, G, B))),
-                200,
-                {"Content-Type": "text/html"},
-            )
-
-        @self.app.route("/temp")
-        async def temp(request):
-            return (
-                htmldoc_sensor.format(25 + (random.random() * random.choice([1, -1]))),
-                200,
-                {"Content-Type": "text/html"},
-            )
-
-        @self.app.route("/py")
-        async def index_py(request):
-            return send_file("static/index_pyscript.html")
-
-        @self.app.route("/click")
-        async def index_click(request):
-            return send_file("static/index_pyscript_click.html")
-
-        @self.app.route("/req")
-        async def index_req(request):
-            return send_file("static/index_pyscript_req.html")
+            if os.stat(path)[0] & 0x4000:
+                return serve_path(path)
+            return send_file(path)
 
     def show(self):
         return "Stats", f"   Requests: {self.app.request_counter}, URL: {self.url}"
@@ -132,7 +105,7 @@ class MicrodotService(Service):
     async def task(
         self,
         host="0.0.0.0",
-        port=4443,
+        port=4444,
         debug=True,
         ssl=False,
         key=None,
@@ -160,4 +133,4 @@ class MicrodotService(Service):
         self.on_stop()
 
 
-service = MicrodotService("microdot")
+service = WebFileService("webfile")
