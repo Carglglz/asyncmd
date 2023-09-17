@@ -981,7 +981,7 @@ class DeviceTOP:
                     cmd_comp_dict[kcmd] = all_servs_active
 
                 for kcmd in ["enable", "disable"]:
-                    cmd_comp_dict[kcmd] = all_servs
+                    cmd_comp_dict[kcmd] = all_servs.union(all_servs_active)
 
                 for kcmd in ["wconf"]:
                     cmd_comp_dict[kcmd] = path_completer
