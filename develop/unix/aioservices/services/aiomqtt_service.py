@@ -39,6 +39,7 @@ class MQTTService(Service):
             "hostname": None,
             "ssl": False,
             "ssl_params": {},
+            "autoconfig": False,
             "keepalive": 300,
             "debug": True,
             "on_stop": self.on_stop,
@@ -593,6 +594,7 @@ class MQTTService(Service):
         ssl=False,
         ssl_params={},
         hostname=None,
+        autoconfig=False,
         keepalive=300,
         debug=True,
         stats=False,
@@ -615,6 +617,13 @@ class MQTTService(Service):
             self._SERVICE_TOPIC = self._SERVICE_TOPIC.format(client_id).encode("utf-8")
             self._STATUS_TOPIC = self._STATUS_TOPIC.format(client_id).encode("utf-8")
             self._STATE_TOPIC = self._STATE_TOPIC.format(client_id).encode("utf-8")
+        if autoconfig:
+            if "network.service" in aioctl.group().tasks:
+                ssid = aioctl.group().tasks.get("network.service").service.ssid
+                server, port, hostname, ssl = autoconfig.get(
+                    ssid, [server, port, hostname, ssl]
+                )
+
         if ssl:
             if not self.sslctx:
                 self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)

@@ -33,6 +33,7 @@ class NetworkService(Service):
             "ntp_host": None,
             "rsyslog": False,
             "timeoffset": "+00:00",
+            "autoconfig": False,
         }
         # TODO: add wlan.config
         self.wlan = network.WLAN(network.STA_IF)
@@ -141,6 +142,7 @@ class NetworkService(Service):
         ntp_host=None,
         rsyslog=False,
         timeoffset="+00:00",
+        autoconfig=False,
     ):
         self.log = log
         if led:
@@ -178,6 +180,8 @@ class NetworkService(Service):
                     from rsysloghandler import RsysLogHandler
                     import logging
 
+                    if autoconfig:
+                        rsyslog = autoconfig.get(self.ssid, rsyslog)
                     self.rsysloghandler = RsysLogHandler(
                         RsysLogger(rsyslog, hostname=hostname, t_offset=timeoffset)
                     )
