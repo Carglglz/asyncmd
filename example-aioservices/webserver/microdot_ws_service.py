@@ -1,59 +1,21 @@
-import os
 from microdot_asyncio_serv import Microdot, send_file
+from microdot_asyncio_websocket import with_websocket
 from aioclass import Service
 import aioctl
 import ssl as _ssl
 
 
-def serve_path(path):
-    html_links = ""
-    for nm in os.listdir(f"./{path}"):
-        if not path.endswith("/"):
-            if os.stat(f"{path}/{nm}")[0] & 0x4000:
-                html_links += f'<li><a href="{path}/{nm}/">{nm}/</a></li>\n'
-            else:
-                html_links += f'<li><a href="{path}/{nm}">{nm}</a></li>\n'
-        else:
-            if os.stat(f"{path}/{nm}")[0] & 0x4000:
-                html_links += f'<li><a href="{nm}/">{nm}/</a></li>\n'
-            else:
-                html_links += f'<li><a href="{nm}">{nm}</a></li>\n'
-    html_tmp = f"""
-<!DOCTYPE HTML>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Directory listing for {path}</title>
-    </head>
-    <body>
-        <h1>Directory listing for {path}</h1>
-        <hr>
-        <ul>
-        {html_links}
-        </ul>
-        <hr>
-    </body>
-</html>
-"""
-
-    return (
-        html_tmp,
-        200,
-        {"Content-Type": "text/html"},
-    )
-
-
-class WebFileService(Service):
+class MicrodotService(Service):
     def __init__(self, name):
         super().__init__(name)
-        self.info = "Microdot Async File Webserver v1.0"
+        self.info = "Microdot Async WebSocketserver v1.0"
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = []
         self.kwargs = {
             "host": "0.0.0.0",
-            "port": 4444,
+            "port": 8042,
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
@@ -65,22 +27,35 @@ class WebFileService(Service):
 
         # init webserver app
         self.log = None
-        self.url = None
         self.app = Microdot()
         self.app.set_config(f"{self.name}.service", None, 0)
 
         @self.app.route("/")
         async def index(request):
-            return serve_path(".")
+            return send_file("static/index_ws.html")
 
-        @self.app.route("/<path:path>")
-        async def fileserv(request, path):
+        @self.app.route("/favicon.ico")
+        async def favicon(request):
+            return send_file("static/favicon.ico")
+
+        @self.app.route("/static/<path:path>")
+        async def static(request, path):
             if ".." in path:
                 # directory traversal is not allowed
                 return "Not found", 404
-            if os.stat(path)[0] & 0x4000:
-                return serve_path(path)
-            return send_file(path)
+            return send_file("static/" + path)
+
+        @self.app.route("/echo")
+        @with_websocket
+        async def echo(request, ws):
+            while True:
+                data = await ws.receive()
+                await ws.send(data)
+
+        @self.app.route("/shutdown")
+        async def shutdown(request):
+            await request.app.shutdown()
+            return "The server is shutting down..."
 
     def show(self):
         return "Stats", f"   Requests: {self.app.request_counter}, URL: {self.url}"
@@ -105,8 +80,7 @@ class WebFileService(Service):
     async def task(
         self,
         host="0.0.0.0",
-        hostname="localhost",
-        port=4444,
+        port=4443,
         debug=True,
         ssl=False,
         key=None,
@@ -118,17 +92,18 @@ class WebFileService(Service):
         proto = "http"
         if ssl:
             proto = "https"
-        self.url = f"{proto}://{hostname}:{port}"
+        _host = "localhost"
+        if host != "0.0.0.0":
+            _host = host
+        self.url = f"{proto}://{_host}:{port}"
 
         if ssl:
             self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_SERVER)
-            # self.sslctx.verify_mode = _ssl.CERT_REQUIRED
             self.sslctx.load_cert_chain(cert, keyfile=key)
-            # self.sslctx.load_verify_locations(cert)
         await self.app.start_server(host=host, port=port, debug=debug, ssl=self.sslctx)
         # if this consumes Cancelled Error but still want to run on_stop
         # callback raise Cancelled Error or run on_stop here
         self.on_stop()
 
 
-service = WebFileService("webfile")
+service = MicrodotService("microdot_ws")

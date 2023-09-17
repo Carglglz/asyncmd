@@ -88,6 +88,7 @@ class Request(BaseRequest):
             if header.lower() == "content-length":
                 content_length = int(value)
 
+        # print(headers)
         # body
         # print("Body")
         body = b""
@@ -97,6 +98,8 @@ class Request(BaseRequest):
         else:
             body = b""
             stream = client_reader
+
+        # print(body)
         # print("Return request")
         return Request(
             app,
