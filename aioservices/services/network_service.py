@@ -68,9 +68,9 @@ class NetworkService(Service):
         else:
             print("Scanning for APs nearby...")
         scan = self.wlan.scan()
-        scan_tuples = [(x[0].decode(), x[3]) for x in scan]
+        scan_tuples = [(x[0].decode(), x[1], x[3]) for x in scan]
         # Sort by dBm
-        scan_tuples.sort(key=lambda x: x[1], reverse=True)
+        scan_tuples.sort(key=lambda x: x[2], reverse=True)
         # Set device hostname
         self.wlan.config(dhcp_hostname=hostname)
         try:
@@ -84,9 +84,9 @@ class NetworkService(Service):
             else:
                 sys.print_exception(e, sys.stdout)
             return
-        _APs_in_range = [x[0] for x in scan_tuples if x[0] in wifi_config.keys()]
+        _APs_in_range = [x[:2] for x in scan_tuples if x[0] in wifi_config.keys()]
         if _APs_in_range:
-            _ssid = _APs_in_range[0]
+            _ssid, _bssid = _APs_in_range[0]
             if not self.wlan.isconnected():
                 if notify:
                     if self.log:
@@ -95,7 +95,7 @@ class NetworkService(Service):
                         )
                     else:
                         print("Connecting to network...")
-                self.wlan.connect(_ssid, wifi_config[_ssid])
+                self.wlan.connect(_ssid, wifi_config[_ssid], bssid=_bssid)
                 while not self.wlan.isconnected():
                     n += 1
                     await asyncio.sleep(1)
