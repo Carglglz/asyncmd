@@ -25,6 +25,7 @@ class WatcherService(Service):
             "wdfeed": 60000,
             "debug": False,
             "save_report": False,
+            "err_service_limit": False,
         }
         self.err_count = 0
         self.err_report = {}
@@ -82,6 +83,17 @@ class WatcherService(Service):
                 self.err_report[name][res.__class__.__name__] = {"count": 1, "err": res}
                 self._report_updated = True
 
+    def err_count_by_service(self, name):
+        if name not in self.err_report:
+            return 0
+        else:
+            return sum(
+                (
+                    errc.get("count", 0)
+                    for errname, errc in self.err_report[name].items()
+                )
+            )
+
     @aioctl.aiotask
     async def task(
         self,
@@ -91,6 +103,7 @@ class WatcherService(Service):
         wdfeed=10000,
         debug=False,
         save_report=False,
+        err_service_limit=False,
         log=None,
     ):
         self.log = log
@@ -167,6 +180,17 @@ class WatcherService(Service):
                     self.log.info(f"[{self.name}.service] Rebooting now...")
                     await asyncio.sleep(5)
                 machine.reset()
+
+            if err_service_limit:
+                for sname, err_limit in err_service_limit.items():
+                    if err_limit <= self.err_count_by_service(sname):
+                        if self.log:
+                            self.log.info(
+                                f"[{self.name}.service] Error limit @ {sname} reached"
+                            )
+                            self.log.info(f"[{self.name}.service] Rebooting now...")
+                            await asyncio.sleep(5)
+                        machine.reset()
 
     @aioctl.aiotask
     async def wdt(self, timeout, debug=False):

@@ -9,7 +9,7 @@ WDT_RESET = 3
 DEEPSLEEP_RESET = 4
 SOFT_RESET = 0
 
-_RESET_CAUSE = random.randint(0,4)
+_RESET_CAUSE = random.randint(0, 4)
 
 
 def unique_id():
@@ -17,7 +17,7 @@ def unique_id():
 
 
 def reset():
-    sys.exit(1)
+    sys.exit(0)
 
 
 def deepsleep(n=0):
