@@ -57,3 +57,101 @@ There is also several optional arguments:
 * `-dflev DFLEV`: debug file mode level, options `[debug, info, warning, error, critical]`.
 * `-dslev DSLEV`: debug sys out mode level, options `[debug, info, warning, error, critical]`.
 
+
+
+### dtop 
+
+This is the default mode, and it is a TUI inspired by htop.
+
+
+![asyncmd](./dtop.png)
+
+
+#### keybindings 
+
+Keybindings:
+
+    n: next device
+    p: previous device
+    0: all devices
+    j/k, }/{, space/g : scroll down/up command output
+    i: toggle device info
+    h: toggle services info
+    e: toggle service cursor
+    enter: debug service if service cursor enabled
+    TAB: select next service
+    S-TAB: select previous service
+    f: set last device filter
+    c: fetch and toggle device config info
+    l: fetch and toggle device log
+    s: switch time format (ISO/DATETIME)
+    ESC: clear filters and cmd mode output
+    TAB (in command line): autocompletion of
+         commands, devices, services and files
+    q: exit
+
+
+
+It has 3 sections and a command line at the bottom.
+
+#### Top section: Device info
+
+This shows device/s state info and can be toggled with `i` key.
+
+#### Middle Section: Services info 
+
+This shows device/s services state/stats and be toggled with `h` key.
+
+#### Bottom Section: Command output 
+
+* Any command output like config, logging, debug etc will be shown here.
+* For output navigation use keys `j/k, }/{, space/g ` which will scroll down/up command output at a different pace.
+* Press `esc` key to clean command output.
+
+
+
+#### Command Line
+
+* Keybindings: `:`, `@`, `/`, `%`, `$`, `?`
+
+Each one of this will enable different command line modes.
+
+usage:
+
+    :command [options] --> local commands
+    @command [options] --> device commands
+    /pattern* --> filter by device name (accepts * wildcards)
+    %pattern* --> filter log by pattern
+    $pattern* --> filter service info by pattern
+    ?command --> see help of command
+    @help --> see device commands help
+    @?command --> see help of device command
+
+
+```
+asyncmd CLI tool
+
+[command] -h or ?[command]/@?[command] to see further help of any command
+
+options:
+  -h, --help            show this help message and exit
+
+commands:
+  Available commands
+
+  {start,stop,stats,debug,report,traceback,enable,disable,config,wconf,e,reset,errlog,q}
+    start               start async tasks or services
+    stop                stop async tasks or services
+    stats               get stats of a service
+    debug               get debug info of a service
+    report              get report info of a service
+    traceback           get traceback info of a service
+    enable              enable one or more services
+    disable             disable one or more services
+    config              config args and kwargs of a service
+    wconf               save/write device config in a file
+    e                   edit a file with $EDITOR
+    reset               reset device/s
+    errlog              get device/s error.log
+    q                   exit 
+```
