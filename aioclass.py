@@ -1,12 +1,16 @@
+class ServiceException(Exception):
+    pass
+
+
 class Service:
-    def __init__(self, name):
+    def __init__(self, name, info="", loaded=True):
         self.name = name
         self.path = ""
-        self.info = ""
+        self.info = info
         self.type = "runtime.service"  # continuous running, other types are
         self.docs = ""
         self.enabled = False  # preset
-        self.loaded = True
+        self.loaded = loaded
         self._child_tasks = set()
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
@@ -83,7 +87,12 @@ class PQueue:
         hp = [(k, v) for k, v in self.priority_score.items()]
         hp.sort(key=lambda x: x[1], reverse=True)
         servs_dict = {sv.name: sv for sv in self.services}
-        ordered_srvs = [servs_dict[s] for s, p in hp]
+        ordered_srvs = [
+            servs_dict.get(
+                s, Service(s, info=ServiceException("Service Not Found"), loaded=False)
+            )
+            for s, p in hp
+        ]
         lp = {allsrv for allsrv in self.services} - {ords for ords in ordered_srvs}
 
         return hp, ordered_srvs, list(lp)

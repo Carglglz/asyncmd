@@ -294,22 +294,25 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
     # false ->
     # -> all are core_lp
     for service in core_hp_services:
-        load(
-            service.name,
-            debug=debug,
-            log=log,
-            debug_log=debug_log,
-            config=config,
-        )
-
-        if debug:
-            print(f"[ \033[92mOK\x1b[0m ] Booting {service.name}.service... ")
-        if debug_log and log:
-            log.info(
-                "[aioservice] [ \033[92mOK\x1b[0m ] Booting "
-                + f"{service.name}.service..."
+        if isinstance(service.info, Exception):
+            res = service.info
+        else:
+            load(
+                service.name,
+                debug=debug,
+                log=log,
+                debug_log=debug_log,
+                config=config,
             )
-        res = await aioctl.group().tasks[f"{service.name}.service"].task
+
+            if debug:
+                print(f"[ \033[92mOK\x1b[0m ] Booting {service.name}.service... ")
+            if debug_log and log:
+                log.info(
+                    "[aioservice] [ \033[92mOK\x1b[0m ] Booting "
+                    + f"{service.name}.service..."
+                )
+            res = await aioctl.group().tasks[f"{service.name}.service"].task
         if res:
             if not issubclass(res.__class__, Exception):
                 if debug:
@@ -325,10 +328,10 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
                         f"[ \u001b[31;1mERROR\u001b[0m ] {service.name}:",
                         end="",
                     )
-                    print(f" Error: {res.__class__.__name__}")
+                    print(f" Error: {res.__class__.__name__}: {res}")
                 if debug_log and log:
                     _err = f"{service.name}:"
-                    _err += f" Error: {res.__class__.__name__}"
+                    _err += f" Error: {res.__class__.__name__}: {res}"
                     log.error(f"[aioservice] [ \u001b[31;1mERROR\u001b[0m ] {_err}")
 
     for service in core_lp_services:
