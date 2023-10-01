@@ -106,6 +106,12 @@ import sys
 _dt_list = [0, 1, 2, 3, 4, 5]
 
 
+def pprint_obj(obj):
+    if isinstance(obj, str):
+        return repr(obj)
+    return obj
+
+
 def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
     if kw == {}:
         print(f"{sep}{kw}", file=file)
@@ -125,13 +131,13 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
         if isinstance(v, dict) and v:
             if fl:
                 fl = False
-                print(f"{sep}{repr(k)}:", end="", file=file)
+                print(f"{sep}{k}:", end="", file=file)
             else:
-                print(f"{sep*ind}{repr(k)}:", end="", file=file)
+                print(f"{sep*ind}{k}:", end="", file=file)
             pprint_dict(
                 v,
                 sep=sep,
-                ind=len(f"{sep*ind}{repr(k)}:" + " {"),
+                ind=len(f"{sep*ind}{k}:" + " {"),
                 fl=True,
                 lev=lev + 1,
                 file=file,
@@ -139,9 +145,9 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
         else:
             if fl:
                 fl = False
-                print(f"{sep}{repr(k)}: {repr(v)}{ls}", file=file)
+                print(f"{sep}{repr(k)}: {pprint_obj(v)}{ls}", file=file)
             else:
-                print(f"{sep*ind}{repr(k)}: {repr(v)}{ls}", file=file)
+                print(f"{sep*ind}{repr(k)}: {pprint_obj(v)}{ls}", file=file)
 
 
 def _dt_format(number):

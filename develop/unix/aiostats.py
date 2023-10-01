@@ -192,6 +192,10 @@ def stats(taskm="*", debug=False, traceback=None):
                 task_stats["args"] = aioctl.group().tasks[task].service.args
                 task_stats["kwargs"] = {
                     k: str(v)
+                    if not isinstance(
+                        v, (int, float, str, bool, list, dict, tuple, type(None))
+                    )
+                    else v
                     for k, v in aioctl.group().tasks[task].service.kwargs.items()
                 }
                 if traceback:
