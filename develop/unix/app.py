@@ -8,13 +8,13 @@ import aioctl
 
 
 async def _main(logger, repl=False):
-    await aioservice.boot(log=logger, debug_log=True)
-    print("starting tasks...")
+    await aioservice.boot(debug=False, log=logger, debug_log=True)
+    aioctl.log()
+    print("loading services...")
     if repl:
         aioctl.add(aiorepl.task, name="repl")
-    print(">>> ")
+        print(">>> ")
     aioservice.init(log=logger, debug_log=True)
-    print(">>> ")
     if not repl:
         asyncio.create_task(aioctl.follow())
     await asyncio.gather(*aioctl.tasks())
