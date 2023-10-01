@@ -17,7 +17,7 @@ def unique_id():
 
 
 def reset():
-    sys.exit(0)
+    sys.exit(1)
 
 
 def deepsleep(n=0):
