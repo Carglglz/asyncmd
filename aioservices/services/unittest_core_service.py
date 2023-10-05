@@ -236,10 +236,11 @@ class UnittestService(Service):
         require=False,
         rollback_ota_on_error=False,
     ):
-        await asyncio.sleep(2)
         self.debug = debug
         self.log = log
         self._root = root
+        if log:
+            self.log.info(f"[{self.name}.service] Running...")
         if testdir:
             if testdir not in sys.path:
                 sys.path.append(testdir)

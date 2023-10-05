@@ -253,11 +253,12 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
     ]
     core_hp_services = []
     core_lp_services = []
+
     if config:
         _servs_config = get_config()
         for srv in core_services:
             srv.args = _servs_config[srv.name].get("args", srv.args)
-            srv.kwargs = _servs_config[srv.name].get("kwargs", srv.kwargs)
+            srv.kwargs.update(**_servs_config[srv.name].get("kwargs", srv.kwargs))
     # check if any requirement for core.service
     serv_rq = [srv for srv in core_services if "require" in srv.kwargs]
     serv_core = [srv for srv in core_services if srv not in serv_rq]
