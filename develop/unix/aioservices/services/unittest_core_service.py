@@ -95,6 +95,9 @@ class UnittestService(Service):
                 }
         return _stats_tests
 
+    def info_sys(self, stream):
+        stream.write(f"{sys.version}; {sys.implementation._machine}\n")
+
     def report(self, stream=sys.stdout):
         self.__call__(stream=stream)
 
@@ -314,7 +317,18 @@ class UnittestService(Service):
                             if _test_res:
                                 rp.write(f" {self._PASS}\n")
                             else:
+                                with open(f".{self.name}.service.fail", "w") as rpf:
+                                    rpf.write(
+                                        f"{self.name}.service;{done_at} [ \x1b[92mOK\x1b[0m ]"
+                                    )
+
+                                    rpf.write(f" {self._FAIL}\n")
+                                    self.info_sys(rpf)
+                                    self.report(rpf)
+
                                 rp.write(f" {self._FAIL}\n")
+
+                            self.info_sys(rp)
                             self.report(rp)
 
                 if all(t.wasSuccessful() for t in self.test_result.values()):

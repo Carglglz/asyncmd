@@ -679,7 +679,10 @@ class DeviceTOP:
                         if _rp_service not in self._report_buffer.get(devname):
                             self._report_buffer[devname][_rp_service] = ""
 
-                        if f"{_rp_service};" in message.payload.decode():
+                        if (
+                            f"{_rp_service.replace('.fail', '')};"
+                            in message.payload.decode()
+                        ):
                             self._report_buffer[devname][_rp_service] = ""
 
                         self._report_buffer[devname][
