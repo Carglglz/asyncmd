@@ -222,17 +222,20 @@ Keybindings:
     n: next device
     p: previous device
     0: all devices
-    j/k, }/{, space/g : scroll down/up command output
+    j/k, }/{, space/g , arrow down/up: scroll down/up command output
+    arrow left/right, h/l: scroll left/right services info
     i: toggle device info
-    h: toggle services info
+    H: toggle services info
     e: toggle service cursor
-    enter: debug service if service cursor enabled
+    enter/d: debug service if service cursor is enabled
+    s: get stats of service if service cursor is enabled
+    r: get report of service if service cursor is enabled
     TAB: select next service
     S-TAB: select previous service
     f: set last device filter
     c: fetch and toggle device config info
-    l: fetch and toggle device log
-    s: switch time format (ISO/DATETIME)
+    L: fetch and toggle device log
+    t: switch time format (ISO/DATETIME)
     ESC: clear filters and cmd mode output
     TAB (in command line): autocompletion of
          commands, devices, services and files

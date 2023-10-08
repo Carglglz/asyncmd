@@ -228,6 +228,7 @@ class DeviceTOP:
         self._cmd_resps = {}
         self._last_cmd = ""
         self._line_index = 0
+        self._vm_info_indent = 0
 
         self._status_colors = {
             "running": 5,
@@ -264,7 +265,7 @@ class DeviceTOP:
             " | KEYS: n/p: next/previous device"
             ", c: fetch services.config"
             ", i: toggle device info"
-            ", l: toggle device log"
+            ", L: toggle device log"
             ", ESC: clear filters"
             f" | filter: {self._filt_dev}"
             f" | #devices: {n}"
@@ -419,10 +420,14 @@ class DeviceTOP:
                     self._current_service_index
                     == self._index_service_item % max(self._max_index_item, 1)
                 ) and self._cursor_enabled:
-                    self.printline_colors(stdscr, item_str, ptr, maxc, colorpair=9)
+                    self.printline_colors(
+                        stdscr, item_str[self._vm_info_indent :], ptr, maxc, colorpair=9
+                    )
                     self._current_selected_service = get_uid_service(item)
                 else:
-                    self.printline_colors(stdscr, item_str, ptr, maxc)
+                    self.printline_colors(
+                        stdscr, item_str[self._vm_info_indent :], ptr, maxc
+                    )
                 self._current_service_index += 1
         stdscr.attroff(curses.color_pair(2))
 
@@ -498,6 +503,7 @@ class DeviceTOP:
         # Mem [                           %65.4] | Tasks: , Services: , CTasks:
         # Disk[                           %70.0] | Recv:  , Send:
         # Firmware
+        # Build:
         # Machine, platform...
         info = _all_info["aiomqtt.service"]["stats"]
         nod_info = []
@@ -519,7 +525,8 @@ class DeviceTOP:
             f"Disk[{'|'*int(_disk_b):{w}s}{_disk_pc:>4.1f}%]{_disk_:23}|"
             f" Recv: {info['nrecv']}, Pub: {info['npub']}"
         )
-        fmw_str = f"Firmware: {info['firmware']}"
+        fmw_str = f"Firmware: {info['firmware'].split(' on ')[0]}"
+        fmw_date = "Built on: " + info["firmware"].split(" on ")[1]
         _uptime = self.get_val("SINCE", _all_info, "watcher.service", "DELTA").replace(
             "ago", ""
         )
@@ -542,6 +549,7 @@ class DeviceTOP:
         nod_info.append(_disk_msg)
         nod_info.append(_fmw)
         nod_info.append(_mach)
+        nod_info.append(fmw_date)
         nod_info.append(" ")
         return nod_info
 
@@ -565,6 +573,12 @@ class DeviceTOP:
                         self.printline_debug_colors(stdscr, _line, ptr, width)
                 else:
                     self.printline(stdscr, " ", ptr, width)
+
+    def mk_cmd_msg(self, cmd, service):
+        if cmd == "debug":
+            return json.dumps({"status": f"{service}:/debug"})
+        elif cmd == "report":
+            return json.dumps({"report": service})
 
     async def data_feed(self):
         tls_params = None
@@ -799,7 +813,7 @@ class DeviceTOP:
                 node_idx = 0 if node_idx - 1 < 0 else node_idx - 1
             elif k == ord("0"):
                 node_idx = 0
-            elif k == ord("s"):
+            elif k == ord("t"):
                 if TM_FMT == "ISO":
                     TM_FMT = "DELTA"
                 else:
@@ -808,17 +822,28 @@ class DeviceTOP:
             elif k == ord("i"):
                 self._info_enabled = not self._info_enabled
 
-            elif k == ord("h"):
+            elif k == ord("H"):
                 self._services_info_enabled = not self._services_info_enabled
             elif k == ord("e"):
                 self._cursor_enabled = not self._cursor_enabled
                 if not self._cursor_enabled:
                     self._current_selected_service = ""
-            elif k == ord("\n"):
+            elif k == ord("\n") or k == ord("d"):
                 if self._cursor_enabled:
                     command_sent = False
                     command = "debug"
                     rest_args = "*.service"
+
+            elif k == ord("s"):
+                if self._cursor_enabled:
+                    command_sent = False
+                    command = "stats"
+                    rest_args = "*.service"
+            elif k == ord("r"):
+                if self._cursor_enabled:
+                    command_sent = False
+                    command = "report"
+                    rest_args = "current"
             elif k == ord("\t"):
                 self._index_service_item += 1
             elif k == ord("š"):
@@ -841,23 +866,23 @@ class DeviceTOP:
 
                 command = ""
                 help_command = ""
-            elif k == ord("l"):
+            elif k == ord("L"):
                 self._log_enabled = not self._log_enabled
                 self._log_mode = b"log"
                 if self._last_cmd != "debug":
                     command = ""
                 help_command = ""
 
-            elif k == ord("k"):
-                # if self._line_index > 0:
-                self._line_index -= 1
-            elif k == curses.KEY_UP:
+            elif k == curses.KEY_RIGHT or k == ord("l"):
+                self._vm_info_indent += int(width) - 1
+
+            elif k == curses.KEY_LEFT or k == ord("h"):
+                self._vm_info_indent -= int(width) - 1
+
+            elif k == curses.KEY_UP or k == ord("k"):
                 self._line_index -= 1
 
-            elif k == ord("j"):
-                self._line_index += 1
-
-            elif k == curses.KEY_DOWN:
+            elif k == curses.KEY_DOWN or k == ord("j"):
                 self._line_index += 1
 
             elif k == ord(" "):
@@ -1430,7 +1455,7 @@ class DeviceTOP:
                         else:
                             if (
                                 self._cursor_enabled
-                                and command == "debug"
+                                and command in ("debug", "report")
                                 and self._current_selected_service
                             ):
                                 (
@@ -1440,7 +1465,7 @@ class DeviceTOP:
                                 _nodes = [_nodes]
                                 if rest_args == "*.service":
                                     _sel_serv = rest_args
-                                msg = json.dumps({"status": f"{_sel_serv}:/debug"})
+                                msg = self.mk_cmd_msg(command, _sel_serv)
                             for node in _nodes:
                                 await self._client.publish(
                                     f"device/{node}/service", payload=msg
@@ -1592,6 +1617,17 @@ class DeviceTOP:
                                     resp += f"{node}: [{self._last_cmd.upper()}]"
                                     resp += f" {str(last_cmd_resp)}\n\n"
                     elif self._last_cmd == "stats":
+                        if (
+                            self._cursor_enabled
+                            and command == "stats"
+                            and self._current_selected_service
+                        ):
+                            _nodes, _sel_serv = self._current_selected_service.split(
+                                "@"
+                            )
+                            _nodes = [_nodes]
+                            rest_args = _sel_serv
+
                         for node in _nodes:
                             dev_data = self._data_buffer.get(node)
                             dev_stats_serv = dev_data.get(rest_args, {}).get("stats")
@@ -1610,6 +1646,17 @@ class DeviceTOP:
                                     resp += f"    {line}\n"
                                 resp += "\n"
                     elif self._last_cmd == "report":
+                        if (
+                            self._cursor_enabled
+                            and command == "report"
+                            and self._current_selected_service
+                        ):
+                            _nodes, _sel_serv = self._current_selected_service.split(
+                                "@"
+                            )
+                            _nodes = [_nodes]
+                            rest_args = _sel_serv
+
                         for node in _nodes:
                             dev_report = self._report_buffer.get(node)
                             if dev_report:
