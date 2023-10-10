@@ -633,6 +633,9 @@ class DeviceTOP:
                                                 vals["log"] = ""
                                             else:
                                                 vals.pop("log")
+                                        elif "traceback" in vals:
+                                            _is_debug_msg = True
+
                                         self._data_buffer[devname][service].update(
                                             **vals
                                         )
@@ -648,9 +651,14 @@ class DeviceTOP:
                                     for old_srv in _old_servs:
                                         self._data_buffer[devname].pop(old_srv)
 
-                            self._data_buffer[devname]["aiomqtt.service"]["stats"][
-                                "lt_seen"
-                            ] = time.time()
+                            try:
+                                self._data_buffer[devname]["aiomqtt.service"]["stats"][
+                                    "lt_seen"
+                                ] = time.time()
+                            except Exception:
+                                raise Exception(
+                                    f"{message.payload.decode()}\n\n{self._data_buffer[devname]}"
+                                )
                             self._rflog[devname] = True
 
                         else:
