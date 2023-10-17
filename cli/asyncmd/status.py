@@ -131,13 +131,13 @@ def pprint_dict(kw, sep=" ", ind=1, fl=True, ls=",", lev=0, file=sys.stdout):
         if isinstance(v, dict) and v:
             if fl:
                 fl = False
-                print(f"{sep}{k}:", end="", file=file)
+                print(f"{sep}{repr(k)}:", end="", file=file)
             else:
-                print(f"{sep*ind}{k}:", end="", file=file)
+                print(f"{sep*ind}{repr(k)}:", end="", file=file)
             pprint_dict(
                 v,
                 sep=sep,
-                ind=len(f"{sep*ind}{k}:" + " {"),
+                ind=len(f"{sep*ind}{repr(k)}:" + " {"),
                 fl=True,
                 lev=lev + 1,
                 file=file,
@@ -264,6 +264,7 @@ def get_status(
         _srv = req.get(service)
         _done_at = _srv["done_at"]
         _since = _srv["since"] + epoch_offset
+        _status = _srv.get("status", "unknown")
         if _done_at:
             _done_at += epoch_offset
             _done_at_const = _srv["done_at"] + epoch_offset
