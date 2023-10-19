@@ -1,7 +1,7 @@
 # MicroPython package installer
 # MIT license; Copyright (c) 2022 Jim Mussared
 
-import async_urequests as arequests
+import aiohttpclient as aiohttp
 import sys
 
 
@@ -43,8 +43,6 @@ async def _chunk(src, dest):
 
 # Check if the specified path exists and matches the hash.
 async def _check_exists(path, short_hash):
-    import os
-
     try:
         import binascii
         import hashlib
@@ -81,34 +79,23 @@ def _rewrite_url(url, branch=None):
 async def _download_file(url, dest):
     if _DEBUG:
         print(url)
-    response = await arequests.get(url)
-    try:
-        if response.status_code != 200:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                if _DEBUG:
+                    print("Error", response.status, "requesting", url)
+                return False
             if _DEBUG:
-                print("Error", response.status_code, "requesting", url)
-            return False
-        if _DEBUG:
-            print("Copying:", dest)
-        _ensure_path_exists(dest)
-        with open(dest, "wb") as f:
-            await _chunk(response.raw, f.write)
+                print("Copying:", dest)
+            _ensure_path_exists(dest)
+            with open(dest, "wb") as f:
+                await _chunk(response.content, f.write)
 
-        return True
-    finally:
-        await response.close()
+            return True
 
 
 async def _install_json(package_json_url, index, target, version, mpy):
-    response = await arequests.get(_rewrite_url(package_json_url, version))
-    try:
-        if response.status_code != 200:
-            if _DEBUG:
-                print("Package not found:", package_json_url)
-            return False
-
-        package_json = await response.json()
-    finally:
-        await response.close()
+    package_json = await _fetch_json(package_json_url, index, target, version, mpy)
     for target_path, short_hash in package_json.get("hashes", ()):
         fs_target_path = target + "/" + target_path
         if await _check_exists(fs_target_path, short_hash):
@@ -198,17 +185,15 @@ async def install(package, index=None, target=None, version=None, mpy=True):
 
 
 async def _fetch_json(package_json_url, index, target, version, mpy):
-    response = await arequests.get(_rewrite_url(package_json_url, version))
-    package_json = {}
-    try:
-        if response.status_code != 200:
-            if _DEBUG:
-                print("Package not found:", package_json_url)
-            return False
+    async with aiohttp.ClientSession() as session:
+        async with session.get(_rewrite_url(package_json_url, version)) as resp:
+            package_json = {}
+            if resp.status != 200:
+                if _DEBUG:
+                    print("Package not found:", package_json_url)
+                return False
 
-        package_json = await response.json()
-    finally:
-        await response.close()
+            package_json = await resp.json()
     return package_json
 
 
