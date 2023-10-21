@@ -229,6 +229,9 @@ class DeviceTOP:
         self._last_cmd = ""
         self._line_index = 0
         self._vm_info_indent = 0
+        self._nd_pager = True
+        self._nd_index = 0
+        self._nd_pp = 4
 
         self._status_colors = {
             "running": 5,
@@ -258,6 +261,9 @@ class DeviceTOP:
             "SOFT RESET": _BLUE,
         }
 
+    def node_count(self):
+        return len([nd for nd in list(self._data_buffer.keys()) if nd != "all"])
+
     def bottom_status_bar(self, n=0):
         local_time = datetime.datetime.now().strftime("%H:%M:%S %Z")
         bottom_statusbar_str = (
@@ -268,7 +274,7 @@ class DeviceTOP:
             ", L: toggle device log"
             ", ESC: clear filters"
             f" | filter: {self._filt_dev}"
-            f" | #devices: {n}"
+            f" | #devices: {n}/{self.node_count()}"
             f" | line: {self._line_index}"
         )
         return bottom_statusbar_str
@@ -819,6 +825,18 @@ class DeviceTOP:
                 node_idx = nodes_cnt - 1 if node_idx + 1 >= nodes_cnt else node_idx + 1
             elif k == ord("p"):
                 node_idx = 0 if node_idx - 1 < 0 else node_idx - 1
+            elif k == ord("N"):
+                self._nd_index = (
+                    self.node_count() - self._nd_pp
+                    if self._nd_index + self._nd_pp >= self.node_count()
+                    else self._nd_index + self._nd_pp
+                )
+            elif k == ord("P"):
+                self._nd_index = (
+                    0
+                    if self._nd_index - self._nd_pp < 0
+                    else self._nd_index - self._nd_pp
+                )
             elif k == ord("0"):
                 node_idx = 0
             elif k == ord("t"):
@@ -1226,6 +1244,9 @@ class DeviceTOP:
                     command = self._last_cmd
 
             # get info
+
+            if self._nd_pager:
+                _nodes = _nodes[self._nd_index : self._nd_index + self._nd_pp]
             for node in _nodes:
                 data = self._data_buffer[node]
                 _max_hn = self.get_sep("hostname", _HL, data, TM_FMT)
@@ -1438,6 +1459,9 @@ class DeviceTOP:
             elif help_command:
                 self.draw_section(stdscr, ptr, help_command, str(rest_args), width)
             if command:
+                if command == "nd":
+                    self._nd_pp = rest_args
+                    # continue
                 if not command_sent:
                     command_sent = not command_sent
                     if command in ["start", "stop", "debug", "report", "traceback"]:

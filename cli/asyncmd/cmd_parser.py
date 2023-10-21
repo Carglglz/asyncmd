@@ -175,6 +175,19 @@ ERRLOG = dict(
     },
 )
 
+ND = dict(
+    help="devices per page",
+    desc="",
+    subcmd=dict(
+        help="Number of devices to show",
+        default=4,
+        metavar="#devices",
+        type=int,
+        nargs="?",
+    ),
+    options={},
+)
+
 
 QUIT = dict(
     help="exit",
@@ -198,6 +211,7 @@ SHELL_CMD_DICT_PARSER = {
     "e": EDIT,
     "reset": RESET,
     "errlog": ERRLOG,
+    "nd": ND,
     "q": QUIT,
 }
 
