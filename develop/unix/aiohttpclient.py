@@ -1,5 +1,6 @@
 import asyncio
 import json as _json
+import socket
 
 
 class ClientResponse:
@@ -79,7 +80,6 @@ class ClientSession:
 
     async def _request(self, method, url, data=None, json=None, ssl=None):
         redir_cnt = 0
-        redir_url = None
         while redir_cnt < 2:
             reader = yield from self.request_raw(method, url, data, json, ssl)
             headers = []
@@ -137,7 +137,18 @@ class ClientSession:
             host, port = host.split(":", 1)
             port = int(port)
 
-        reader, writer = yield from asyncio.open_connection(host, port, ssl=ssl)
+        ai = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        _host = ai[0][-1]
+        if isinstance(_host, tuple):
+            _host = _host[0]
+        else:
+            _host = socket.inet_ntop(socket.AF_INET, _host[4:])
+        if not isinstance(ssl, dict):
+            ssl = {"ssl": ssl, "server_hostname": host}
+
+        # print(_host, host, port)
+
+        reader, writer = yield from asyncio.open_connection(_host, port, **ssl)
         # Use protocol 1.0, because 1.1 always allows to use chunked transfer-encoding
         # But explicitly set Connection: close, even though this should be default for 1.0,
         # because some servers misbehave w/o it.
@@ -224,7 +235,6 @@ def request_raw(method, url):
 
 def request(method, url):
     redir_cnt = 0
-    redir_url = None
     while redir_cnt < 2:
         reader = yield from request_raw(method, url)
         headers = []
