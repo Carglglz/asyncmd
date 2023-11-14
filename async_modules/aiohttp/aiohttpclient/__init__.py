@@ -1,6 +1,10 @@
 import asyncio
 import json as _json
-import socket
+from .aiohttpclient_ws import (
+    _WSRequestContextManager,
+    ClientWebSocketResponse,
+    WebSocketClient,
+)
 
 
 class ClientResponse:
@@ -13,7 +17,7 @@ class ClientResponse:
     def text(self, sz=-1):
         return self.read(sz=sz)
 
-    def json(self):
+    async def json(self):
         return _json.loads(await self.read())
 
     def __repr__(self):
@@ -80,15 +84,16 @@ class ClientSession:
 
     async def _request(self, method, url, data=None, json=None, ssl=None):
         redir_cnt = 0
+        redir_url = None
         while redir_cnt < 2:
-            reader = yield from self.request_raw(method, url, data, json, ssl)
+            reader = await self.request_raw(method, url, data, json, ssl)
             headers = []
-            sline = yield from reader.readline()
+            sline = await reader.readline()
             sline = sline.split(None, 2)
             status = int(sline[1])
             chunked = False
             while True:
-                line = yield from reader.readline()
+                line = await reader.readline()
                 if not line or line == b"\r\n":
                     break
                 headers.append(line)
@@ -100,7 +105,7 @@ class ClientSession:
 
             if 301 <= status <= 303:
                 redir_cnt += 1
-                yield from reader.aclose()
+                await reader.aclose()
                 continue
             break
 
@@ -137,18 +142,8 @@ class ClientSession:
             host, port = host.split(":", 1)
             port = int(port)
 
-        ai = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        _host = ai[0][-1]
-        if isinstance(_host, tuple):
-            _host = _host[0]
-        else:
-            _host = socket.inet_ntop(socket.AF_INET, _host[4:])
-        if not isinstance(ssl, dict):
-            ssl = {"ssl": ssl, "server_hostname": host}
+        reader, writer = await asyncio.open_connection(host, port, ssl=ssl)
 
-        # print(_host, host, port)
-
-        reader, writer = yield from asyncio.open_connection(_host, port, **ssl)
         # Use protocol 1.0, because 1.1 always allows to use chunked transfer-encoding
         # But explicitly set Connection: close, even though this should be default for 1.0,
         # because some servers misbehave w/o it.
@@ -174,7 +169,7 @@ class ClientSession:
                 )
             )
 
-        yield from writer.awrite(query.encode("latin-1"))
+        await writer.awrite(query.encode("latin-1"))
         #    yield from writer.aclose()
         return reader
 
@@ -194,6 +189,39 @@ class ClientSession:
             self,
             self._request("PUT", self._base_url + url, data=data, json=json, ssl=ssl),
         )
+
+    def patch(self, url, data=None, json=None, ssl=None):
+        return _RequestContextManager(
+            self,
+            self._request("PATCH", self._base_url + url, data=data, json=json, ssl=ssl),
+        )
+
+    def delete(self, url, ssl=None):
+        return _RequestContextManager(
+            self,
+            self._request("DELETE", self._base_url + url, ssl=ssl),
+        )
+
+    def head(self, url, ssl=None):
+        return _RequestContextManager(
+            self,
+            self._request("HEAD", self._base_url + url, ssl=ssl),
+        )
+
+    def options(self, url, ssl=None):
+        return _RequestContextManager(
+            self,
+            self._request("OPTIONS", self._base_url + url, ssl=ssl),
+        )
+
+    def ws_connect(self, url, ssl=None):
+        return _WSRequestContextManager(self, self._ws_connect(url, ssl=ssl))
+
+    async def _ws_connect(self, url, ssl=None):
+        ws_client = WebSocketClient(None)
+        await ws_client.connect(url, ssl=ssl)
+        self._reader = ws_client.reader
+        return ClientWebSocketResponse(ws_client)
 
 
 def request_raw(method, url):
@@ -235,6 +263,7 @@ def request_raw(method, url):
 
 def request(method, url):
     redir_cnt = 0
+    redir_url = None
     while redir_cnt < 2:
         reader = yield from request_raw(method, url)
         headers = []

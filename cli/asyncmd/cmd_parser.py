@@ -233,8 +233,8 @@ Command line:
 
 Keybindings:
 
-    n: next device
-    p: previous device
+    n/p: next/previous device
+    N/P: next/previous page
     0: all devices
     j/k, }/{, space/g , arrow down/up: scroll down/up command output
     arrow left/right, h/l: scroll left/right services info
