@@ -62,7 +62,9 @@ class WebSocketClient:
             if not ssl:
                 ssl = True
 
-        self.reader, self.writer = await asyncio.open_connection(uri.hostname, uri.port, ssl=ssl)
+        self.reader, self.writer = await asyncio.open_connection(
+            uri.hostname, uri.port, ssl=ssl
+        )
         await self.handshake(uri)
 
     @classmethod
@@ -132,18 +134,23 @@ class WebSocketClient:
 
     async def handshake(self, uri):
         # Sec-WebSocket-Key is 16 bytes of random base64 encoded
+        _http_proto = "http" if uri.protocol != "wss" else "https"
         key = binascii.b2a_base64(bytes(random.getrandbits(8) for _ in range(16)))[:-1]
-        self.writer.write(b"GET %s HTTP/1.1" % (uri.path or "/") + b"\r\n")
-        self.writer.write(b"Host: %s:%s" % (uri.hostname, uri.port) + b"\r\n")
-        self.writer.write(b"Connection: Upgrade" + b"\r\n")
-        self.writer.write(b"Upgrade: websocket" + b"\r\n")
-        self.writer.write(b"Sec-WebSocket-Key: %s" % key + b"\r\n")
-        self.writer.write(b"Sec-WebSocket-Version: 13" + b"\r\n")
-        self.writer.write(
-            b"Origin: http://{hostname}:{port}".format(hostname=uri.hostname, port=uri.port)
-            + b"\r\n"
+        handshake_headers = (
+            b"GET %s HTTP/1.1" % (uri.path or "/") + b"\r\n",
+            b"Host: %s:%s" % (uri.hostname, uri.port) + b"\r\n",
+            b"Connection: Upgrade\r\n",
+            b"Upgrade: websocket\r\n",
+            b"Sec-WebSocket-Key: %s" % key + b"\r\n",
+            b"Sec-WebSocket-Version: 13" + b"\r\n",
+            b"Origin: {httpproto}://{hostname}:{port}".format(
+                httpproto=_http_proto, hostname=uri.hostname, port=uri.port
+            )
+            + b"\r\n",
         )
-        self.writer.write(b"" + b"\r\n")
+        for header in handshake_headers:
+            self.writer.write(header)
+        self.writer.write(b"\r\n")
         await self.writer.drain()
 
         header = await self.reader.readline()

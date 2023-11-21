@@ -18,6 +18,17 @@ class Service:
     def __repr__(self):
         return f"Service: {self.name}.service from {self.path}"
 
+    def add_ctask(self, aioctl, ctask, cname, **kwargs):
+        if f"{self.name}.service.{cname}" in aioctl.group().tasks:
+            aioctl.delete(f"{self.name}.service.{cname}")
+        aioctl.add(
+            ctask,
+            self,
+            name=f"{self.name}.service.{cname}",
+            _id=f"{self.name}.service.{cname}",
+            **kwargs,
+        )
+
 
 class PQueue:
     def __init__(self):
