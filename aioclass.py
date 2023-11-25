@@ -18,12 +18,13 @@ class Service:
     def __repr__(self):
         return f"Service: {self.name}.service from {self.path}"
 
-    def add_ctask(self, aioctl, ctask, cname, **kwargs):
+    def add_ctask(self, aioctl, ctask, cname, *args, **kwargs):
         if f"{self.name}.service.{cname}" in aioctl.group().tasks:
             aioctl.delete(f"{self.name}.service.{cname}")
         aioctl.add(
             ctask,
             self,
+            *args,
             name=f"{self.name}.service.{cname}",
             _id=f"{self.name}.service.{cname}",
             **kwargs,

@@ -111,18 +111,16 @@ class WatcherService(Service):
         await asyncio.sleep(10)
         excl = []
         if watchdog:
-            if f"{self.name}.service.wdt" not in aioctl.group().tasks:
-                aioctl.add(
-                    self.wdt,
-                    self,
-                    wdfeed,
-                    name=f"{self.name}.service.wdt",
-                    _id=f"{self.name}.service.wdt",
-                    on_error=self.on_error,
-                    debug=debug,
-                )
-                if self.log:
-                    self.log.info(f"[{self.name}.service] WDT task enabled")
+            self.add_ctask(
+                aioctl,
+                self.wdt,
+                "wdt",
+                wdfeed,
+                on_error=self.on_error,
+                debug=debug,
+            )
+            if self.log:
+                self.log.info(f"[{self.name}.service] WDT task enabled")
 
         while True:
             for name, res in aioctl.result_all(as_dict=True).items():

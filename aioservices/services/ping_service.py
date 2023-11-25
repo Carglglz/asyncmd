@@ -52,14 +52,11 @@ class PingService(Service):
 
         for node in nodes:
             nodename = node.replace(".local", "")
-            if f"{self.name}.service.{nodename}" in aioctl.group().tasks:
-                aioctl.delete(f"{self.name}.service.{nodename}")
-            aioctl.add(
+            self.add_ctask(
+                aioctl,
                 self.cping,
-                self,
+                nodename,
                 host=node,
-                name=f"{self.name}.service.{nodename}",
-                _id=f"{self.name}.service.{nodename}",
                 on_stop=self.on_stop,
                 on_error=self.on_error,
                 log=log,
@@ -84,7 +81,6 @@ class PingService(Service):
 
     @aioctl.aiotask
     async def cping(self, host="localhost", sleep=60, rx_size=84, log=None):
-        self.log = log
         await asyncio.sleep(10)
         self._ping_stats_nodes[host] = {}
         while True:

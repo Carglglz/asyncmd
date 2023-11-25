@@ -261,13 +261,10 @@ class MQTTService(Service):
         self.n_pub += 3
         # Add subtask
 
-        if f"{self.name}.service.sense" in aioctl.group().tasks:
-            aioctl.delete(f"{self.name}.service.sense")
-        aioctl.add(
+        self.add_ctask(
+            aioctl,
             self.sense,
-            self,
-            name=f"{self.name}.service.sense",
-            _id=f"{self.name}.service.sense",
+            "sense",
             on_stop=self.on_stop,
             on_error=self.on_error,
             restart=restart,

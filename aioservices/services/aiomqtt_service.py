@@ -462,15 +462,8 @@ class MQTTService(Service):
         self.client_ready.clear()
         if self.log:
             self.log.info(f"[{self.name}.service] stopped")
-        if f"{self.name}.service.disconnect" in aioctl.group().tasks:
-            aioctl.delete(f"{self.name}.service.disconnect")
-        aioctl.add(
-            self.disconnect,
-            self,
-            name=f"{self.name}.service.disconnect",
-            _id=f"{self.name}.service.disconnect",
-        )
 
+        self.add_ctask(aioctl, self.disconnect, "disconnect")
         return
 
     def on_error(self, e, *args, **kwargs):
@@ -670,44 +663,31 @@ class MQTTService(Service):
 
         # Add PING subtask
 
-        if f"{self.name}.service.ping" in aioctl.group().tasks:
-            aioctl.delete(f"{self.name}.service.ping")
-        aioctl.add(
+        self.add_ctask(
+            aioctl,
             self.ping,
-            self,
-            name=f"{self.name}.service.ping",
-            _id=f"{self.name}.service.ping",
+            "ping",
             on_stop=self.on_stop,
             on_error=self.on_error,
             restart=restart,
         )
+
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT ping task enabled")
 
         # Add clean subtask
+        self.add_ctask(aioctl, self.clean, "clean", on_error=self.on_error)
 
-        if f"{self.name}.service.clean" in aioctl.group().tasks:
-            aioctl.delete(f"{self.name}.service.clean")
-        aioctl.add(
-            self.clean,
-            self,
-            name=f"{self.name}.service.clean",
-            _id=f"{self.name}.service.clean",
-            on_error=self.on_error,
-        )
         if self.log:
             self.log.info(f"[{self.name}.service] MQTT clean task enabled")
 
         # Add stats pub
         if stats:
-            if f"{self.name}.service.stats" in aioctl.group().tasks:
-                aioctl.delete(f"{self.name}.service.stats")
-            aioctl.add(
+            self.add_ctask(
+                aioctl,
                 self.stats_pub,
-                self,
+                "stats",
                 services=services,
-                name=f"{self.name}.service.stats",
-                _id=f"{self.name}.service.stats",
                 on_error=self.on_error,
                 restart=restart,
             )
