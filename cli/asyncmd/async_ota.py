@@ -281,7 +281,7 @@ class AOTAServer:
                 except Exception as e:
                     self.log.error(e)
                 if ota_ok:
-                    self.log.info("OTA Firmware Updated Succesfully!")
+                    self.log.info("OTA Firmware Updated Successfully!")
                     await self.client.publish(f"device/{devname}/cmd", payload="reset")
                     self._sucess_updates += 1
                 else:
