@@ -27,6 +27,8 @@ class JSONAPIService(Service):
             "debug": True,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.n_msg = 0
         self.url_pat = re.compile(
@@ -102,14 +104,14 @@ class JSONAPIService(Service):
         # self.app awaits self.app.server.wait_closed which
         # consumes Cancelled error so this does not run
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
             # aioctl.add(self.app.shutdown)
 
         return
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     async def send_stats(self, writer, debug=False):
@@ -122,7 +124,7 @@ class JSONAPIService(Service):
         self._stat_buff.seek(0)
         writer.write(b"HTTP/1.1 200 OK\r\n")
         if self.log:
-            self.log.info(f"[{self.name}.service] HTTP/1.1 200 OK")
+            self.log.info("HTTP/1.1 200 OK")
         writer.write(b"Content-Type: application/json\r\n")
         writer.write(f"Content-Length: {len_b}\r\n".encode("utf-8"))
         writer.write(b"\r\n")
@@ -137,15 +139,15 @@ class JSONAPIService(Service):
         try:
             req = await reader.readline()
             if self.log:
-                self.log.info(f"[{self.name}.service] {req.decode().strip()}")
+                self.log.info(f"{req.decode().strip()}")
             try:
                 method, uri, proto = req.split(b" ")
                 m = re.match(self.url_pat, uri)
                 route_req = m.group(5)
             except Exception as e:
                 if self.log:
-                    self.log.warning(f"[{self.name}.service] Malformed request: {req}")
-                    self.log.error(f"[{self.name}.service] {e}")
+                    self.log.warning(f"Malformed request: {req}")
+                    self.log.error(f"{e}")
                 writer.close()
                 await writer.wait_closed()
                 return
@@ -155,12 +157,10 @@ class JSONAPIService(Service):
                 if h == b"" or h == b"\r\n":
                     break
                 if self.log:
-                    self.log.debug(f"[{self.name}.service] {h}")
+                    self.log.debug(f"{h}")
 
             if self.log:
-                self.log.debug(
-                    f"[{self.name}.service] route: {route_req.decode('utf-8')}"
-                )
+                self.log.debug(f"route: {route_req.decode('utf-8')}")
 
             await self.send_stats(writer, debug=route_req.decode("utf-8"))
             self.n_msg += 1
@@ -178,8 +178,10 @@ class JSONAPIService(Service):
         ssl_params={},
         debug=True,
         log=None,
+        loglevel="INFO",
+        service_logger=False,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.server = await asyncio.start_server(
             self.handle_connection, host, port, ssl=ssl
         )

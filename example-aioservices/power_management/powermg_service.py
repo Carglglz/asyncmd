@@ -38,6 +38,8 @@ class PowerMgService(Service):
             "batt_pin": 35,
             "deepsleep": 30000,
             "threshold": 40,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.log = None
         self.battery = None
@@ -75,31 +77,37 @@ class PowerMgService(Service):
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     @aioctl.aiotask
-    async def task(self, batt_pin=35, deepsleep=True, threshold=40, log=None):
-        self.log = log
+    async def task(
+        self,
+        batt_pin=35,
+        deepsleep=True,
+        threshold=40,
+        log=None,
+        loglevel="INFO",
+        service_logger=False,
+    ):
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         await self.setup(batt_pin)
         await asyncio.sleep(5)
         while True:
             self.battery.status()
             if self.battery.db[1] <= threshold:
-                self.log.warning(
-                    f"[{self.name}.service] Battery @ {self.battery.db[1]} %"
-                )
+                self.log.warning(f"Battery @ {self.battery.db[1]} %")
                 if deepsleep is not False:
                     if self.log:
-                        self.log.info(f"[{self.name}.service] Deep sleep now...")
+                        self.log.info("Deep sleep now...")
                         await asyncio.sleep(2)
                         machine.deepsleep(deepsleep)
             else:
-                self.log.info(f"[{self.name}.service] Battery @ {self.battery.db[1]} %")
+                self.log.info(f"Battery @ {self.battery.db[1]} %")
             await asyncio.sleep(60)
 
 

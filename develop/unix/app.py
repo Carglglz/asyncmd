@@ -23,7 +23,7 @@ async def _main(logger, repl=False):
 def run(log_stream, repl=False):
     # Logger
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         stream=log_stream,
@@ -33,7 +33,7 @@ def run(log_stream, repl=False):
     formatter = logging.Formatter("%(asctime)s [%(name)s] [%(levelname)s] %(message)s")
     # Stream
     stream_handler = logging.StreamHandler(stream=log_stream)
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(formatter)
     log.addHandler(stream_handler)
 

@@ -22,6 +22,8 @@ class MIPService(Service):
             "restart": True,
             "packages": [],
             "config": "packages.config",
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.schedule = {"start_in": 20, "repeat": 90}
         self.log = None
@@ -100,11 +102,8 @@ class MIPService(Service):
                     return json.load(pkc)
             except Exception as e:
                 if self.log:
-                    self.log.error(f"[{self.name}.service] {e}")
-                    self.log.error(
-                        f"[{self.name}.service] error fetching "
-                        + f"{self.packages_config}"
-                    )
+                    self.log.error(f"{e}")
+                    self.log.error("error fetching " + f"{self.packages_config}")
 
     def save_config(self, conf):
         try:
@@ -119,12 +118,12 @@ class MIPService(Service):
         async_mip._DEBUG = _debug
         for pk, info in self.packages.items():
             if self.log:
-                self.log.info(f"[{self.name}.service] Fetching package {pk}...")
+                self.log.info(f"Fetching package {pk}...")
             pack = await async_mip.fetch(info["url"])
 
             if self.log:
                 self.log.info(
-                    f"[{self.name}.service] Package {pk} fetched"
+                    f"Package {pk} fetched"
                     + f" version: {pack['version']}, current version"
                     + f": {info['version']}"
                 )
@@ -138,19 +137,19 @@ class MIPService(Service):
 
                 if self.log:
                     self.log.info(
-                        f"[{self.name}.service] Package {pk} can be updated to"
+                        f"Package {pk} can be updated to"
                         + f" version: {pack['version']}"
                     )
             else:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Package {pk} up to date")
+                    self.log.info(f"Package {pk} up to date")
 
     async def update(self, _debug=False):
         async_mip._DEBUG = _debug
         reset = False
         for pk, info in self.packages_to_update.items():
             if self.log:
-                self.log.info(f"[{self.name}.service] Installing Package {pk}")
+                self.log.info(f"Installing Package {pk}")
             _target = None
             is_service = info.get("service")
             if is_service:
@@ -162,7 +161,7 @@ class MIPService(Service):
                 # save to packages.config
 
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Package {pk} installed")
+                    self.log.info(f"Package {pk} installed")
                 reset = True
 
         # update
@@ -179,7 +178,7 @@ class MIPService(Service):
     async def reset(self, *args, **kwargs):
         await asyncio.sleep(10)
         if self.log:
-            self.log.info(f"[{self.name}.service] Rebooting now...")
+            self.log.info("Rebooting now...")
 
         await asyncio.sleep(2)
         machine.reset()
@@ -192,8 +191,10 @@ class MIPService(Service):
         packages=[],
         config="pacakges.config",
         log=None,
+        loglevel="INFO",
+        service_logger=False,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.packages_config = config
         if not packages and not self.packages:
             # decide if fetch every time or only first time
@@ -206,23 +207,18 @@ class MIPService(Service):
 
         await asyncio.sleep(5)
         if self.log:
-            self.log.info(f"[{self.name}.service] Fetching packages..")
+            self.log.info("Fetching packages..")
         await self.check_packages()
 
         if self.packages_to_update:
             if autoupdate:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Updating packages..")
+                    self.log.info("Updating packages..")
                 do_reboot = await self.update()
                 if do_reboot and restart:
                     if self.log:
-                        self.log.info(f"[{self.name}.service] Reboot scheduled")
-                    aioctl.add(
-                        self.reset,
-                        self,
-                        name=f"{self.name}.service.reset",
-                        _id=f"{self.name}.service.reset",
-                    )
+                        self.log.info("Reboot scheduled")
+                    self.add_ctask(aioctl, self.reset, "reset")
                     return "New packages installed, reboot scheduled"
                 return "New packages installed, available at next boot"
             else:
@@ -232,7 +228,7 @@ class MIPService(Service):
 
         else:
             if self.log:
-                self.log.info(f"[{self.name}.service] Packages up to date")
+                self.log.info("Packages up to date")
             return "Packages up to date"
 
 

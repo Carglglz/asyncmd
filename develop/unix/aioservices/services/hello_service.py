@@ -13,7 +13,12 @@ class HelloService(Service):
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
         self.args = [2, 5]
-        self.kwargs = {"on_stop": self.on_stop, "on_error": self.on_error}
+        self.kwargs = {
+            "on_stop": self.on_stop,
+            "on_error": self.on_error,
+            "service_logger": False,
+            "loglevel": "INFO",
+        }
         self.n_led = 1
         self.log = None
         self.loop_diff = 0
@@ -31,17 +36,17 @@ class HelloService(Service):
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         res = random.random()
         if self.log:
-            self.log.info(f"[hello.service] stopped result: {res}")
+            self.log.info(f"stopped result: {res}")
         return res
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[hello.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     @aioctl.aiotask
-    async def task(self, n, s, log=None):
-        self.log = log
+    async def task(self, n, s, log=None, service_logger=False, loglevel="INFO"):
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         count = 12
         self.n_led = n
         while True:
@@ -50,7 +55,11 @@ class HelloService(Service):
             asyncio.sleep_ms(200)
             # pyb.LED(self.n_led).toggle()
             if log:
-                log.info(f"[hello.service] LED {self.n_led} toggled!")
+                self.log.debug("LED DEBUG TEST")
+                asyncio.sleep_ms(200)
+                self.log.info(f"LED {self.n_led} toggled!")
+                # asyncio.sleep_ms(200)
+                # self.log.warning("LED WARNING TEST!")
 
             if self.n_led > 3:
                 count -= self.n_led

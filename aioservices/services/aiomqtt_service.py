@@ -50,6 +50,8 @@ class MQTTService(Service):
             "topics": [],
             "ota_check": True,
             "fwfile": None,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
 
         self.sslctx = False
@@ -128,7 +130,7 @@ class MQTTService(Service):
                 )
             self.n_pub += 1
             if self.log:
-                self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
+                self.log.info(f"@ [{action.upper()}]: {service}")
 
         elif action == "start":
             for _task in aioctl.tasks_match(service):
@@ -144,9 +146,7 @@ class MQTTService(Service):
 
                     self.n_pub += 1
                     if self.log:
-                        self.log.info(
-                            f"[{self.name}.service] @ [{action.upper()}]: {service}"
-                        )
+                        self.log.info(f"@ [{action.upper()}]: {service}")
 
         elif action == "stop":
             for _task in aioctl.tasks_match(service):
@@ -163,9 +163,7 @@ class MQTTService(Service):
 
                     self.n_pub += 1
                     if self.log:
-                        self.log.info(
-                            f"[{self.name}.service] @ [{action.upper()}]: {service}"
-                        )
+                        self.log.info(f"@ [{action.upper()}]: {service}")
         elif action == "traceback":
             self._stat_buff.seek(0)
             self._tb_buff.seek(0)
@@ -185,7 +183,7 @@ class MQTTService(Service):
                 )
             self.n_pub += 1
             if self.log:
-                self.log.info(f"[{self.name}.service] @ [{action.upper()}]: {service}")
+                self.log.info(f"@ [{action.upper()}]: {service}")
 
         elif action == "report":
             try:
@@ -200,7 +198,7 @@ class MQTTService(Service):
                     )
             except Exception as e:
                 if self.log:
-                    self.log.error(f"[{self.name}.service] @ [{action.upper()}]:{e}")
+                    self.log.error(f"@ [{action.upper()}]:{e}")
 
         elif action == "log":
             async with self.lock:
@@ -235,9 +233,7 @@ class MQTTService(Service):
 
                         self.n_pub += 1
                         if self.log:
-                            self.log.info(
-                                f"[{self.name}.service] @ [CONFIG]:{_act} {_serv}"
-                            )
+                            self.log.info(f"@ [CONFIG]:{_act} {_serv}")
                     elif _act in ["set", "enable", "disable"]:
                         if _act == "enable":
                             if isinstance(_serv, list):
@@ -258,14 +254,10 @@ class MQTTService(Service):
                                 )
 
                         if self.log:
-                            self.log.info(
-                                f"[{self.name}.service] @ [CONFIG]:{_act} {_serv}"
-                            )
+                            self.log.info(f"@ [CONFIG]:{_act} {_serv}")
             except Exception as e:
                 if self.log:
-                    self.log.error(
-                        f"[{self.name}.service] @ [CONFIG]:{_act} {_serv} {e}"
-                    )
+                    self.log.error(f"@ [CONFIG]:{_act} {_serv} {e}")
 
         elif action == "ota":
             msg = service
@@ -301,15 +293,13 @@ class MQTTService(Service):
                     if self._fwfile:
                         if self._fwfile != _ota_params["fwfile"]:
                             if self.log:
-                                self.log.info(
-                                    f"[{self.name}.service] No new OTA update"
-                                )
+                                self.log.info("No new OTA update")
                             return
                     else:
                         self._fwfile = _ota_params["fwfile"]
                 if _ota_service._comp_sha_ota(_ota_params["sha"]):
                     if self.log:
-                        self.log.info(f"[{self.name}.service] No new OTA update")
+                        self.log.info("No new OTA update")
                     return
 
                 _ota_service.start_ota(
@@ -329,7 +319,7 @@ class MQTTService(Service):
                     )
             else:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] No OTA service found")
+                    self.log.info("No OTA service found")
         elif action == "help" or "?" in action:
             if action == "help":
                 _resp = service.get(action)
@@ -365,9 +355,7 @@ class MQTTService(Service):
                             _resp = service[action]["cmd"]()
                     if "log" in service[action]:
                         if self.log:
-                            self.log.info(
-                                f"[{self.name}.service] [CMD]: {service[action]['log']}"
-                            )
+                            self.log.info(f"[CMD]: {service[action]['log']}")
 
                     if "resp" in service[action]:
                         async with self.lock:
@@ -403,9 +391,7 @@ class MQTTService(Service):
                             _resp = service[action]["cmd"]()
                     if "log" in service[action]:
                         if self.log:
-                            self.log.info(
-                                f"[{self.name}.service] [CMD]: {service[action]['log']}"
-                            )
+                            self.log.info(f"[CMD]: {service[action]['log']}")
 
                     if "resp" in service[action]:
                         async with self.lock:
@@ -461,7 +447,7 @@ class MQTTService(Service):
         # consumes Cancelled error so this does not run
         self.client_ready.clear()
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
 
         self.add_ctask(aioctl, self.disconnect, "disconnect")
         return
@@ -469,16 +455,14 @@ class MQTTService(Service):
     def on_error(self, e, *args, **kwargs):
         self.client_ready.clear()
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     def on_receive(self, topic, msg):
         try:
             self.n_msg += 1
             if self.log:
-                self.log.info(
-                    f"[{self.name}.service] @ [{topic.decode()}]:" + f" {msg.decode()}"
-                )
+                self.log.info(f"@ [{topic.decode()}]:" + f" {msg.decode()}")
             if topic == self._SERVICE_TOPIC or topic.endswith(b"/service"):
                 act = json.loads(msg.decode())
                 for action, serv in act.items():
@@ -554,16 +538,11 @@ class MQTTService(Service):
                             )
                         else:
                             if self.log:
-                                self.log.error(
-                                    f"[{self.name}.service] "
-                                    + f"Command {_cmd_name} not found"
-                                )
+                                self.log.error("" + f"Command {_cmd_name} not found")
 
                     except Exception as e:
                         if self.log:
-                            self.log.error(
-                                f"[{self.name}.service] Command lib not found: {e}"
-                            )
+                            self.log.error(f"Command lib not found: {e}")
                 elif topic.decode().endswith("ota"):
                     _name = self._suid(aioctl, f"{self.name}.service.do_action.ota")
                     aioctl.add(self.do_action, self, "ota", msg, name=_name, _id=_name)
@@ -576,7 +555,7 @@ class MQTTService(Service):
 
         except Exception as e:
             if self.log:
-                self.log.error(f"[{self.name}.service] Receive callback: {e}")
+                self.log.error(f"Receive callback: {e}")
 
     @aioctl.aiotask
     async def task(
@@ -597,8 +576,10 @@ class MQTTService(Service):
         ota_check=True,
         fwfile=None,
         log=None,
+        loglevel="INFO",
+        service_logger=False,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
 
         self.client_ready.clear()
         for top in topics:
@@ -642,7 +623,7 @@ class MQTTService(Service):
         self.td = time.ticks_diff(time.ticks_ms(), t0) / 1e3
 
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT client connected")
+            self.log.info("MQTT client connected")
 
         # Subscribe to service topic
         async with self.lock:
@@ -657,9 +638,7 @@ class MQTTService(Service):
                     tp = tp.encode("utf-8")
                 await self.client.subscribe(tp)
         if self.log:
-            self.log.info(
-                f"[{self.name}.service] MQTT Client Services and Tasks enabled!"
-            )
+            self.log.info("MQTT Client Services and Tasks enabled!")
 
         # Add PING subtask
 
@@ -673,13 +652,13 @@ class MQTTService(Service):
         )
 
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT ping task enabled")
+            self.log.info("MQTT ping task enabled")
 
         # Add clean subtask
         self.add_ctask(aioctl, self.clean, "clean", on_error=self.on_error)
 
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT clean task enabled")
+            self.log.info("MQTT clean task enabled")
 
         # Add stats pub
         if stats:
@@ -692,11 +671,11 @@ class MQTTService(Service):
                 restart=restart,
             )
             if self.log:
-                self.log.info(f"[{self.name}.service] MQTT stats task enabled")
+                self.log.info("MQTT stats task enabled")
 
         if ota_check:
             if self.log:
-                self.log.info(f"[{self.name}.service] MQTT checking OTA update..")
+                self.log.info("MQTT checking OTA update..")
             _name = self._suid(aioctl, f"{self.name}.service.do_action.ota_check")
             aioctl.add(self.do_action, self, "ota", b"check", name=_name, _id=_name)
 
@@ -716,10 +695,10 @@ class MQTTService(Service):
                 await asyncio.sleep_ms(500)
 
                 if self.log and debug:
-                    self.log.info(f"[{self.name}.service] MQTT waiting...")
+                    self.log.info("MQTT waiting...")
             except asyncio.TimeoutError as e:
                 if self.log:
-                    self.log.error(f"[{self.name}.service] Error: Client Timeout {e}")
+                    self.log.error(f"Error: Client Timeout {e}")
                 aioctl.stop(f"{self.name}.service.*")
                 self.client_ready.clear()
                 await asyncio.sleep(1)
@@ -736,6 +715,7 @@ class MQTTService(Service):
                         await self.client.ping()
                         # await self.client.wait_msg()
                         self.n_pub += 1
+                        # self.log.debug("PING")
             await asyncio.sleep(5)
 
     @aioctl.aiotask
@@ -753,10 +733,10 @@ class MQTTService(Service):
                     )
                 self.n_pub += 1
                 if self.log:
-                    self.log.info(f"[{self.name}.service] @ [STATUS]: {service}")
+                    self.log.info(f"@ [STATUS]: {service}")
             except Exception as e:
                 if self.log:
-                    self.log.error(f"[{self.name}.service.stats] ERROR {e}")
+                    self.log.error(f"ERROR {e}", cname="stats")
             await asyncio.sleep(10)
 
     @aioctl.aiotask
@@ -770,7 +750,7 @@ class MQTTService(Service):
                         aioctl.group().tasks[_ctask].service._child_tasks.remove(_ctask)
                     aioctl.delete(_ctask)
                     if self.log:
-                        self.log.info(f"[{self.name}.service] {_ctask} cleaned")
+                        self.log.info(f"{_ctask} cleaned")
                     gc.collect()
 
             await asyncio.sleep(5)
@@ -789,15 +769,15 @@ class MQTTService(Service):
     async def reset(self, *args, **kwargs):
         _res = 5
         if self.log and kwargs.get("debug"):
-            self.log.info(f"[{self.name}.service] Rebooting in {_res} s")
+            self.log.info(f"Rebooting in {_res} s")
         await asyncio.sleep(_res)
         for service in aioctl.tasks_match("*.service*"):
             if service != f"{self.name}.service.reset":
-                self.log.info(f"[{self.name}.service] Stopping {service}")
+                self.log.info(f"Stopping {service}")
                 aioctl.stop(service)
 
         if self.log and kwargs.get("debug"):
-            self.log.info(f"[{self.name}.service] Rebooting now")
+            self.log.info("Rebooting now")
 
         await asyncio.sleep(1)
         machine.reset()

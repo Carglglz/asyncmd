@@ -62,6 +62,8 @@ class MQTTService(Service):
             "restart": ["aiomqtt_sensor_bme280.service"],
             "topics": [f"device/{NAME}/state", "device/all/state"],
             "i2c": (22, 21),
+            "loglevel": "INFO",
+            "service_logger": True,
         }
 
         self.sslctx = False
@@ -136,7 +138,7 @@ class MQTTService(Service):
         # consumes Cancelled error so this does not run
         self.client = None
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
             # aioctl.add(self.app.shutdown)
         # if f"{self.name}.service.disconnect" in aioctl.group().tasks:
         #     aioctl.delete(f"{self.name}.service.disconnect")
@@ -152,19 +154,17 @@ class MQTTService(Service):
     def on_error(self, e, *args, **kwargs):
         self.client = None
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     def on_receive(self, topic, msg):
         try:
             self.n_msg += 1
             if self.log:
-                self.log.info(
-                    f"[{self.name}.service] @ [{topic.decode()}]:" + f" {msg.decode()}"
-                )
+                self.log.info(f"@ [{topic.decode()}]:" + f" {msg.decode()}")
         except Exception as e:
             if self.log:
-                self.log.error(f"[{self.name}.service] {e}")
+                self.log.error(f"{e}")
 
     @aioctl.aiotask
     async def task(
@@ -182,8 +182,10 @@ class MQTTService(Service):
         topics=[],
         i2c=(22, 21),
         log=None,
+        loglevel="INFO",
+        service_logger=True,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
         self.setup()
         if not main:
@@ -243,7 +245,7 @@ class MQTTService(Service):
                     await self.client.subscribe(tp)
 
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT client connected")
+            self.log.info("MQTT client connected")
         # Discovery
         async with self.lock:
             await self.client.publish(
@@ -256,7 +258,7 @@ class MQTTService(Service):
             # PRESSURE
             await self.client.publish(self._cfg_pr["topic"], self._cfg_pr["payload"])
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT Client Discovery done!")
+            self.log.info("MQTT Client Discovery done!")
 
         self.n_pub += 3
         # Add subtask
@@ -270,7 +272,7 @@ class MQTTService(Service):
             restart=restart,
         )
         if self.log:
-            self.log.info(f"[{self.name}.service] MQTT publish task enabled")
+            self.log.info("MQTT publish task enabled")
 
         # Wait for messages
         if not main:
@@ -283,7 +285,7 @@ class MQTTService(Service):
                 await asyncio.sleep(5)
 
                 if self.log and debug:
-                    self.log.info(f"[{self.name}.service] MQTT sensor OK")
+                    self.log.info("MQTT sensor OK")
 
     @aioctl.aiotask
     async def sense_cb(self, topic, msg):
@@ -291,7 +293,7 @@ class MQTTService(Service):
         temp, press, hum = self.sensor.read_compensated_data()
 
         if self.log:
-            self.log.info(f"[{self.name}.service.sense_cb] {temp} C {press} Pa {hum} %")
+            self.log.info(f"{temp} C {press} Pa {hum} %", cname="sense_cb")
         async with self.lock:
             await self.client.publish(
                 topic.replace(b"state", b"sense"),
@@ -315,9 +317,7 @@ class MQTTService(Service):
             self._hum = hum
 
             if self.log:
-                self.log.info(
-                    f"[{self.name}.service.sense] {temp} C {press} Pa {hum} %"
-                )
+                self.log.info(f"{temp} C {press} Pa {hum} %", cname="sense")
 
             # await self.aiomqtt_service.client_ready.wait()
             async with self.lock:

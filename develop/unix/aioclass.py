@@ -12,6 +12,7 @@ class Service:
         self.enabled = False  # preset
         self.loaded = loaded
         self._child_tasks = set()
+        self.log = None
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
@@ -29,6 +30,25 @@ class Service:
             _id=f"{self.name}.service.{cname}",
             **kwargs,
         )
+
+    def add_logger(self, logger, level="INFO", service_logger=None):
+        if not self.log:
+            if service_logger:
+                try:
+                    if service_logger is True:
+                        from service_logger import ServiceLogger
+                    else:
+                        ServiceLogger = __import__(
+                            f"{service_logger}", [], [], ["ServiceLogger"]
+                        )
+
+                    self.log = ServiceLogger(logger, self.name, level=level)
+                except Exception:
+                    logger.error(f"[{self.name}] Service logger not available")
+                    logger.info(f"[{self.name}] Using default logger")
+                    self.log = logger
+            else:
+                self.log = logger
 
 
 class PQueue:

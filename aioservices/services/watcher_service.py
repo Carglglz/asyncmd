@@ -26,6 +26,8 @@ class WatcherService(Service):
             "debug": False,
             "save_report": False,
             "err_service_limit": False,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.err_count = 0
         self.err_report = {}
@@ -64,12 +66,12 @@ class WatcherService(Service):
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
-            self.log.info(f"[watcher.service] stopped result: {self.err_count}")
+            self.log.info(f"stopped result: {self.err_count}")
         return self.err_report
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[watcher.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     def update_report(self, name, res):
@@ -105,8 +107,10 @@ class WatcherService(Service):
         save_report=False,
         err_service_limit=False,
         log=None,
+        loglevel="INFO",
+        service_logger=True,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self._save_report = save_report
         await asyncio.sleep(10)
         excl = []
@@ -120,7 +124,7 @@ class WatcherService(Service):
                 debug=debug,
             )
             if self.log:
-                self.log.info(f"[{self.name}.service] WDT task enabled")
+                self.log.info("WDT task enabled")
 
         while True:
             for name, res in aioctl.result_all(as_dict=True).items():
@@ -129,13 +133,13 @@ class WatcherService(Service):
                     self.update_report(name, res)
                     if log:
                         _err = f"Error @ Task {name} {res.__class__.__name__}: {res}"
-                        self.log.info(f"[{self.name}.service] {_err}")
+                        self.log.info(f"{_err}")
                     if aioctl.group().tasks[name].kwargs.get("restart", True):
                         pass
                     else:
                         continue
                     if log:
-                        self.log.info(f"[{self.name}.service] Restarting Task: {name}")
+                        self.log.info(f"Restarting Task: {name}")
                     res = aioctl.group().tasks[name].kwargs.get("restart", True)
                     if isinstance(res, (list, set)):
                         for _name in res:
@@ -144,8 +148,7 @@ class WatcherService(Service):
                                     aioctl.stop(f"{_name}.*")
                                     if self.log:
                                         self.log.info(
-                                            f"[{self.name}.service] Restarting Service:"
-                                            + f" {_name}"
+                                            "Restarting Service:" + f" {_name}"
                                         )
                                     await asyncio.sleep_ms(500)
                                     aioctl.start(_name)
@@ -162,7 +165,7 @@ class WatcherService(Service):
             excl = []
             if self._save_report and self._report_updated:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] saving report..")
+                    self.log.info("saving report..")
 
                 done_at = aioctl.get_datetime(time.localtime())
 
@@ -174,8 +177,8 @@ class WatcherService(Service):
             await asyncio.sleep(sleep)
             if self.err_count > max_errors and max_errors > 0:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Error limit reached")
-                    self.log.info(f"[{self.name}.service] Rebooting now...")
+                    self.log.info("Error limit reached")
+                    self.log.info("Rebooting now...")
                     await asyncio.sleep(5)
                 machine.reset()
 
@@ -183,10 +186,8 @@ class WatcherService(Service):
                 for sname, err_limit in err_service_limit.items():
                     if err_limit <= self.err_count_by_service(sname):
                         if self.log:
-                            self.log.info(
-                                f"[{self.name}.service] Error limit @ {sname} reached"
-                            )
-                            self.log.info(f"[{self.name}.service] Rebooting now...")
+                            self.log.info(f"Error limit @ {sname} reached")
+                            self.log.info("Rebooting now...")
                             await asyncio.sleep(5)
                         machine.reset()
 
@@ -198,7 +199,7 @@ class WatcherService(Service):
             self._wdt.feed()
             await asyncio.sleep_ms(_asleep)
             if self.log and debug:
-                self.log.info("[watcher.service.wdt] feeding WDT")
+                self.log.debug("feeding WDT", cname="wdt")
 
 
 service = WatcherService("watcher")

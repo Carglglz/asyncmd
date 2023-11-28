@@ -29,6 +29,8 @@ class PowerMgService(Service):
             "batt_pin": 35,
             "deepsleep": 30000,
             "threshold": 40,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.log = None
         self._batt = None
@@ -53,29 +55,37 @@ class PowerMgService(Service):
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     @aioctl.aiotask
-    async def task(self, batt_pin=35, deepsleep=True, threshold=40, log=None):
-        self.log = log
+    async def task(
+        self,
+        batt_pin=35,
+        deepsleep=True,
+        threshold=40,
+        log=None,
+        loglevel="INFO",
+        service_logger=False,
+    ):
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.setup(batt_pin)
         await asyncio.sleep(5)
         while True:
             self._volt, self._batt = self.battery.status()
             if self._batt <= threshold:
-                self.log.warning(f"[{self.name}.service] Battery @ {self._batt} %")
+                self.log.warning(f"Battery @ {self._batt} %")
                 if deepsleep is not False:
                     if self.log:
-                        self.log.info(f"[{self.name}.service] Deep sleep now...")
+                        self.log.info("Deep sleep now...")
                         await asyncio.sleep(2)
                         machine.deepsleep(deepsleep)
             else:
-                self.log.info(f"[{self.name}.service] Battery @ {self._batt} %")
+                self.log.info(f"Battery @ {self._batt} %")
             await asyncio.sleep(60)
 
 

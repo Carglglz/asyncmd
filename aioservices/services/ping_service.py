@@ -19,6 +19,8 @@ class PingService(Service):
             "rx_size": 84,
             "on_stop": self.on_stop,
             "on_error": self.on_error,
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         self.log = None
         self._ping_stats = {}
@@ -36,16 +38,25 @@ class PingService(Service):
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
-            self.log.info(f"[ping.service] stopped result: {self._ping_stats}")
+            self.log.info(f"stopped result: {self._ping_stats}")
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[ping.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     @aioctl.aiotask
-    async def task(self, host="localhost", nodes=[], sleep=60, rx_size=84, log=None):
-        self.log = log
+    async def task(
+        self,
+        host="localhost",
+        nodes=[],
+        sleep=60,
+        rx_size=84,
+        log=None,
+        loglevel="INFO",
+        service_logger=False,
+    ):
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         await asyncio.sleep(1)
         # add ping child tasks to ping n hosts
         # add per host stats
@@ -62,7 +73,7 @@ class PingService(Service):
                 log=log,
             )
             if self.log:
-                self.log.info(f"[{self.name}.service] cping @ {node} enabled")
+                self.log.info(f"cping @ {node} enabled")
         self._ping_stats.update(host=host)
         while True:
             async with self._ping_lock:
@@ -73,8 +84,8 @@ class PingService(Service):
                 )
 
                 if log:
-                    log.info(
-                        f"[ping.service] ping {host} OK @ {self._ping_stats.get('avg'):.0f} ms"
+                    self.log.info(
+                        f"ping {host} OK @ {self._ping_stats.get('avg'):.0f} ms"
                     )
 
             await asyncio.sleep(sleep)
@@ -91,8 +102,8 @@ class PingService(Service):
                     )
                 )
                 if log:
-                    log.info(
-                        f"[ping.service] ping {host} OK @ {self._ping_stats_nodes[host].get('avg'):.0f} ms"
+                    self.log.info(
+                        f"ping {host} OK @ {self._ping_stats_nodes[host].get('avg'):.0f} ms"
                     )
 
             await asyncio.sleep(sleep)
