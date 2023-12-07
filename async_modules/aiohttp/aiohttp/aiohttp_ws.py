@@ -55,16 +55,13 @@ class WebSocketClient:
         self.writer = None
 
     async def connect(self, uri, ssl=None):
-        ...
         uri = urlparse(uri)
         assert uri
         if uri.protocol == "wss":
             if not ssl:
                 ssl = True
 
-        self.reader, self.writer = await asyncio.open_connection(
-            uri.hostname, uri.port, ssl=ssl
-        )
+        self.reader, self.writer = await asyncio.open_connection(uri.hostname, uri.port, ssl=ssl)
         await self.handshake(uri)
 
     @classmethod

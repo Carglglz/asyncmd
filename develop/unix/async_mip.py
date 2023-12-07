@@ -1,7 +1,7 @@
 # MicroPython package installer
 # MIT license; Copyright (c) 2022 Jim Mussared
 
-import aiohttpclient as aiohttp
+import aiohttp
 import sys
 
 
