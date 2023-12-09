@@ -99,7 +99,7 @@ class MicrodotService(Service):
 
         if ssl:
             self.sslctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_SERVER)
-            self.sslctx.load_cert_chain(cert, keyfile=key)
+            self.sslctx.load_cert_chain(cert, key)
         await self.app.start_server(host=host, port=port, debug=debug, ssl=self.sslctx)
         # if this consumes Cancelled Error but still want to run on_stop
         # callback raise Cancelled Error or run on_stop here

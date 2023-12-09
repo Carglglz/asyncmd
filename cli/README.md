@@ -67,24 +67,25 @@ This is the default mode, and it is a TUI inspired by htop.
 ![asyncmd](./dtop.png)
 
 
-#### keybindings 
+#### Keybindings 
 
-Keybindings:
-
-    n: next device
-    p: previous device
+    n/p: next/previous device
+    N/P: next/previous page
     0: all devices
-    j/k, }/{, space/g : scroll down/up command output
+    j/k, }/{, space/g , arrow down/up: scroll down/up command output
+    arrow left/right, h/l: scroll left/right services info
     i: toggle device info
-    h: toggle services info
+    H: toggle services info
     e: toggle service cursor
-    enter: debug service if service cursor enabled
+    enter/d: debug service if service cursor is enabled
+    s: get stats of service if service cursor is enabled
+    r: get report of service if service cursor is enabled
     TAB: select next service
     S-TAB: select previous service
     f: set last device filter
     c: fetch and toggle device config info
-    l: fetch and toggle device log
-    s: switch time format (ISO/DATETIME)
+    L: fetch and toggle device log
+    t: switch time format (ISO/DATETIME)
     ESC: clear filters and cmd mode output
     TAB (in command line): autocompletion of
          commands, devices, services and files
@@ -100,7 +101,7 @@ This shows device/s state info and can be toggled with `i` key.
 
 #### Middle Section: Services info 
 
-This shows device/s services state/stats and be toggled with `h` key.
+This shows device/s services state/stats and be toggled with `H` key.
 
 #### Bottom Section: Command output 
 
@@ -139,7 +140,7 @@ options:
 commands:
   Available commands
 
-  {start,stop,stats,debug,report,traceback,enable,disable,config,wconf,e,reset,errlog,q}
+  {start,stop,stats,debug,report,traceback,enable,disable,config,wconf,e,reset,errlog,nd,q}
     start               start async tasks or services
     stop                stop async tasks or services
     stats               get stats of a service
@@ -153,5 +154,6 @@ commands:
     e                   edit a file with $EDITOR
     reset               reset device/s
     errlog              get device/s error.log
-    q                   exit 
+    nd                  devices per page
+    q                   exit
 ```
