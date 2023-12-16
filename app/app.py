@@ -1,13 +1,13 @@
 import asyncio
 import aiorepl
-import aioservice
-from hostname import NAME
 import logging
 import sys
 import aioctl
 
 
 async def _main(logger, repl=False):
+    import aioservice
+
     await aioservice.boot(debug=False, log=logger, debug_log=True)
     aioctl.log()
     print("loading services...")
@@ -22,8 +22,10 @@ async def _main(logger, repl=False):
 
 def run(log_stream, repl=True):
     # Logger
+    NAME = aioctl.getenv("HOSTNAME", sys.platform, debug=True)
+    LOGLEVEL = aioctl.getenv("LOGLEVEL", "INFO")
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=getattr(logging, LOGLEVEL),
         format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         stream=log_stream,
@@ -33,7 +35,7 @@ def run(log_stream, repl=True):
     formatter = logging.Formatter("%(asctime)s [%(name)s] [%(levelname)s] %(message)s")
     # Stream
     stream_handler = logging.StreamHandler(stream=log_stream)
-    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(getattr(logging, LOGLEVEL))
     stream_handler.setFormatter(formatter)
     log.addHandler(stream_handler)
 

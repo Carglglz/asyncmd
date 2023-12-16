@@ -9,10 +9,7 @@ import sys
 from ntptime import settime
 from machine import Pin
 
-try:
-    from hostname import NAME
-except Exception:
-    NAME = f"{sys.platform}-{hexlify(unique_id())}"
+NAME = f"{sys.platform}-{hexlify(unique_id())}"
 
 
 class NetworkService(Service):
@@ -26,7 +23,7 @@ class NetworkService(Service):
         self.args = []
         self.kwargs = {
             "timeout": 10,
-            "hostname": NAME,
+            "hostname": aioctl.getenv("HOSTNAME", NAME),
             "notify": True,
             "led": 2,
             "webrepl_on": True,

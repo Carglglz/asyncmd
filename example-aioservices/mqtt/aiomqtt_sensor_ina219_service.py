@@ -10,11 +10,6 @@ from machine import Pin, I2C
 import socket
 import sys
 
-# from ina219 import BME280
-try:
-    from hostname import NAME
-except Exception:
-    NAME = sys.platform
 
 try:
     from ina219 import INA219
@@ -56,7 +51,8 @@ class MQTTService(Service):
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
-        self.args = [NAME]
+        self.id = aioctl.getenv("HOSTNAME", sys.platform)
+        self.args = [self.id]
         self.kwargs = {
             "main": "aiomqtt.service",
             "server": "0.0.0.0",
@@ -69,7 +65,7 @@ class MQTTService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "restart": ["aiomqtt_sensor_ina219.service"],
-            "topics": [f"device/{NAME}/state", "device/all/state"],
+            "topics": [f"device/{self.id}/state", "device/all/state"],
             "i2c": (22, 23),
             "address": 0x44,
             "shunt_ohms": 0.1,
@@ -86,17 +82,25 @@ class MQTTService(Service):
         self._curr = None
         self._power = None
         self.td = 0
-        self.id = NAME
         self.i2c = None
 
     def setup(self, shunt, addr):
         self.unique_id = "PowerSensor_{}".format(self.id.split()[0].lower())
         self.sensor = INA219(shunt, self.i2c, address=addr, log=self.log)
         self.sensor.configure()
-        self._cfg_volt = {"topic": self._CONFIG_TOPIC.format(NAME + "V"), "payload": ""}
-        self._cfg_curr = {"topic": self._CONFIG_TOPIC.format(NAME + "C"), "payload": ""}
-        self._cfg_pow = {"topic": self._CONFIG_TOPIC.format(NAME + "P"), "payload": ""}
-        self._stat_t = self._STATE_TOPIC.format(NAME)
+        self._cfg_volt = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "V"),
+            "payload": "",
+        }
+        self._cfg_curr = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "C"),
+            "payload": "",
+        }
+        self._cfg_pow = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "P"),
+            "payload": "",
+        }
+        self._stat_t = self._STATE_TOPIC.format(self.id)
         self._cfg_volt["payload"] = json.dumps(
             dict(
                 device_class="voltage",
@@ -303,7 +307,7 @@ class MQTTService(Service):
         power = self.sensor.power()
 
         if self.log:
-            self.log.info(f"{volt} V " + f"{current} mA {power} mW", cname="sense_cb")
+            self.log.info(f"{volt} V {current} mA {power} mW", cname="sense_cb")
         async with self.lock:
             await self.client.publish(
                 topic.replace(b"state", b"sense"),
@@ -312,7 +316,7 @@ class MQTTService(Service):
                         "voltage": f"{volt:.1f}",
                         "current": f"{current:.1f}",
                         "power": f"{power:.1f}",
-                        "hostname": NAME,
+                        "hostname": self.id,
                     }
                 ),
             )
@@ -326,7 +330,7 @@ class MQTTService(Service):
             self._power = power = self.sensor.power()
 
             if self.log:
-                self.log.info(f"{volt} V " + f"{current} mA {power} mW", cname="sense")
+                self.log.info(f"{volt} V {current} mA {power} mW", cname="sense")
 
             # await self.aiomqtt_service.client_ready.wait()
             async with self.lock:
@@ -337,7 +341,7 @@ class MQTTService(Service):
                             "voltage": f"{volt:.1f}",
                             "current": f"{current:.1f}",
                             "power": f"{power:.1f}",
-                            "hostname": NAME,
+                            "hostname": self.id,
                         }
                     ),
                 )

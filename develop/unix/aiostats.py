@@ -3,14 +3,6 @@ import aioschedule
 import asyncio
 import sys
 import os
-from binascii import hexlify
-
-try:
-    from hostname import NAME
-except Exception:
-    from machine import unique_id
-
-    NAME = f"{sys.platform}-{hexlify(unique_id())}"
 
 
 async def display(taskm="*"):
@@ -209,7 +201,7 @@ def stats(taskm="*", debug=False, traceback=None):
                     task_stats["schedule"] = aioschedule.group()[task]
                     task_stats["schedule"]["t0"] = aioschedule._AIOCTL_SCHEDULE_T0
         _stats[task] = task_stats
-    _stats["hostname"] = NAME
+    _stats["hostname"] = aioctl.getenv("HOSTNAME", sys.platform)
     return _stats
 
 

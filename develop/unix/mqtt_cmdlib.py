@@ -1,16 +1,10 @@
 from machine import Pin
 import sys
 import asyncio
+import aioctl
 
-try:
-    from hostname import NAME
-except Exception:
-    NAME = sys.platform
-
-try:
-    from pinconfig import LED_PIN
-except Exception:
-    LED_PIN = 2
+NAME = aioctl.getenv("HOSTNAME", sys.platform)
+LED_PIN = aioctl.getenv("LED_PIN", 2)
 
 led = Pin(LED_PIN, Pin.OUT)
 

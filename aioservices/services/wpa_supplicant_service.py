@@ -7,10 +7,7 @@ from machine import unique_id
 from binascii import hexlify
 import sys
 
-try:
-    from hostname import NAME
-except Exception:
-    NAME = f"{sys.platform}-{hexlify(unique_id())}"
+NAME = f"{sys.platform}-{hexlify(unique_id())}"
 
 
 class WPASupplicantService(Service):
@@ -24,7 +21,7 @@ class WPASupplicantService(Service):
         self.args = []
         self.kwargs = {
             "timeout": 10,
-            "hostname": NAME,
+            "hostname": aioctl.getenv("HOSTNAME", NAME),
             "notify": True,
             "restart_services": [],
         }

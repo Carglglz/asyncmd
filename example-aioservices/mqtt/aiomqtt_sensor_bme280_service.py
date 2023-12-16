@@ -11,10 +11,6 @@ import socket
 import sys
 
 # from bme280 import BME280
-try:
-    from hostname import NAME
-except Exception:
-    NAME = sys.platform
 
 
 class FakeBME280:
@@ -47,7 +43,8 @@ class MQTTService(Service):
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
-        self.args = [NAME]
+        self.id = aioctl.getenv("HOSTNAME", sys.platform)
+        self.args = [self.id]
         self.kwargs = {
             "main": "aiomqtt.service",
             "server": "0.0.0.0",
@@ -60,7 +57,7 @@ class MQTTService(Service):
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "restart": ["aiomqtt_sensor_bme280.service"],
-            "topics": [f"device/{NAME}/state", "device/all/state"],
+            "topics": [f"device/{self.id}/state", "device/all/state"],
             "i2c": (22, 21),
             "loglevel": "INFO",
             "service_logger": True,
@@ -75,16 +72,24 @@ class MQTTService(Service):
         self._hum = None
         self._press = None
         self.td = 0
-        self.id = NAME
         self.i2c = None
 
     def setup(self):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
         self.sensor = FakeBME280(i2c=self.i2c)
-        self._cfg_temp = {"topic": self._CONFIG_TOPIC.format(NAME + "T"), "payload": ""}
-        self._cfg_hum = {"topic": self._CONFIG_TOPIC.format(NAME + "H"), "payload": ""}
-        self._cfg_pr = {"topic": self._CONFIG_TOPIC.format(NAME + "P"), "payload": ""}
-        self._stat_t = self._STATE_TOPIC.format(NAME)
+        self._cfg_temp = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "T"),
+            "payload": "",
+        }
+        self._cfg_hum = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "H"),
+            "payload": "",
+        }
+        self._cfg_pr = {
+            "topic": self._CONFIG_TOPIC.format(self.id + "P"),
+            "payload": "",
+        }
+        self._stat_t = self._STATE_TOPIC.format(self.id)
         self._cfg_temp["payload"] = json.dumps(
             dict(
                 device_class="temperature",
@@ -185,7 +190,7 @@ class MQTTService(Service):
         loglevel="INFO",
         service_logger=True,
     ):
-        self.add_logger(log, level=loglevel, service_logger=True)
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
         self.setup()
         if not main:
@@ -302,7 +307,7 @@ class MQTTService(Service):
                         "temperature": f"{temp:.1f}",
                         "pressure": f"{press:.1f}",
                         "humidity": f"{hum:.1f}",
-                        "hostname": NAME,
+                        "hostname": self.id,
                     }
                 ),
             )

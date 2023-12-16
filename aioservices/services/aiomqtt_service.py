@@ -13,11 +13,6 @@ import io
 import aiostats
 import machine
 
-try:
-    from hostname import NAME
-except Exception:
-    NAME = sys.platform
-
 
 class MQTTService(Service):
     _STATE_TOPIC = "device/{}/state"
@@ -32,7 +27,8 @@ class MQTTService(Service):
         self.type = "runtime.service"
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
-        self.args = [NAME]
+        self.id = aioctl.getenv("HOSTNAME", sys.platform)
+        self.args = [self.id]
         self.kwargs = {
             "server": "0.0.0.0",
             "port": 1883,
@@ -60,7 +56,6 @@ class MQTTService(Service):
         self.n_msg = 0
         self.n_pub = 0
         self.td = 0
-        self.id = NAME
         self.lock = asyncio.Lock()
         self.client_ready = asyncio.Event()
         self._stat_buff = io.StringIO(5000)
@@ -68,11 +63,11 @@ class MQTTService(Service):
         self._callbacks = {}
         self._topics = {
             "device/all/cmd",
-            f"device/{NAME}/cmd",
+            f"device/{self.id}/cmd",
             "device/all/ota",
-            f"device/{NAME}/ota",
+            f"device/{self.id}/ota",
             "device/all/logger",
-            f"device/{NAME}/logger",
+            f"device/{self.id}/logger",
             "device/all/service",
         }
 
@@ -193,7 +188,7 @@ class MQTTService(Service):
                 async with self.lock:
                     await aiostats.pipefile(
                         self.client,
-                        f"device/{NAME}/report/{service}".encode("utf-8"),
+                        f"device/{self.id}/report/{service}".encode("utf-8"),
                         file=f".{service}",
                     )
             except Exception as e:
@@ -204,7 +199,7 @@ class MQTTService(Service):
             async with self.lock:
                 await aiostats.pipelog(
                     self.client,
-                    f"device/{NAME}/log".encode("utf-8"),
+                    f"device/{self.id}/log".encode("utf-8"),
                     from_idx=self._log_idx,
                 )
 
@@ -214,7 +209,7 @@ class MQTTService(Service):
                 async with self.lock:
                     await aiostats.pipefile(
                         self.client,
-                        f"device/{NAME}/log".encode("utf-8"),
+                        f"device/{self.id}/log".encode("utf-8"),
                         file=action,
                     )
         elif action == "config":
@@ -366,7 +361,7 @@ class MQTTService(Service):
                                         "cmd": action,
                                         "resp": _resp,
                                         "msg": service[action]["resp"]["msg"],
-                                        "hostname": NAME,
+                                        "hostname": self.id,
                                     }
                                 ),
                             )
@@ -402,7 +397,7 @@ class MQTTService(Service):
                                         "cmd": action,
                                         "resp": _resp,
                                         "msg": service[action]["resp"]["msg"],
-                                        "hostname": NAME,
+                                        "hostname": self.id,
                                     }
                                 ),
                             )
@@ -580,7 +575,6 @@ class MQTTService(Service):
         service_logger=False,
     ):
         self.add_logger(log, level=loglevel, service_logger=service_logger)
-
         self.client_ready.clear()
         for top in topics:
             self._topics.add(top)

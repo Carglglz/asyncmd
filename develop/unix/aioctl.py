@@ -25,6 +25,7 @@ except Exception:
 _AIOCTL_GROUP = None
 _AIOCTL_LOG = None
 _DEBUG = False
+_ENV = {}
 _dt_list = [0, 1, 2, 3, 4, 5]
 
 
@@ -238,6 +239,25 @@ def set_group(taskgroup):
 def set_log(log):
     global _AIOCTL_LOG
     _AIOCTL_LOG = log
+
+
+def setenv(env):
+    global _ENV
+    _ENV = env
+
+
+def getenv(var, alt=None, envfile=".env", debug=False):
+    global _ENV
+
+    if not _ENV:
+        try:
+            import dotenv
+
+            setenv(dotenv.dotenv_values(envfile, debug=debug))
+        except ImportError:
+            print("WARNING: dotenv module required")
+
+    return _ENV.get(var, alt)
 
 
 def group():
