@@ -11,11 +11,27 @@ class ClientResponse:
     def __init__(self, reader):
         self.content = reader
 
-    def read(self, sz=-1):
-        return self.content.read(sz)
+    def _decode(self, data):
+        c_encoding = self.headers.get("Content-Encoding")
+        if c_encoding in ("gzip", "deflate", "gzip,deflate"):
+            try:
+                import deflate, io
 
-    def text(self, sz=-1):
-        return self.read(sz=sz)
+                if c_encoding == "deflate":
+                    with deflate.DeflateIO(io.BytesIO(data), deflate.ZLIB) as d:
+                        return d.read()
+                elif c_encoding == "gzip":
+                    with deflate.DeflateIO(io.BytesIO(data), deflate.GZIP, 15) as d:
+                        return d.read()
+            except ImportError:
+                print("WARNING: deflate module required")
+        return data
+
+    async def read(self, sz=-1):
+        return self._decode(await self.content.read(sz))
+
+    async def text(self, encoding="utf-8"):
+        return (await self.read(sz=-1)).decode(encoding)
 
     async def json(self):
         return _json.loads(await self.read())
@@ -44,7 +60,7 @@ class ChunkedClientResponse(ClientResponse):
         if self.chunk_size == 0:
             sep = await self.content.read(2)
             assert sep == b"\r\n"
-        return data
+        return self._decode(data)
 
     def __repr__(self):
         return "<ChunkedClientResponse %d %s>" % (self.status, self.headers)
@@ -64,9 +80,12 @@ class _RequestContextManager:
 
 
 class ClientSession:
-    def __init__(self, base_url=""):
+    def __init__(self, base_url="", headers={}, version="HTTP/1.0"):
         self._reader = None
         self._base_url = base_url
+        self._base_headers = {"Connection": "close", "User-Agent": "compat"}
+        self._base_headers.update(**headers)
+        self._http_version = version
 
     async def __aenter__(self):
         return self
@@ -74,18 +93,14 @@ class ClientSession:
     async def __aexit__(self, *args):
         return await asyncio.sleep(0)
 
-    def request(self, method, url, data=None, json=None, ssl=None):
-        return _RequestContextManager(
-            self,
-            self._request(method, self._base_url + url, data=data, json=json, ssl=ssl),
-        )
+    # TODO: Implement timeouts
 
-    async def _request(self, method, url, data=None, json=None, ssl=None):
+    async def _request(self, method, url, data=None, json=None, ssl=None, params=None, headers={}):
         redir_cnt = 0
         redir_url = None
         while redir_cnt < 2:
-            reader = await self.request_raw(method, url, data, json, ssl)
-            headers = []
+            reader = await self.request_raw(method, url, data, json, ssl, params, headers)
+            _headers = []
             sline = await reader.readline()
             sline = sline.split(None, 2)
             status = int(sline[1])
@@ -94,7 +109,7 @@ class ClientSession:
                 line = await reader.readline()
                 if not line or line == b"\r\n":
                     break
-                headers.append(line)
+                _headers.append(line)
                 if line.startswith(b"Transfer-Encoding:"):
                     if b"chunked" in line:
                         chunked = True
@@ -112,22 +127,38 @@ class ClientSession:
         else:
             resp = ClientResponse(reader)
         resp.status = status
-        resp.headers = headers
+        resp.headers = _headers
+        resp.url = url
+        if params:
+            resp.url += "?" + "&".join(f"{k}={params[k]}" for k in sorted(params))
         try:
             resp.headers = {
                 val.split(":", 1)[0]: val.split(":", 1)[-1].strip()
-                for val in [hed.decode().strip() for hed in headers]
+                for val in [hed.decode().strip() for hed in _headers]
             }
         except Exception:
             pass
         self._reader = reader
         return resp
 
-    async def request_raw(self, method, url, data=None, json=None, ssl=None):
+    async def request_raw(
+        self,
+        method,
+        url,
+        data=None,
+        json=None,
+        ssl=None,
+        params=None,
+        headers={},
+        is_handshake=False,
+        version=None,
+    ):
         if json and isinstance(json, dict):
             data = _json.dumps(json)
         if data is not None and method == "GET":
             method = "POST"
+        if params:
+            url += "?" + "&".join(f"{k}={params[k]}" for k in sorted(params))
         try:
             proto, dummy, host, path = url.split("/", 3)
         except ValueError:
@@ -152,69 +183,137 @@ class ClientSession:
         # Use protocol 1.0, because 1.1 always allows to use chunked transfer-encoding
         # But explicitly set Connection: close, even though this should be default for 1.0,
         # because some servers misbehave w/o it.
+        if version is None:
+            version = self._http_version
+        if "Host" not in headers:
+            headers.update(Host=host)
         if not data:
-            query = (
-                "%s /%s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\nUser-Agent: compat\r\n\r\n"
-                % (
-                    method,
-                    path,
-                    host,
-                )
+            query = "%s /%s %s\r\n%s\r\n" % (
+                method,
+                path,
+                version,
+                "\r\n".join(f"{k}: {v}" for k, v in headers.items()) + "\r\n" if headers else "",
             )
         else:
-            query = (
-                """%s /%s HTTP/1.0\r\nHost: %s\r\n%sContent-Length: %s\r\n\r\n%s\r\nConnection: close\r\nUser-Agent: compat\r\n\r\n"""
-                % (
-                    method,
-                    path,
-                    host,
-                    "Content-Type: application/json\r\n" if json else "",
-                    str(len(str(data))),
-                    data,
-                )
+            headers.update(**{"Content-Length": len(str(data))})
+            if json:
+                headers.update(**{"Content-Type": "application/json"})
+            query = """%s /%s %s\r\n%s\r\n%s\r\n\r\n""" % (
+                method,
+                path,
+                version,
+                "\r\n".join(f"{k}: {v}" for k, v in headers.items()) + "\r\n",
+                data,
             )
+        if not is_handshake:
+            await writer.awrite(query.encode("latin-1"))
+            return reader
+        else:
+            await writer.awrite(query.encode())
+            return reader, writer
 
-        await writer.awrite(query.encode("latin-1"))
-        #    yield from writer.aclose()
-        return reader
-
-    def get(self, url, ssl=None):
-        return _RequestContextManager(self, self._request("GET", self._base_url + url, ssl=ssl))
-
-    def post(self, url, data=None, json=None, ssl=None):
+    def request(self, method, url, data=None, json=None, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("POST", self._base_url + url, data=data, json=json, ssl=ssl),
+            self._request(
+                method,
+                self._base_url + url,
+                data=data,
+                json=json,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
-    def put(self, url, data=None, json=None, ssl=None):
+    def get(self, url, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("PUT", self._base_url + url, data=data, json=json, ssl=ssl),
+            self._request(
+                "GET",
+                self._base_url + url,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
-    def patch(self, url, data=None, json=None, ssl=None):
+    def post(self, url, data=None, json=None, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("PATCH", self._base_url + url, data=data, json=json, ssl=ssl),
+            self._request(
+                "POST",
+                self._base_url + url,
+                data=data,
+                json=json,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
-    def delete(self, url, ssl=None):
+    def put(self, url, data=None, json=None, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("DELETE", self._base_url + url, ssl=ssl),
+            self._request(
+                "PUT",
+                self._base_url + url,
+                data=data,
+                json=json,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
-    def head(self, url, ssl=None):
+    def patch(self, url, data=None, json=None, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("HEAD", self._base_url + url, ssl=ssl),
+            self._request(
+                "PATCH",
+                self._base_url + url,
+                data=data,
+                json=json,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
-    def options(self, url, ssl=None):
+    def delete(self, url, ssl=None, params=None, headers={}):
         return _RequestContextManager(
             self,
-            self._request("OPTIONS", self._base_url + url, ssl=ssl),
+            self._request(
+                "DELETE",
+                self._base_url + url,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
+        )
+
+    def head(self, url, ssl=None, params=None, headers={}):
+        return _RequestContextManager(
+            self,
+            self._request(
+                "HEAD",
+                self._base_url + url,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
+        )
+
+    def options(self, url, ssl=None, params=None, headers={}):
+        return _RequestContextManager(
+            self,
+            self._request(
+                "OPTIONS",
+                self._base_url + url,
+                ssl=ssl,
+                params=params,
+                headers=dict(**self._base_headers, **headers),
+            ),
         )
 
     def ws_connect(self, url, ssl=None):
@@ -222,6 +321,6 @@ class ClientSession:
 
     async def _ws_connect(self, url, ssl=None):
         ws_client = WebSocketClient(None)
-        await ws_client.connect(url, ssl=ssl)
+        await ws_client.connect(url, ssl=ssl, handshake_request=self.request_raw)
         self._reader = ws_client.reader
         return ClientWebSocketResponse(ws_client)

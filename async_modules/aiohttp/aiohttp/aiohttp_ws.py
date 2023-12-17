@@ -54,15 +54,13 @@ class WebSocketClient:
         self.reader = None
         self.writer = None
 
-    async def connect(self, uri, ssl=None):
+    async def connect(self, uri, ssl=None, handshake_request=None):
         uri = urlparse(uri)
         assert uri
         if uri.protocol == "wss":
             if not ssl:
                 ssl = True
-
-        self.reader, self.writer = await asyncio.open_connection(uri.hostname, uri.port, ssl=ssl)
-        await self.handshake(uri)
+        await self.handshake(uri, ssl, handshake_request)
 
     @classmethod
     def _parse_frame_header(cls, header):
@@ -129,26 +127,26 @@ class WebSocketClient:
         payload = bytes(b ^ mask_bits[i % 4] for i, b in enumerate(payload))
         return frame + payload
 
-    async def handshake(self, uri):
-        # Sec-WebSocket-Key is 16 bytes of random base64 encoded
+    async def handshake(self, uri, ssl, req):
+        headers = {}
         _http_proto = "http" if uri.protocol != "wss" else "https"
+        url = f"{_http_proto}://{uri.hostname}:{uri.port}{uri.path or '/'}"
         key = binascii.b2a_base64(bytes(random.getrandbits(8) for _ in range(16)))[:-1]
-        handshake_headers = (
-            b"GET %s HTTP/1.1" % (uri.path or "/") + b"\r\n",
-            b"Host: %s:%s" % (uri.hostname, uri.port) + b"\r\n",
-            b"Connection: Upgrade\r\n",
-            b"Upgrade: websocket\r\n",
-            b"Sec-WebSocket-Key: %s" % key + b"\r\n",
-            b"Sec-WebSocket-Version: 13" + b"\r\n",
-            b"Origin: {httpproto}://{hostname}:{port}".format(
-                httpproto=_http_proto, hostname=uri.hostname, port=uri.port
-            )
-            + b"\r\n",
+        headers["Host"] = f"{uri.hostname}:{uri.port}"
+        headers["Connection"] = "Upgrade"
+        headers["Upgrade"] = "websocket"
+        headers["Sec-WebSocket-Key"] = key
+        headers["Sec-WebSocket-Version"] = "13"
+        headers["Origin"] = f"{_http_proto}://{uri.hostname}:{uri.port}"
+
+        self.reader, self.writer = await req(
+            "GET",
+            url,
+            ssl=ssl,
+            headers=headers,
+            is_handshake=True,
+            version="HTTP/1.1",
         )
-        for header in handshake_headers:
-            self.writer.write(header)
-        self.writer.write(b"\r\n")
-        await self.writer.drain()
 
         header = await self.reader.readline()
         header = header[:-2]
