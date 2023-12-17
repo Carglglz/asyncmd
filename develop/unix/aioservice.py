@@ -282,7 +282,7 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
         if debug_log and log:
             log.info(
                 "[aioservice] [ \033[92mOK\x1b[0m ] Priority "
-                + " core services solved..."
+                + "core services solved..."
             )
             _boot_ord = "[ Booting ] Order: "
             for s, p in pl:

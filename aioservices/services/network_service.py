@@ -25,7 +25,7 @@ class NetworkService(Service):
             "timeout": 10,
             "hostname": aioctl.getenv("HOSTNAME", NAME),
             "notify": True,
-            "led": 2,
+            "led": aioctl.getenv("LED_PIN", 2),
             "webrepl_on": True,
             "ntp_host": None,
             "rsyslog": False,
@@ -158,11 +158,10 @@ class NetworkService(Service):
             await self.setup_ap()
 
         if webrepl_on:
-            aioctl.add(
+            self.add_ctask(
+                aioctl,
                 self.webrepl_setup,
-                self,
-                name=f"{self.name}.service.webrepl",
-                _id=f"{self.name}.service.webrepl",
+                "webrepl",
             )
 
         for i in range(10):
