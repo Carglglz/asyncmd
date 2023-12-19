@@ -7,10 +7,10 @@ import json as _json
 import binascii
 import re
 import struct
-from ucollections import namedtuple
+from collections import namedtuple
 
 URL_RE = re.compile(r"(wss|ws)://([A-Za-z0-9-\.]+)(?:\:([0-9]+))?(/.+)?")
-URI = namedtuple("URI", ("protocol", "hostname", "port", "path"))
+URI = namedtuple("URI", ("protocol", "hostname", "port", "path"))  # noqa: PYI024
 
 
 def urlparse(uri):
@@ -38,6 +38,12 @@ class WebSocketMessage:
     def __init__(self, opcode, data):
         self.type = opcode
         self.data = data
+
+
+class WSMsgType:
+    TEXT = 1
+    BINARY = 2
+    ERROR = 258
 
 
 class WebSocketClient:
@@ -213,7 +219,7 @@ class ClientWebSocketResponse:
         # print(msg.data, msg.type) # DEBUG
         if (not msg.data and msg.type == self.ws.CLOSE) or self.ws.closed:
             raise StopAsyncIteration
-        return msg.data
+        return msg
 
     async def close(self):
         await self.ws.close()

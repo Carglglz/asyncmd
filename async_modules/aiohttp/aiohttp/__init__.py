@@ -4,7 +4,11 @@ from .aiohttp_ws import (
     _WSRequestContextManager,
     ClientWebSocketResponse,
     WebSocketClient,
+    WSMsgType,
 )
+
+HttpVersion10 = "HTTP/1.0"
+HttpVersion11 = "HTTP/1.1"
 
 
 class ClientResponse:
@@ -80,7 +84,7 @@ class _RequestContextManager:
 
 
 class ClientSession:
-    def __init__(self, base_url="", headers={}, version="HTTP/1.0"):
+    def __init__(self, base_url="", headers={}, version=HttpVersion10):
         self._reader = None
         self._base_url = base_url
         self._base_headers = {"Connection": "close", "User-Agent": "compat"}
