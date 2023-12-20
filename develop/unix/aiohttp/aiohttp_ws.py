@@ -1,3 +1,5 @@
+# MicroPython aiohttp library
+# MIT license; Copyright (c) 2023 Carlos Gil
 # adapted from https://github.com/danni/uwebsockets
 # and https://github.com/miguelgrinberg/microdot/blob/main/src/microdot_asyncio_websocket.py
 

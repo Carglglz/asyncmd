@@ -1,3 +1,6 @@
+# MicroPython aiohttp library
+# MIT license; Copyright (c) 2023 Carlos Gil
+
 import asyncio
 import json as _json
 from .aiohttp_ws import (
@@ -230,95 +233,26 @@ class ClientSession:
             ),
         )
 
-    def get(self, url, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "GET",
-                self._base_url + url,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def get(self, url, **kwargs):
+        return self.request("GET", url, **kwargs)
 
-    def post(self, url, data=None, json=None, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "POST",
-                self._base_url + url,
-                data=data,
-                json=json,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def post(self, url, **kwargs):
+        return self.request("POST", url, **kwargs)
 
-    def put(self, url, data=None, json=None, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "PUT",
-                self._base_url + url,
-                data=data,
-                json=json,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def put(self, url, **kwargs):
+        return self.request("PUT", url, **kwargs)
 
-    def patch(self, url, data=None, json=None, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "PATCH",
-                self._base_url + url,
-                data=data,
-                json=json,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def patch(self, url, **kwargs):
+        return self.request("PATCH", url, **kwargs)
 
-    def delete(self, url, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "DELETE",
-                self._base_url + url,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def delete(self, url, **kwargs):
+        return self.request("DELETE", url, **kwargs)
 
-    def head(self, url, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "HEAD",
-                self._base_url + url,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def head(self, url, **kwargs):
+        return self.request("HEAD", url, **kwargs)
 
-    def options(self, url, ssl=None, params=None, headers={}):
-        return _RequestContextManager(
-            self,
-            self._request(
-                "OPTIONS",
-                self._base_url + url,
-                ssl=ssl,
-                params=params,
-                headers=dict(**self._base_headers, **headers),
-            ),
-        )
+    def options(self, url, **kwargs):
+        return self.request("OPTIONS", url, **kwargs)
 
     def ws_connect(self, url, ssl=None):
         return _WSRequestContextManager(self, self._ws_connect(url, ssl=ssl))
