@@ -54,6 +54,7 @@ helparg = """Mode:
 - dtop: device aioservices status with htop alike UI.
 - devconfig: get or set device services.config
 - config: configure default settings
+- status: get device status (requires stats.service)
 """
 
 usag = """%(prog)s [Mode] [options]

@@ -212,6 +212,42 @@ class MQTTService(Service):
                         f"device/{self.id}/log".encode("utf-8"),
                         file=action,
                     )
+        elif action == "env":
+            try:
+                os.stat(service)
+                if self.log:
+                    self.log.info(f"sending DOTENV: {service} ...")
+                async with self.lock:
+                    await aiostats.pipefile(
+                        self.client,
+                        f"device/{self.id}/env/{service}".encode("utf-8"),
+                        file=f"{service}",
+                    )
+            except Exception as e:
+                if self.log:
+                    self.log.error(f"@ [{action.upper()}]:{e}")
+        elif action == "set":
+            try:
+                import dotenv
+
+                for env, vals in service.items():
+                    dotenv.set_env_values(env, vals)
+
+                for env in service:
+                    os.stat(env)
+                    if self.log:
+                        self.log.info(f"sending DOTENV: {env} ...")
+                    async with self.lock:
+                        await aiostats.pipefile(
+                            self.client,
+                            f"device/{self.id}/env/{env}".encode("utf-8"),
+                            file=f"{env}",
+                        )
+
+            except Exception as e:
+                if self.log:
+                    self.log.error(f"@ [{action.upper()}]: {e}")
+
         elif action == "config":
             import aioservice
 

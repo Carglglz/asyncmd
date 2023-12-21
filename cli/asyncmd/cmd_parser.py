@@ -76,6 +76,31 @@ REPORT = dict(
     options={},
 )
 
+
+ENV = dict(
+    help="get DOTENV .env config file",
+    desc="",
+    subcmd=dict(
+        help="env file to get",
+        default=".env",
+        metavar="dotenv",
+        nargs="?",
+    ),
+    options={},
+)
+
+SET = dict(
+    help="set enviroment variables",
+    desc="",
+    subcmd=dict(
+        help="set enviroment variables",
+        default=".env",
+        metavar="VAR=VALUE",
+        nargs="*",
+    ),
+    options={},
+)
+
 TRACEBACK = dict(
     help="get traceback info of a service",
     desc="",
@@ -203,6 +228,8 @@ SHELL_CMD_DICT_PARSER = {
     "stats": STATS,
     "debug": DEBUG,
     "report": REPORT,
+    "env": ENV,
+    "set": SET,
     "traceback": TRACEBACK,
     "enable": ENABLE,
     "disable": DISABLE,

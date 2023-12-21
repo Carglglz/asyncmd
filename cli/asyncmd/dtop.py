@@ -204,6 +204,7 @@ class DeviceTOP:
         self._errlog_buffer = {}
         self._help_buffer = {}
         self._report_buffer = {}
+        self._env_buffer = {}
         self._services_path = {}
         self._info_enabled = True
         self._services_info_enabled = True
@@ -609,6 +610,7 @@ class DeviceTOP:
                 await client.subscribe("device/+/resp")
                 await client.subscribe("device/+/help")
                 await client.subscribe("device/+/report/#")
+                await client.subscribe("device/+/env/#")
                 async for message in messages:
                     devname, *topic = str(message.topic).split("/")[1:]
                     if isinstance(topic, list):
@@ -714,6 +716,23 @@ class DeviceTOP:
                             self._report_buffer[devname][_rp_service] = ""
 
                         self._report_buffer[devname][
+                            _rp_service
+                        ] += message.payload.decode()
+
+                    elif topic == "env":
+                        if devname not in self._env_buffer:
+                            self._env_buffer[devname] = {}
+
+                        if _rp_service not in self._env_buffer.get(devname):
+                            self._env_buffer[devname][_rp_service] = ""
+
+                        if (
+                            f"{_rp_service.replace('.fail', '')};"
+                            in message.payload.decode()
+                        ):
+                            self._env_buffer[devname][_rp_service] = ""
+
+                        self._env_buffer[devname][
                             _rp_service
                         ] += message.payload.decode()
 
@@ -1027,6 +1046,8 @@ class DeviceTOP:
                     "stats",
                     "debug",
                     "report",
+                    "env",
+                    "set",
                     "traceback",
                     "enable",
                     "disable",
@@ -1464,7 +1485,14 @@ class DeviceTOP:
                     # continue
                 if not command_sent:
                     command_sent = not command_sent
-                    if command in ["start", "stop", "debug", "report", "traceback"]:
+                    if command in [
+                        "start",
+                        "stop",
+                        "debug",
+                        "report",
+                        "traceback",
+                        "env",
+                    ]:
                         if command == "debug":
                             for node in _nodes:
                                 self._rflog[node] = True
@@ -1499,9 +1527,27 @@ class DeviceTOP:
                                     _sel_serv = rest_args
                                 msg = self.mk_cmd_msg(command, _sel_serv)
                             for node in _nodes:
+                                if command == "env":
+                                    self._env_buffer[node] = {}
                                 await self._client.publish(
                                     f"device/{node}/service", payload=msg
                                 )
+                        self._last_cmd = command
+                    elif command == "set":
+                        if rest_args[0].startswith("."):
+                            envfile = rest_args.pop(0)
+                        else:
+                            envfile = ".env"
+                        env_vars = {
+                            k: v for k, v in [vv.split("=") for vv in rest_args]
+                        }
+                        msg = json.dumps({command: {envfile: env_vars}})
+
+                        for node in _nodes:
+                            self._env_buffer[node] = {}
+                            await self._client.publish(
+                                f"device/{node}/service", payload=msg
+                            )
                         self._last_cmd = command
 
                     elif command in ["enable", "disable", "config"]:
@@ -1693,6 +1739,35 @@ class DeviceTOP:
                             dev_report = self._report_buffer.get(node)
                             if dev_report:
                                 _rp = dev_report.get(rest_args)
+                                if _rp:
+                                    resp += f"[{node}]:\n"
+                                    for line in _rp.splitlines():
+                                        resp += f"    {line}\n"
+                                    resp += "\n"
+
+                    elif self._last_cmd in ("env", "set"):
+                        # if (
+                        #     self._cursor_enabled
+                        #     and command == "report"
+                        #     and self._current_selected_service
+                        # ):
+                        #     _nodes, _sel_serv = self._current_selected_service.split(
+                        #         "@"
+                        #     )
+                        #     _nodes = [_nodes]
+                        #     rest_args = _sel_serv
+
+                        for node in _nodes:
+                            dev_env = self._env_buffer.get(node)
+                            if dev_env:
+                                if isinstance(rest_args, list):
+                                    if rest_args[0].startswith("."):
+                                        envfile = rest_args.pop(0)
+                                    else:
+                                        envfile = ".env"
+                                else:
+                                    envfile = rest_args
+                                _rp = dev_env.get(envfile)
                                 if _rp:
                                     resp += f"[{node}]:\n"
                                     for line in _rp.splitlines():

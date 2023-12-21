@@ -45,5 +45,25 @@ def dotenv_values(env, debug=False):
     return replace_vars(env_values)
 
 
+def set_env_values(env, kvals, debug=False):
+    with open(env, "rb+") as envf:
+        _env = envf.read().decode()
+        for k, v in kvals.items():
+            if k in _env:  # substitute
+                start = _env.index(k)
+                stop = start + _env[start:].index("\n")
+                entry = _env[start:stop]
+                _env = _env.replace(entry, f"{k}={v}")
+                if debug:
+                    print(f"replacing: {entry} by {k}={v}")
+            else:  # append
+                _env += f"{k}={v}\n"
+                if debug:
+                    print(f"adding: {k}={v}")
+
+    with open(env, "wb") as envf:
+        envf.write(_env.encode())
+
+
 if __name__ == "__main__":
     print(dotenv_values(".env"))
