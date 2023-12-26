@@ -14,7 +14,7 @@ import sys
 
 
 class FakeBME280:
-    def __init__(self, i2c=None):
+    def __init__(self, address=0, i2c=None):
         self.i2c = i2c
 
     def read_compensated_data(self):
@@ -59,6 +59,7 @@ class MQTTService(Service):
             "restart": ["aiomqtt_sensor_bme280.service"],
             "topics": [f"device/{self.id}/state", "device/all/state"],
             "i2c": (22, 21),
+            "address": 0x76,
             "loglevel": "INFO",
             "service_logger": True,
         }
@@ -74,9 +75,9 @@ class MQTTService(Service):
         self.td = 0
         self.i2c = None
 
-    def setup(self):
+    def setup(self, addr):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
-        self.sensor = FakeBME280(i2c=self.i2c)
+        self.sensor = FakeBME280(address=addr, i2c=self.i2c)
         self._cfg_temp = {
             "topic": self._CONFIG_TOPIC.format(self.id + "T"),
             "payload": "",
@@ -186,13 +187,14 @@ class MQTTService(Service):
         restart=True,
         topics=[],
         i2c=(22, 21),
+        address=0x76,
         log=None,
         loglevel="INFO",
         service_logger=True,
     ):
         self.add_logger(log, level=loglevel, service_logger=service_logger)
         self.i2c = I2C(1, scl=Pin(i2c[0]), sda=Pin(i2c[1]))
-        self.setup()
+        self.setup(address)
         if not main:
             if ssl:
                 if not self.sslctx:
