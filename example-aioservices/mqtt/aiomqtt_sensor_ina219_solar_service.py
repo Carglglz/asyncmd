@@ -11,12 +11,11 @@ import socket
 import sys
 from array import array
 
-# from ina219 import BME280
 
-try:
+if aioctl.getenv("INA219", False):
     from ina219 import INA219
 
-except Exception:
+else:
 
     class INA219:
         def __init__(self, *args, **kwargs):

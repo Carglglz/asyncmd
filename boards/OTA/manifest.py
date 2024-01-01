@@ -1,0 +1,6 @@
+include("../../mod/asyncmd.py")
+include("../../mod/network.py")
+include("../../mod/ota.py")
+include("../../mod/sense.py")
+include("../../mod/powermg.py")
+include("../../mod/test.py")

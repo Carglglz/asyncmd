@@ -8,12 +8,6 @@ import random
 import struct
 import sys
 
-try:
-    from hostname import NAME
-
-except Exception:
-    NAME = sys.platform
-
 
 class AiobleTempService(Service):
     # org.bluetooth.service.environmental_sensing
@@ -33,9 +27,9 @@ class AiobleTempService(Service):
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
-        self.args = [NAME]
+        self.args = [aioctl.getenv("HOSTNAME", sys.platform)]
         self.kwargs = {
-            "adv_interval": self._ADV_INTERVAL_MS,
+            "adv_interval": aioctl.getenv("ADV_INTERVAL_MS", self._ADV_INTERVAL_MS),
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "main": None,
@@ -64,13 +58,13 @@ class AiobleTempService(Service):
 
     def on_stop(self, *args, **kwargs):  # same args and kwargs as self.task
         if self.log:
-            self.log.info(f"[{self.name}.service] stopped")
+            self.log.info("stopped")
 
         return
 
     def on_error(self, e, *args, **kwargs):
         if self.log:
-            self.log.error(f"[{self.name}.service] Error callback {e}")
+            self.log.error(f"Error callback {e}")
         return e
 
     # Helper to encode the temperature characteristic encoding
@@ -89,8 +83,10 @@ class AiobleTempService(Service):
         appearance=None,
         indicate=True,
         log=None,
+        loglevel="INFO",
+        service_logger=True,
     ):
-        self.log = log
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
         if appearance:
             self.appearance = const(appearance)
         if not main:
@@ -98,7 +94,7 @@ class AiobleTempService(Service):
             aioble.core.ble.config(gap_name=adv_name)
             while True:
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Advertising services...")
+                    self.log.info("Advertising services...")
                 async with await aioble.advertise(
                     adv_interval,
                     name=adv_name,
@@ -107,8 +103,7 @@ class AiobleTempService(Service):
                 ) as connection:
                     if self.log:
                         self.log.info(
-                            f"[{self.name}.service] Connection from"
-                            + f" {connection.device}",
+                            "Connection from" + f" {connection.device}",
                         )
                     else:
                         print("Connection from", connection.device)
@@ -116,25 +111,22 @@ class AiobleTempService(Service):
                     self.connected_device = connection.device
                     self.connection = connection
 
-                    if "aioble_temp.service.sense" in aioctl.group().tasks:
-                        aioctl.delete("aioble_temp.service.sense")
-                    aioctl.add(
+                    self.add_ctask(
+                        aioctl,
                         self.sense,
-                        self,
-                        name="aioble_temp.service.sense",
-                        _id="aioble_temp.service.sense",
+                        "sense",
                         on_stop=self.on_stop,
                         on_error=self.on_error,
                         indicate=indicate,
                     )
                     if self.log:
-                        self.log.info(f"[{self.name}.service] Sensing task enabled")
+                        self.log.info("Sensing task enabled")
                     await connection.disconnected(timeout_ms=None)
                     self.connected_device = None
                     self.connection = None
 
                     if self.log:
-                        self.log.info(f"[{self.name}.service] Device disconnected")
+                        self.log.info("Device disconnected")
         else:
             while main not in aioctl.group().tasks:
                 await asyncio.sleep(1)
@@ -148,19 +140,16 @@ class AiobleTempService(Service):
                 self.connection = self.main_service.connection
                 self.connected_device = self.connection.device
 
-                if "aioble_temp.service.sense" in aioctl.group().tasks:
-                    aioctl.delete("aioble_temp.service.sense")
-                aioctl.add(
+                self.add_ctask(
+                    aioctl,
                     self.sense,
-                    self,
-                    name="aioble_temp.service.sense",
-                    _id="aioble_temp.service.sense",
+                    "sense",
                     on_stop=self.on_stop,
                     on_error=self.on_error,
                     indicate=indicate,
                 )
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Sensing task enabled")
+                    self.log.info("Sensing task enabled")
 
                 while self.main_service.connection:
                     await asyncio.sleep(1)
@@ -179,7 +168,7 @@ class AiobleTempService(Service):
                 if kwargs.get("indicate"):
                     await self.temp_characteristic.indicate(self.connection)
             if self.log:
-                self.log.info(f"[{self.name}.service.sense] Temperature: {self.t} C")
+                self.log.info(f"Temperature: {self.t} C")
 
             self.t += random.uniform(-0.5, 0.5)
             await asyncio.sleep_ms(5000)

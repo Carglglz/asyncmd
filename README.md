@@ -139,7 +139,7 @@ To install services using `mip`
 
 
 
-Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory. To freeze services, see `mod_services`. To learn more about freezing packages/modules see
+Note that this set of tools (with exception of `aioservices/services`) can be frozen in the firmware too which will be the best option for saving memory. To freeze services, see `frz_services`. To learn more about freezing packages/modules see
 [MicroPython manifest files](https://docs.micropython.org/en/latest/reference/manifest.html#manifest)
 
 

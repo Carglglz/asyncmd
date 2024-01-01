@@ -8,12 +8,6 @@ import os
 import sys
 import struct
 
-try:
-    from hostname import NAME
-
-except Exception:
-    NAME = sys.platform
-
 
 class AiobleService(Service):
     # How frequently to send advertising beacons.
@@ -33,14 +27,16 @@ class AiobleService(Service):
         self.type = "runtime.service"  # continuous running, other types are
         self.enabled = True
         self.docs = "https://github.com/Carglglz/asyncmd/blob/main/README.md"
-        self.args = [NAME]
+        self.args = [aioctl.getenv("GAPNAME", sys.platform)]
         self.kwargs = {
-            "adv_interval": self._ADV_INTERVAL_MS,
+            "adv_interval": aioctl.getenv("ADV_INTERVAL_MS", self._ADV_INTERVAL_MS),
             "on_stop": self.on_stop,
             "on_error": self.on_error,
             "echo": True,
             "main": True,
             "ble_services": [],
+            "loglevel": "INFO",
+            "service_logger": True,
         }
         # Register GATT server.
         self.appearance = const(128)
@@ -100,9 +96,12 @@ class AiobleService(Service):
         ble_services=[],
         echo=True,
         log=None,
+        loglevel="INFO",
+        service_logger=True,
     ):
         self._echo = echo
-        self.log = log
+
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
 
         if appearance:
             self.appearance = const(appearance)
@@ -135,9 +134,7 @@ class AiobleService(Service):
                 )
 
         if self.log:
-            self.log.info(
-                f"[{self.name}.service] Registering services {self.ble_services}"
-            )
+            self.log.info(f"Registering services {self.ble_services}")
 
         aioble.register_services(*self.ble_services)
         self._registered_services = True
@@ -151,7 +148,7 @@ class AiobleService(Service):
             aioble.core.ble.config(gap_name=adv_name, mtu=515)
         while True:
             if self.log:
-                self.log.info(f"[{self.name}.service] Advertising services...")
+                self.log.info("Advertising services...")
             async with await aioble.advertise(
                 adv_interval,
                 name=adv_name,
@@ -160,8 +157,7 @@ class AiobleService(Service):
             ) as connection:
                 if self.log:
                     self.log.info(
-                        f"[{self.name}.service] Connection from"
-                        + f" {connection.device}",
+                        f"Connection from {connection.device}",
                     )
                 else:
                     print("Connection from", connection.device)
@@ -174,7 +170,7 @@ class AiobleService(Service):
                 self.connected_device = None
 
                 if self.log:
-                    self.log.info(f"[{self.name}.service] Device disconnected")
+                    self.log.info("Device disconnected")
 
 
 service = AiobleService("aioble")

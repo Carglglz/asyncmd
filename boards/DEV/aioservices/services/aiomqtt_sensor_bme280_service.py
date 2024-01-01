@@ -1,0 +1,1 @@
+from aiomqtt_sensor_bme280_service import service
