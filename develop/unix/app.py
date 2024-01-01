@@ -9,14 +9,21 @@ async def _main(logger, repl=False):
     import aioservice
 
     await aioservice.boot(debug=False, log=logger, debug_log=True)
-    aioctl.log()
     print("loading services...")
+
+    repl = aioctl.getenv("AIOREPL", repl)
     if repl:
         aioctl.add(aiorepl.task, name="repl")
         print(">>> ")
+    sys_handler = False
+    for i, handler in enumerate(logger.handlers):
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:
+                sys_handler = logger.handlers.pop(i)
     aioservice.init(log=logger, debug_log=True)
-    if not repl:
-        asyncio.create_task(aioctl.follow())
+    if not repl and sys_handler:
+        logger.addHandler(sys_handler)
+
     await asyncio.gather(*aioctl.tasks())
 
 
@@ -40,6 +47,12 @@ def run(log_stream, repl=False):
     stream_handler.setFormatter(formatter)
     log.addHandler(stream_handler)
 
-    log.info("Device Ready")
+    # Sys.stdout
+    sys_handler = logging.StreamHandler(stream=sys.stdout)
+    sys_handler.setLevel(getattr(logging, LOGLEVEL))
+    sys_handler.setFormatter(formatter)
+    log.addHandler(sys_handler)
+
+    log.info("Booting asyncmd...")
 
     asyncio.run(_main(log, repl=repl))

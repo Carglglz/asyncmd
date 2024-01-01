@@ -2,10 +2,10 @@
 Install `aiorepl`, `logging` and
 `time` using `micropython -m mip install` see [mip](https://docs.micropython.org/en/latest/reference/packages.html?#using-mip-on-the-unix-port)
 
-Then in unix micropython run `asyncmd_aiorepl.py`
+Then in unix micropython run `main.py`
 
 ```
- $ micropython -i asyncmd_aiorepl.py
+ $ micropython -i main.py
 MicroPython v1.20.0-162-g08b6c8808-dirty on 2023-06-04; darwin [GCC 4.2.1] version
 Use Ctrl-D to exit, Ctrl-E for paste mode
 
@@ -60,11 +60,10 @@ import aiostats
 ┗━► 2023-06-04 13:15:02 [darwin@unix] [INFO] [stats.service] HTTP/1.1 200 OK
 
 ```
-
-
 Or another option to see logging output directly instead of a repl
+by setting `AIOREPL=False` in the `.env` file
 ```
-$ micropython -i asyncmd_logging.py
+$ micropython -i main.py
 
     █████████████████  █████████████████
     █████████████████  █████████████████

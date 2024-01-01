@@ -1,5 +1,5 @@
 import os
-from microdot_asyncio_serv import Microdot, send_file
+from microdot import Microdot, send_file
 from aioclass import Service
 import aioctl
 import ssl as _ssl

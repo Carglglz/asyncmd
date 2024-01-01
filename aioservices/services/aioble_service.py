@@ -129,9 +129,7 @@ class AiobleService(Service):
             for _ble_serv in ble_services:
                 while _ble_serv not in aioctl.group().tasks:
                     await asyncio.sleep_ms(200)
-                self.ble_services += (
-                    aioctl.group().tasks[_ble_serv].service.ble_services
-                )
+                self.ble_services += aioctl.group().tasks[_ble_serv].service.ble_services
 
         if self.log:
             self.log.info(f"Registering services {self.ble_services}")

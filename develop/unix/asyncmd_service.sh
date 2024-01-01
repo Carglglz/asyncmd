@@ -1,6 +1,6 @@
 while :
 do
   # loop infinitely
-  ./asyncmd_logging.py
+  ./main.py
   sleep 1
 done

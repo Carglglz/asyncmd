@@ -1,8 +1,13 @@
-from microdot_asyncio_serv import Microdot, send_file
-from microdot_asyncio_websocket import with_websocket
+from microdot import Microdot, send_file
+from microdot.websocket import with_websocket
+from microdot.sse import with_sse
 from aioclass import Service
 import aioctl
 import ssl as _ssl
+import aiorepl
+import asyncio
+import sys
+import random
 
 
 class MicrodotService(Service):
@@ -34,6 +39,14 @@ class MicrodotService(Service):
         async def index(request):
             return send_file("static/index_ws.html")
 
+        @self.app.route("/stream")
+        async def events_index(request):
+            return send_file("static/index_events.html")
+
+        @self.app.route("/ws")
+        async def ws_index(request):
+            return send_file("static/repl_ws.html")
+
         @self.app.route("/favicon.ico")
         async def favicon(request):
             return send_file("static/favicon.ico")
@@ -51,6 +64,28 @@ class MicrodotService(Service):
             while True:
                 data = await ws.receive()
                 await ws.send(data)
+
+        @self.app.route("/repl")
+        @with_websocket
+        async def repl(request, ws):
+            g = __import__("__main__").__dict__
+            s = asyncio.StreamReader(sys.stdin)
+            while True:
+                cmd = await ws.receive()
+                # print(f"THIS COMMAND: {cmd}")
+                result = await aiorepl.execute(f"{cmd}\r", g, s)
+                if result is not None:
+                    await ws.send(f"{repr(result)}\r\n")
+                else:
+                    await ws.send("\r")
+
+        @self.app.route("/events")
+        @with_sse
+        async def events(request, sse):
+            self.log.info("EVENT REQUEST")
+            while not request._done:
+                await asyncio.sleep(1)
+                await sse.send(f"{round(25+random.random(),2)}", event="temperature")
 
         @self.app.route("/shutdown")
         async def shutdown(request):
