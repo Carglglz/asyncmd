@@ -15,6 +15,6 @@ try:
     from splash import MPY_BANNER
 
     print(MPY_BANNER)
-    app.run(streamlog, repl=True)
+    app.run(streamlog)
 except Exception as e:
     sys.print_exception(e)

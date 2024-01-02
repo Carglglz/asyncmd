@@ -5,6 +5,21 @@ import sys
 import aioctl
 
 
+def bootloader(log):
+    import os
+
+    try:
+        os.stat("./aioservices")
+        return
+    except Exception:
+        log.info("asyncmd bootloader setup")
+
+    import asyncmd_boot
+
+    asyncmd_boot.setup(log)
+    asyncmd_boot.config_setup(log)
+
+
 async def _main(logger, repl=True):
     import aioservice
 
@@ -62,6 +77,8 @@ def run(log_stream, file_logging=False):
     sys_handler.setFormatter(formatter)
     log.addHandler(sys_handler)
 
+    # Bootloader
     log.info("Booting asyncmd...")
+    bootloader(log)
 
     asyncio.run(_main(log))

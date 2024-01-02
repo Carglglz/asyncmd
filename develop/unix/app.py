@@ -5,13 +5,28 @@ import sys
 import aioctl
 
 
-async def _main(logger, repl=False):
+def bootloader(log):
+    import os
+
+    try:
+        os.stat("./aioservices")
+        return
+    except Exception:
+        log.info("asyncmd bootloader setup")
+
+    import asyncmd_boot
+
+    asyncmd_boot.setup(log)
+    asyncmd_boot.config_setup(log)
+
+
+async def _main(logger):
     import aioservice
 
     await aioservice.boot(debug=False, log=logger, debug_log=True)
     print("loading services...")
 
-    repl = aioctl.getenv("AIOREPL", repl)
+    repl = aioctl.getenv("AIOREPL", False)
     if repl:
         aioctl.add(aiorepl.task, name="repl")
         print(">>> ")
@@ -27,9 +42,8 @@ async def _main(logger, repl=False):
     await asyncio.gather(*aioctl.tasks())
 
 
-def run(log_stream, repl=False):
+def run(log_stream):
     # Logger
-
     NAME = aioctl.getenv("HOSTNAME", sys.platform, debug=True)
     LOGLEVEL = aioctl.getenv("LOGLEVEL", "INFO")
     logging.basicConfig(
@@ -41,6 +55,7 @@ def run(log_stream, repl=False):
 
     log = logging.getLogger(f"{sys.platform}@{NAME}")
     formatter = logging.Formatter("%(asctime)s [%(name)s] [%(levelname)s] %(message)s")
+
     # Stream
     stream_handler = logging.StreamHandler(stream=log_stream)
     stream_handler.setLevel(getattr(logging, LOGLEVEL))
@@ -53,6 +68,9 @@ def run(log_stream, repl=False):
     sys_handler.setFormatter(formatter)
     log.addHandler(sys_handler)
 
+    # Bootloader
     log.info("Booting asyncmd...")
+    bootloader(log)
 
-    asyncio.run(_main(log, repl=repl))
+    # App
+    asyncio.run(_main(log))
