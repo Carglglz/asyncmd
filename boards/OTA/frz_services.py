@@ -9,6 +9,9 @@ services = [
     "stats_service",
     "unittest_core_service",
     "watcher_service",
+    "ota_service",
+    "network_service",
+    "wpa_supplicant_service",
     "ping_service",
 ]
 
