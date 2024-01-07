@@ -24,5 +24,5 @@ config["watcher_service"]["enabled"] = True
 
 envfile = f"""HOSTNAME={sys.platform}
 LED_PIN=2
-AIOREPL=False
+AIOREPL=True
 """

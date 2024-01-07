@@ -1,4 +1,7 @@
-import gc
+import os
+
+if "main.py" not in os.listdir():
+    _main_py = """import gc
 import sys
 import machine
 import aioctl
@@ -23,3 +26,6 @@ try:
     app.run(streamlog)
 except Exception as e:
     sys.print_exception(e)
+    """
+    with open("main.py", "w") as main:
+        main.write(_main_py)
