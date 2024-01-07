@@ -257,8 +257,21 @@ async def boot(debug=True, log=None, debug_log=False, config=True):
     if config:
         _servs_config = get_config()
         for srv in core_services:
-            srv.args = _servs_config[srv.name].get("args", srv.args)
-            srv.kwargs.update(**_servs_config[srv.name].get("kwargs", srv.kwargs))
+            if srv.name in _servs_config:
+                srv.args = _servs_config[srv.name].get("args", srv.args)
+                srv.kwargs.update(**_servs_config[srv.name].get("kwargs", srv.kwargs))
+            else:
+                if debug:
+                    print(
+                        f"[aioservice] No config found for {srv.name}.service"
+                        + ", using default"
+                    )
+                if debug_log and log:
+                    log.info(
+                        f"[aioservice] No config found for {srv.name}.service"
+                        + ", using default"
+                    )
+
     # check if any requirement for core.service
     serv_rq = [srv for srv in core_services if "require" in srv.kwargs]
     serv_core = [srv for srv in core_services if srv not in serv_rq]
