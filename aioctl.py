@@ -256,6 +256,10 @@ def getenv(var, alt=None, envfile=".env", debug=False):
             setenv(dotenv.dotenv_values(envfile, debug=debug))
         except ImportError:
             print("WARNING: dotenv module required")
+    if debug:
+        import dotenv
+
+        return dotenv.dotenv_values(envfile, debug=debug).get(var, alt)
 
     return _ENV.get(var, alt)
 

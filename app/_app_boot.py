@@ -11,7 +11,11 @@ aioctl.set_log(streamlog)
 gc.collect()
 gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
 
-machine.freq(aioctl.getenv("MACHINE_FREQ", machine.freq()))
+
+mf = machine.freq()
+if isinstance(mf, tuple):
+    mf = mf[0]
+machine.freq(aioctl.getenv("MACHINE_FREQ", mf))
 
 try:
     import app
