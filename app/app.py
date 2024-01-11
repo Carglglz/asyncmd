@@ -10,14 +10,19 @@ def bootloader(log):
 
     try:
         os.stat("./aioservices")
-        return
     except Exception:
         log.info("asyncmd bootloader setup")
+        import asyncmd_boot
 
-    import asyncmd_boot
+        asyncmd_boot.setup(log)
+    try:
+        os.stat("services.config")
+        os.stat(".env")
+    except Exception:
+        from asyncmd_boot import config_setup
 
-    asyncmd_boot.setup(log)
-    asyncmd_boot.config_setup(log)
+        log.info("asyncmd config setup")
+        config_setup(log)
 
 
 async def _main(logger, repl=True):

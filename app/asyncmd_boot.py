@@ -98,8 +98,7 @@ def setup(log):
         log.info(f"Service {service} setup [ \033[92mOK\x1b[0m ]")
 
 
-def config_setup(log):
-    # Generate services.config from frz_services module
+def gen_services_config(log):
     try:
         os.stat("services.config")
         return
@@ -116,8 +115,8 @@ def config_setup(log):
 
     log.info("services.config setup [ \033[92mOK\x1b[0m ]")
 
-    # Generate .env file
 
+def gen_env(log):
     try:
         os.stat(".env")
         return
@@ -128,3 +127,10 @@ def config_setup(log):
         envf.write(envfile)
 
     log.info("dotenv file setup [ \033[92mOK\x1b[0m ]")
+
+
+def config_setup(log):
+    # Generate services.config from frz_services module
+    gen_services_config(log)
+    # Generate .env file
+    gen_env(log)
