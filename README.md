@@ -93,13 +93,8 @@ For `aioctl.py`, `aioschedule.py`, `aiolog.py`, `aioservice.py` and `aioclass.py
 
 For `aioservices/services` make the directories first and then upload  `aioservices/services/__init__.py` (or directly sync `aioservices`)
 
-Then to install a service upload it to this directory or to root directory and use 
-e.g. 
+Then to install a service upload it to this directory.
 
-```  
- >>> import aioservice
- >>> aioservice.install("myserv_service.py")
-```
 ### Using MIP
 See [MIP](https://docs.micropython.org/en/latest/reference/packages.html)
 
