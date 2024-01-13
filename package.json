@@ -5,10 +5,12 @@
 	  ["lib/aiolog.py", "github:carglglz/asyncmd/aiolog.py"],
 	  ["lib/aioclass.py", "github:carglglz/asyncmd/aioclass.py"],
 	  ["lib/aioservice.py", "github:carglglz/asyncmd/aioservice.py"],
-	  ["aioservices/services/__init__.py", "github:carglglz/asyncmd/aioservices/services/__init__.py"],
-
+	  ["aioservices/services/__init__.py", "github:carglglz/asyncmd/aioservices/services/__init__.py"]
   ],
-  "deps":[ "logging", "time", "aiorepl"
+  "deps":[
+      ["logging", "latest"],
+      [ "time", "latest" ],
+      [ "aiorepl", "latest" ]
   ],
   "version": "1.0"
 }
