@@ -23,6 +23,7 @@ class WatcherService(Service):
             "max_errors": 0,
             "watchdog": True,
             "wdfeed": 60000,
+            "heartbeat": False,
             "debug": False,
             "save_report": False,
             "err_service_limit": False,
@@ -34,6 +35,7 @@ class WatcherService(Service):
         self._report_updated = False
         self.log = None
         self._wdt = None
+        self._hb = None
         # core.service --> run one time at boot
         # schedule.service --> run and stop following a schedule
 
@@ -103,6 +105,7 @@ class WatcherService(Service):
         max_errors=0,
         watchdog=True,
         wdfeed=10000,
+        heartbeat=False,
         debug=False,
         save_report=False,
         err_service_limit=False,
@@ -125,6 +128,17 @@ class WatcherService(Service):
             )
             if self.log:
                 self.log.info("WDT task enabled")
+        if aioctl.getenv("HEARTBEAT", heartbeat):
+            self.add_ctask(
+                aioctl,
+                self.heartbeat,
+                "heartbeat",
+                aioctl.getenv("HEARTBEAT", heartbeat),
+                on_error=self.on_error,
+                debug=debug,
+            )
+            if self.log:
+                self.log.info("HEARTBEAT task enabled")
 
         while True:
             for name, res in aioctl.result_all(as_dict=True).items():
@@ -200,6 +214,26 @@ class WatcherService(Service):
             await asyncio.sleep_ms(_asleep)
             if self.log and debug:
                 self.log.debug("feeding WDT", cname="wdt")
+
+    @aioctl.aiotask
+    async def heartbeat(self, hb, debug=False):
+        from machine import Pin
+
+        if hb is True:
+            self._hb = Pin(aioctl.getenv("HB_LED_PIN", 2), Pin.OUT)
+            timeout = aioctl.getenv("HB_TIMEOUT", 1)
+        elif isinstance(hb, dict) and hb:
+            self._hb = Pin(hb.get("LED", aioctl.getenv("HB_LED_PIN", 2)), Pin.OUT)
+            timeout = hb.get("TIMEOUT", aioctl.getenv("HB_TIMEOUT", 1))
+        else:
+            return
+        while True:
+            await asyncio.sleep(timeout)
+            self._hb.value(not self._hb.value())
+            await asyncio.sleep_ms(50)
+            self._hb.value(not self._hb.value())
+            if self.log and debug:
+                self.log.debug("beep", cname="heartbeat")
 
 
 service = WatcherService("watcher")
