@@ -31,7 +31,7 @@ class UnittestService(Service):
             "root": "./",
             "debug": False,
             "save_report": False,
-            "require": "network",
+            "require": None,
             "rollback_ota_on_error": False,
         }
         self._root = ""
