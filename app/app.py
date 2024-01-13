@@ -28,7 +28,7 @@ def bootloader(log):
 async def _main(logger, repl=True):
     import aioservice
 
-    await aioservice.boot(log=logger, debug_log=True)
+    await aioservice.boot(debug=False, log=logger, debug_log=True)
     print("loading services...")
     repl = aioctl.getenv("AIOREPL", repl)
     if repl:
