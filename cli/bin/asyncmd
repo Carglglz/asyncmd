@@ -342,6 +342,7 @@ async def _ota(args, log, tls_params=None, ota_tls_params={}):
 async def async_ota(args, log, tls_params=None, ota_tls_params={}):
     tasks = set()
     interval = 5
+    args.ff = [os.path.abspath(fwfile) for fwfile in args.ff if os.path.exists(fwfile)]
 
     while True:
         try:
@@ -441,21 +442,22 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
                         f"New firmware for {devname}: SHA: "
                         f"{server.check_sha[sha_file['fwfile']]}"
                     )
-                    await client.publish(
-                        str(message.topic).replace("otacheck", "ota"),
-                        payload=json.dumps(
-                            {
-                                "host": server.host,
-                                "port": server.port,
-                                "sha": server.check_sha[sha_file["fwfile"]],
-                                "blocks": server._fw_files[sha_file["fwfile"]][
-                                    "n_blocks"
-                                ],
-                                "bg": server._bg,
-                                "fwfile": sha_file["fwfile"],
-                            }
-                        ),
-                    )
+                    if sha_file.get("notify", True):
+                        await client.publish(
+                            str(message.topic).replace("otacheck", "ota"),
+                            payload=json.dumps(
+                                {
+                                    "host": server.host,
+                                    "port": server.port,
+                                    "sha": server.check_sha[sha_file["fwfile"]],
+                                    "blocks": server._fw_files[sha_file["fwfile"]][
+                                        "n_blocks"
+                                    ],
+                                    "bg": server._bg,
+                                    "fwfile": sha_file["fwfile"],
+                                }
+                            ),
+                        )
                 else:
                     log.info(f"{devname} Firmware Up to date")
 

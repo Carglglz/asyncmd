@@ -161,7 +161,10 @@ class AOTAServer:
         self.check_sha = {}  # self.context.load_verify_locations(cadata=self.cadata)
         self._default_fwfile = firmwares[0]
         self._fw_files = {fwfile: {} for fwfile in firmwares}
+
+        self.log.info("Serving firmware:")
         for fwfile in firmwares:
+            self.log.info(f"- {fwfile}")
             if os.path.exists(fwfile):
                 self.update_sha(fwfile)
 
@@ -315,20 +318,21 @@ class AOTAServer:
         self.log.info("OTA Server listening...")
         if self._use_tls:
             self.log.info("OTA TLS enabled...")
-        await self.client.publish(
-            self._topic,
-            # payload="check"
-            payload=json.dumps(
-                {
-                    "host": self.host,
-                    "port": self.port,
-                    "sha": self.check_sha[self._default_fwfile],
-                    "blocks": self._fw_files[self._default_fwfile]["n_blocks"],
-                    "bg": self._bg,
-                    "fwfile": self._default_fwfile,
-                }
-            ),
-        )
+        for fwf in self._fw_files:
+            await self.client.publish(
+                self._topic,
+                # payload="check"
+                payload=json.dumps(
+                    {
+                        "host": self.host,
+                        "port": self.port,
+                        "sha": self.check_sha[fwf],
+                        "blocks": self._fw_files[fwf]["n_blocks"],
+                        "bg": self._bg,
+                        "fwfile": fwf,
+                    }
+                ),
+            )
 
         self.server = await asyncio.start_server(
             serve, self.host, self.port, ssl=self.context, reuse_port=True
