@@ -332,6 +332,23 @@ class MQTTService(Service):
                     if self.log:
                         self.log.info("No new OTA update")
                     return
+                if self._ota_check and self._fwfile:
+                    async with self.lock:
+                        await self.client.publish(
+                            f"device/{self.id}/otacheck".encode("utf-8"),
+                            json.dumps(
+                                {
+                                    "notify": False,
+                                    "sha": _ota_service._comp_sha_ota("", rtn=True),
+                                    "fwfile": self._fwfile,
+                                    "ip": (
+                                        aioctl.group()
+                                        .tasks["network.service"]
+                                        .service.wlan.ifconfig()[0]
+                                    ),
+                                }
+                            ),
+                        )
 
                 _ota_service.start_ota(
                     _ota_params["host"],

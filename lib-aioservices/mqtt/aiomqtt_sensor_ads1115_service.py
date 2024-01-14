@@ -294,9 +294,8 @@ class MQTTService(Service):
 
         if self.log:
             self.log.info(
-                f"[{self.name}.service.sense_cb] {self.averagePA()} Abar "
-                + f"{self.averagePB()} Bbar",
-                cname="sense",
+                f"{self.averagePA()} Abar " + f"{self.averagePB()} Bbar",
+                cname="sense_cb",
             )
         async with self.lock:
             await self.client.publish(
@@ -321,8 +320,7 @@ class MQTTService(Service):
 
             if self.log:
                 self.log.info(
-                    f"[{self.name}.service.sense] {self.averagePA()} Abar "
-                    + f"{self.averagePB()} Bbar",
+                    f"{self.averagePA()} Abar " + f"{self.averagePB()} Bbar",
                     cname="sense",
                 )
 

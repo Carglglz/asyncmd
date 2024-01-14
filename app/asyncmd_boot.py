@@ -107,8 +107,8 @@ def gen_services_config(log):
 
     services_config = {}
 
-    for service in services:
-        services_config[service.replace("_service", "")] = config[service]
+    for service in (_srv.replace("_service", "") for _srv in services):
+        services_config[service] = config.get(service, {"enabled": False})
 
     with open("services.config", "w") as sconf:
         sconf.write(json.dumps(services_config))
