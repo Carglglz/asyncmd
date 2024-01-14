@@ -10,9 +10,11 @@ if "services.config" not in os.listdir():
         "watcher_service",
     ]
 
-    config = {service: {"enabled": False} for service in services}
+    config = {
+        service.replace("_service", ""): {"enabled": False} for service in services
+    }
 
-    config["watcher_service"]["enabled"] = True
+    config["watcher"]["enabled"] = True
 
 else:
     with open("services.config", "r") as sc:

@@ -1,1 +1,0 @@
-from aiomqtt_sensor_ina219_solar_service import service

@@ -1,1 +1,1 @@
-module("powermg_service.py", base_path="../example-aioservices/power_management")
+module("powermg_service.py", base_path="../lib-aioservices/power_management")

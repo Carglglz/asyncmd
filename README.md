@@ -245,7 +245,7 @@ True
 ```
 
 See more [examples](examples/) to know how to add *"async" logging*,
-callbacks, debugging errors, get results, scheduling and finally some [examples](example-aioservices/) of `aioservice`
+callbacks, debugging errors, get results, scheduling and finally some [examples](lib-aioservices/) of `aioservice`
 implementation.
 
 ## Docs
