@@ -11,18 +11,20 @@ import socket
 import sys
 
 # from bme280 import BME280
+if aioctl.getenv("BME280", False):
+    from bme280_float import BME280
+else:
 
+    class BME280:
+        def __init__(self, address=0, i2c=None):
+            self.i2c = i2c
 
-class FakeBME280:
-    def __init__(self, address=0, i2c=None):
-        self.i2c = i2c
-
-    def read_compensated_data(self):
-        return (
-            25 + random.random() * 2,
-            90000 + random.random() * 100,
-            60 + random.random() * 10,
-        )
+        def read_compensated_data(self):
+            return (
+                25 + random.random() * 2,
+                90000 + random.random() * 100,
+                60 + random.random() * 10,
+            )
 
 
 class MQTTService(Service):
@@ -77,7 +79,7 @@ class MQTTService(Service):
 
     def setup(self, addr):
         self.unique_id = "AmbienceSensor_{}".format(self.id.split()[0].lower())
-        self.sensor = FakeBME280(address=addr, i2c=self.i2c)
+        self.sensor = BME280(address=addr, i2c=self.i2c)
         self._cfg_temp = {
             "topic": self._CONFIG_TOPIC.format(self.id + "T"),
             "payload": "",
@@ -255,9 +257,7 @@ class MQTTService(Service):
             self.log.info("MQTT client connected")
         # Discovery
         async with self.lock:
-            await self.client.publish(
-                self._cfg_temp["topic"], self._cfg_temp["payload"]
-            )
+            await self.client.publish(self._cfg_temp["topic"], self._cfg_temp["payload"])
             # await asyncio.sleep(1)
             # HUMIDITY
             await self.client.publish(self._cfg_hum["topic"], self._cfg_hum["payload"])

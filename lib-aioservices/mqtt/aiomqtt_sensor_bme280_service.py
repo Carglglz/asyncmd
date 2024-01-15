@@ -12,7 +12,7 @@ import sys
 
 # from bme280 import BME280
 if aioctl.getenv("BME280", False):
-    from bme280 import BME280
+    from bme280_float import BME280
 else:
 
     class BME280:
@@ -257,9 +257,7 @@ class MQTTService(Service):
             self.log.info("MQTT client connected")
         # Discovery
         async with self.lock:
-            await self.client.publish(
-                self._cfg_temp["topic"], self._cfg_temp["payload"]
-            )
+            await self.client.publish(self._cfg_temp["topic"], self._cfg_temp["payload"])
             # await asyncio.sleep(1)
             # HUMIDITY
             await self.client.publish(self._cfg_hum["topic"], self._cfg_hum["payload"])

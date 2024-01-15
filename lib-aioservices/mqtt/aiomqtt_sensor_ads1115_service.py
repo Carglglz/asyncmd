@@ -13,7 +13,7 @@ from array import array
 
 
 if aioctl.getenv("ADS1115", False):
-    from ads1115 import ADS1115
+    from ads1x15 import ADS1115
 else:
 
     class ADS1115:

@@ -1,0 +1,9 @@
+[submodule "drivers/sensors/bme280"]
+	path = drivers/sensors/bme280
+	url = https://github.com/robert-hh/BME280.git
+[submodule "drivers/sensors/ina219"]
+	path = drivers/sensors/ina219
+	url = https://github.com/chrisb2/pyb_ina219.git
+[submodule "drivers/sensors/ads1x15"]
+	path = drivers/sensors/ads1x15
+	url = https://github.com/robert-hh/ads1x15.git
