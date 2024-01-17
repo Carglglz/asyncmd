@@ -33,11 +33,16 @@ def checksum(data):
 
 def stddev(data):
     N = len(data)
-    avg = sum(data) / N
-    num = sum([(x - avg) ** 2 for x in data])
-    den = N - 1
-    stddev = (num / den) ** 0.5
-    return stddev
+    if N:
+        avg = sum(data) / N
+        num = sum([(x - avg) ** 2 for x in data])
+        den = N - 1
+        if den > 0:
+            stddev = (num / den) ** 0.5
+        else:
+            return den
+        return stddev
+    return N
 
 
 async def ping(
