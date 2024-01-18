@@ -1,5 +1,7 @@
 import re
 
+# import sys
+
 
 def _parse_envdata(data):
     var, value = data.decode().split("=")
@@ -36,11 +38,12 @@ def dotenv_values(env, debug=False):
             if debug:
                 print(f"DOTENV: {env}")
             for line in _env:
-                if not line.startswith(b"#"):
+                if not line.startswith(b"#") and b"=" in line:
                     if debug:
                         print(line.decode().strip())
                     env_values.update(**_parse_envdata(line))
     except Exception:
+        # sys.print_exception(e)
         print(f"WARNING: configuration '{env}' file not found or corrupted")
     return replace_vars(env_values)
 

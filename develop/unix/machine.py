@@ -32,6 +32,7 @@ class Pin:
     IN = 1
 
     def __init__(self, *args, **kwargs):
+        self._value = 0
         ...
 
     def on(self):
@@ -39,6 +40,10 @@ class Pin:
 
     def off(self):
         return
+
+    def value(self, x=0):
+        self._value = x
+        return self._value
 
 
 class I2C:
