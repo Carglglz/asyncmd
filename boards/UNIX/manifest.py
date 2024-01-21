@@ -1,6 +1,5 @@
-include("../../mod/asyncmd.py")
-include("../../mod/sense.py")
-include("../../mod/network.py")
-include("../../mod/powermg.py")
-include("../../mod/test.py")
-module("frz_services.py", opt=3)
+include("$(PORT_DIR)/variants/manifest.py")
+
+include("$(MPY_DIR)/extmod/asyncio")
+
+include("asyncmd_manifest.py")
