@@ -46,6 +46,7 @@ class MQTTService(Service):
             "topics": [],
             "ota_check": True,
             "fwfile": None,
+            "fwf_re": True,
             "loglevel": "INFO",
             "service_logger": True,
         }
@@ -73,6 +74,7 @@ class MQTTService(Service):
 
         self._ota_check = False
         self._fwfile = None
+        self._fwf_re = None
         self._log_idx = None
         self._reset_causes = {
             machine.PWRON_RESET: "POWER ON",
@@ -323,9 +325,14 @@ class MQTTService(Service):
                     _ota_service._new_sha_check = True
                     if self._fwfile:
                         if self._fwfile != _ota_params["fwfile"]:
-                            if self.log:
-                                self.log.info("No new OTA update")
-                            return
+                            if not self._fwf_re:
+                                if self.log:
+                                    self.log.info("No new OTA update")
+                                return
+                            elif not _ota_params["fwfile"].endswith(self._fwfile):
+                                if self.log:
+                                    self.log.info("No new OTA update")
+                                return
                     else:
                         self._fwfile = _ota_params["fwfile"]
                 if _ota_service._comp_sha_ota(_ota_params["sha"]):
@@ -623,6 +630,7 @@ class MQTTService(Service):
         topics=[],
         ota_check=True,
         fwfile=None,
+        fwf_re=True,
         log=None,
         loglevel="INFO",
         service_logger=False,
@@ -632,7 +640,8 @@ class MQTTService(Service):
         for top in topics:
             self._topics.add(top)
         self._ota_check = ota_check
-        self._fwfile = fwfile
+        self._fwfile = aioctl.getenv("FWFILE", fwfile)
+        self._fwf_re = fwf_re
         if isinstance(self._SERVICE_TOPIC, str):
             self._TASK_TOPIC = self._TASK_TOPIC.format(client_id).encode("utf-8")
             self._SERVICE_TOPIC = self._SERVICE_TOPIC.format(client_id).encode("utf-8")
