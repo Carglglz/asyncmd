@@ -12,6 +12,10 @@ import getpass
 import json
 import asyncio
 import time
+from urllib.parse import urlparse
+import urllib.request
+import aiohttp
+import tempfile
 
 BLOCKLEN = 4096
 
@@ -29,6 +33,14 @@ if columns > cnt_size:
 else:
     bar_size = 1
     pb = False
+
+
+def is_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
 
 
 def do_pg_bar(
@@ -165,14 +177,26 @@ class AOTAServer:
         self.log.info("Serving firmware:")
         for fwfile in firmwares:
             self.log.info(f"- {fwfile}")
-            if os.path.exists(fwfile):
-                self.update_sha(fwfile)
+            self.update_sha(fwfile)
 
     def update_sha(self, fwfile):
-        # self._fw_file = firmware
-        with open(fwfile, "rb") as fwr:
-            firmware = fwr.read()
+        if os.path.exists(fwfile):
+            with open(fwfile, "rb") as fwr:
+                firmware = fwr.read()
+        elif is_url(fwfile):
+            try:
+                firmware = self.http_get(fwfile)
+            except Exception:
+                self.log.error(f"Firmware: {fwfile} not available")
+                return
+        else:
+            self.log.error(f"Firmware: {fwfile} not available")
+
+            return
+
         self._fw_files[fwfile]["sz"] = sz = len(firmware)
+        if is_url(fwfile):
+            self._fw_files[fwfile]["data"] = firmware
         hf = hashlib.sha256(firmware)
         if sz % BLOCKLEN != 0:
             self._fw_files[fwfile]["n_blocks"] = _n_blocks = (sz // BLOCKLEN) + 1
@@ -183,6 +207,52 @@ class AOTAServer:
         self.check_sha[fwfile] = self._fw_files[fwfile]["sha"] = hexlify(
             hf.digest()
         ).decode()
+
+    async def async_update_sha(self, fwfile):
+        if os.path.exists(fwfile):
+            with open(fwfile, "rb") as fwr:
+                firmware = fwr.read()
+        elif is_url(fwfile):
+            try:
+                firmware = await self.aiohttp_get(fwfile)
+            except Exception:
+                self.log.error(f"Firmware: {fwfile} not available")
+                return
+        else:
+            self.log.error(f"Firmware: {fwfile} not available")
+
+            return
+
+        self._fw_files[fwfile]["sz"] = sz = len(firmware)
+
+        if is_url(fwfile):
+            self._fw_files[fwfile]["data"] = firmware
+        hf = hashlib.sha256(firmware)
+        if sz % BLOCKLEN != 0:
+            self._fw_files[fwfile]["n_blocks"] = _n_blocks = (sz // BLOCKLEN) + 1
+
+            hf.update(b"\xff" * ((_n_blocks * BLOCKLEN) - sz))
+        else:
+            self._fw_files[fwfile]["n_blocks"] = _n_blocks = sz // BLOCKLEN
+        self.check_sha[fwfile] = self._fw_files[fwfile]["sha"] = hexlify(
+            hf.digest()
+        ).decode()
+
+    def http_get(self, fwfile):
+        resp = urllib.request.urlopen(fwfile)
+        if resp.status == 200:
+            firmware = resp.read()
+            resp.close()
+            return firmware
+        else:
+            raise ValueError
+
+    async def aiohttp_get(self, fwfile):
+        async with aiohttp.ClientSession() as client:
+            async with client.get(fwfile) as resp:
+                assert resp.status == 200
+                firmware = await resp.read()
+                return firmware
 
     def find_localip(self):
         ip_soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -363,13 +433,27 @@ class AOTAServer:
 
         sz = self._fw_files[fwfile]["sz"]
         if not self._bg:
-            tqdm.write(f"{os.path.relpath(fwfile)}  [{sz / 1000:.2f} kB]")
+            if not is_url(fwfile):
+                tqdm.write(f"{os.path.relpath(fwfile)}  [{sz / 1000:.2f} kB]")
+            else:
+                tqdm.write(f"{fwfile}  [{sz / 1000:.2f} kB]")
         cnt = 0
         data = await reader.read(2)
         assert data == b"OK"
         _pb_index = self.get_pos_pgb()
         buff = b""
         t_start = time.time()
+        tf = None
+
+        if is_url(fwfile):
+            # url_path = urlparse(fwfile).path
+            url_fwf = fwfile
+            tf = tempfile.NamedTemporaryFile(delete=False)
+            tf.write(self._fw_files[fwfile]["data"])
+            tf.seek(0)
+            fwfile = tf.name
+            tf.close()
+
         with open(fwfile, "rb") as fmwf:
             with cstqdm(
                 desc=_dev,
@@ -417,7 +501,10 @@ class AOTAServer:
                         pass
 
         tqdm.write("")
-        tqdm.write(f"{os.path.basename(fwfile)} @ {_dev} [ \033[92mOK\x1b[0m ] ")
+        if tf is None:
+            tqdm.write(f"{os.path.basename(fwfile)} @ {_dev} [ \033[92mOK\x1b[0m ] ")
+        else:
+            tqdm.write(f"{url_fwf} @ {_dev} [ \033[92mOK\x1b[0m ] ")
         do_pg_bar(
             tqdm.write,
             loop_index,
@@ -432,6 +519,9 @@ class AOTAServer:
         )
         tqdm.write("\n")
         self._busy_pos.remove(_pb_index)
+        # Remove temp file
+        if tf and os.path.exists(tf.name):
+            os.remove(tf.name)
         if self._async:
             while True:
                 data = await reader.read(2)

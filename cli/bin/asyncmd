@@ -20,6 +20,7 @@ from asyncmd.status import get_status
 import yaml
 import requests
 import time
+from urllib.parse import urlparse
 
 _CONFIG_DIR = os.path.join(os.environ["HOME"], ".asyncmd")
 _CONFIG_FILE = os.path.join(_CONFIG_DIR, "asyncmd.config")
@@ -300,6 +301,14 @@ fh_err.setFormatter(fmt_err)
 log.addHandler(fh_err)
 
 
+def is_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+
+
 def get_sha256(file):
     try:
         with open(file, "rb") as fwf:
@@ -342,7 +351,9 @@ async def _ota(args, log, tls_params=None, ota_tls_params={}):
 async def async_ota(args, log, tls_params=None, ota_tls_params={}):
     tasks = set()
     interval = 5
+    url_files = [fwfile for fwfile in args.ff if is_url(fwfile)]
     args.ff = [os.path.abspath(fwfile) for fwfile in args.ff if os.path.exists(fwfile)]
+    args.ff += url_files
 
     while True:
         try:
@@ -365,9 +376,13 @@ async def async_ota(args, log, tls_params=None, ota_tls_params={}):
                 otaserv_sha_task = asyncio.create_task(
                     ota_sha_check_listen(args, log, ota_server, tls_params)
                 )
+                check_http_sha_task = asyncio.create_task(
+                    check_http_server_fwfiles(args, log, tls_params, ota_server)
+                )
                 tasks.add(ota_task)
                 tasks.add(check_sha_task)
                 tasks.add(otaserv_sha_task)
+                tasks.add(check_http_sha_task)
                 # add ota_check listener
                 await asyncio.gather(*tasks)
         except aiomqtt.MqttError:
@@ -417,20 +432,42 @@ async def ota_sha_check_listen(args, log, server, tls_params=None):
                     sha_file["fwfile"] = args.ff[0]
 
                 if sha_file["fwfile"] not in server.check_sha:
-                    log.error(
-                        f"OTA request from {devname}: FILE "
-                        f": {sha_file['fwfile']} not available"
-                    )
-                    continue
+                    if not any(
+                        [
+                            fwfile.endswith(sha_file["fwfile"].replace("*", ""))
+                            for fwfile in server.check_sha
+                        ]
+                    ):
+                        log.error(
+                            f"OTA request from {devname}: FILE "
+                            f": {sha_file['fwfile']} not available"
+                        )
+                        continue
 
-                log.info(
-                    f"OTA request from {devname}: FILE: "
-                    f"{os.path.relpath(sha_file['fwfile'])}"
-                )
+                if not is_url(sha_file["fwfile"]) and not sha_file["fwfile"].startswith(
+                    "*"
+                ):
+                    log.info(
+                        f"OTA request from {devname}: FILE: "
+                        f"{os.path.relpath(sha_file['fwfile'])}"
+                    )
+                else:
+                    log.info(
+                        f"OTA request from {devname}: FILE: " f"{sha_file['fwfile']}"
+                    )
                 log.info(f"OTA request from {devname}: SHA: {sha_file['sha']}")
 
                 # get device from topic
                 # publish to device/{name}/ota
+                # match sha_file
+                if sha_file["fwfile"].startswith("*"):
+                    _matchs = [
+                        fwfile
+                        for fwfile in server.check_sha
+                        if fwfile.endswith(sha_file["fwfile"].replace("*", ""))
+                    ]
+                    if _matchs:
+                        sha_file["fwfile"] = _matchs[0]
 
                 server.register_device(devname, sha_file)
 
@@ -501,7 +538,7 @@ async def check_fw_sha(args, log, client, server):
                     log.info("New or modified firmware file detected")
                     log.info(f"{os.path.relpath(fwfile)}: SHA256: {fw_sha[fwfile]}")
                     log.info("Sending notification...")
-                    server.update_sha(fwfile)  # fix this
+                    await server.async_update_sha(fwfile)  # fix this
                     await client.publish(
                         args.t,
                         payload=json.dumps(
@@ -521,6 +558,45 @@ async def check_fw_sha(args, log, client, server):
                     fw_sha[fwfile] = c_fw_sha
 
         await asyncio.sleep(5)
+
+
+async def check_http_server_fwfiles(args, log, tls_params, server):
+    sub_topic = "asyncmd/otacheck"
+
+    fw_sha = {fwfile: "" for fwfile in args.ff if is_url(fwfile)}
+
+    async with aiomqtt.Client(
+        hostname=args.ht, port=args.p, logger=log, tls_params=tls_params
+    ) as client:
+        await client.subscribe(sub_topic)
+        async with client.messages() as messages:
+            async for message in messages:
+                try:
+                    fw_sha_server = json.loads(message.payload.decode())
+                    for fwfile in fw_sha_server:
+                        if fw_sha.get(fwfile) != fw_sha_server.get(fwfile):
+                            fw_sha[fwfile] = fw_sha_server.get(fwfile)
+
+                            log.info("New or modified firmware file detected")
+                            log.info(f"{fwfile}: SHA256: {fw_sha[fwfile]}")
+                            log.info("Sending notification...")
+                            await server.async_update_sha(fwfile)  # fix this
+                            await client.publish(
+                                args.t,
+                                payload=json.dumps(
+                                    {
+                                        "host": server.host,
+                                        "port": server.port,
+                                        "sha": server.check_sha[fwfile],
+                                        "blocks": server._fw_files[fwfile]["n_blocks"],
+                                        "bg": server._bg,
+                                        "fwfile": fwfile,
+                                    }
+                                ),
+                            )
+
+                except Exception as e:
+                    log.error(e)
 
 
 async def check_device_sha(args, log, tls_params):

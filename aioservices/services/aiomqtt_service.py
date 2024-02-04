@@ -12,6 +12,7 @@ import socket
 import io
 import aiostats
 import machine
+import re
 
 
 class MQTTService(Service):
@@ -106,6 +107,20 @@ class MQTTService(Service):
         self._tasks_total = len(aioctl.tasks_match("*"))
         self._services_total = len(aioctl.tasks_match("*.service"))
         self._ctasks_total = len(aioctl.tasks_match("*.service.*"))
+
+    def _grep(self, patt, filename):
+        if isinstance(patt, list):
+            pass
+        else:
+            patt = [patt]
+        _pattlst = (
+            re.compile(_patt.replace(".", r"\.").replace("*", ".*") + "$")
+            for _patt in patt
+        )
+        try:
+            return any(_pattrn.match(filename) for _pattrn in _pattlst)
+        except Exception:
+            return None
 
     @aioctl.aiotask
     async def do_action(self, action, service):
@@ -329,7 +344,7 @@ class MQTTService(Service):
                                 if self.log:
                                     self.log.info("No new OTA update")
                                 return
-                            elif not _ota_params["fwfile"].endswith(self._fwfile):
+                            elif not self._grep(self._fwfile, _ota_params["fwfile"]):
                                 if self.log:
                                     self.log.info("No new OTA update")
                                 return
@@ -347,7 +362,9 @@ class MQTTService(Service):
                                 {
                                     "notify": False,
                                     "sha": _ota_service._comp_sha_ota("", rtn=True),
-                                    "fwfile": self._fwfile,
+                                    "fwfile": self._fwfile
+                                    if not self._fwf_re
+                                    else _ota_params["fwfile"],
                                     "ip": (
                                         aioctl.group()
                                         .tasks["network.service"]
