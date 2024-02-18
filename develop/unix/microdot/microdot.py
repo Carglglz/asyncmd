@@ -944,6 +944,8 @@ class Microdot:
         self.options_handler = self.default_options_handler
         self.debug = False
         self.server = None
+        self.log = None
+        self.request_counter = 0
 
     def route(self, url_pattern, methods=None):
         """Decorator that is used to register a function as a request handler
@@ -1378,7 +1380,8 @@ class Microdot:
                 pass
             else:
                 raise
-        req._done = True
+        if hasattr(req, "_done"):
+            req._done = True
         if self.debug and req:  # pragma: no cover
             self.request_counter += 1
             if self.log:

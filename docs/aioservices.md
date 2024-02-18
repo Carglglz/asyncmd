@@ -177,11 +177,10 @@ connection, adds a child task that setups the `WebREPL`
             await self.setup_ap()
 
         if webrepl_on:
-            aioctl.add(
+            self.add_ctask(
+                aioctl,
                 self.webrepl_setup,
-                self,
-                name=f"{self.name}.service.webrepl",
-                _id=f"{self.name}.service.webrepl",
+                "webrepl",
             )
 
         for i in range(10):
@@ -204,27 +203,54 @@ connection, adds a child task that setups the `WebREPL`
 
         return "WEBREPL: ENABLED"
 
-
-
 ```
 
 Where the child task is added here: 
 
 ```python
         if webrepl_on:
-            aioctl.add(
+            self.add_ctask(
+                aioctl,
                 self.webrepl_setup, # --> child task as decorated async aioctl.aiotask
-                self, # -->  service as first argument to be added as a child task
-                name=f"{self.name}.service.webrepl", # name following [service_name].service.[child_task_name] convention
-                _id=f"{self.name}.service.webrepl",
+                "webrepl", # --> name of child task
             )
 
 
 ```
 
-*child task naming convention recommended* is
+*child task naming convention default* is
 `{service_name}.service.{child_task_name}`, e.g. `network.service.webrepl`
 
+
+#### Custom Service logger 
+To add a custom service logger i.e. add a logging level setting per service see e.g. `watcher_service.py`
+main task:
+
+```py
+    @aioctl.aiotask
+    async def task(
+        self,
+        sleep,
+        max_errors=0,
+        watchdog=True,
+        wdfeed=10000,
+        heartbeat=False,
+        debug=False,
+        save_report=False,
+        err_service_limit=False,
+        log=None,
+        loglevel="INFO",
+        service_logger=True,
+    ):
+        self.add_logger(log, level=loglevel, service_logger=service_logger)
+
+```
+where `self.add_logger` method adds a custom logger 
+which automatically adds `[<service.name>.service]` field to logger format and allows to
+select the logging level for the service.
+
+> [!NOTE]
+> `tools/logging/service_logger.py` required.
 
 
 ### Notes 

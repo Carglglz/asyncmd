@@ -1,28 +1,33 @@
 
 
-## A simple asynchronous app example
+## Asyncmd app
 
-Once services are installed/frozen, making an *asyncio* app is pretty simple, 
-check and upload `main.py` and `app.py`, where the important bit is in `_main`
+Making an *asyncio* application using `asyncmd` tools is pretty easy.
+Check and upload `main.py` and `app.py`, where the important bit is in `_main`
 function
 
-
 ```python
-async def _main(logger):
-    # load core services
-    print("Booting core services...")
-    await aioservice.boot(log=logger, debug_log=True)
-    print("Starting aiorepl...")
-    
-    # add aiorepl
-    aioctl.add(aiorepl.task, name="repl")
-    print("Loading services...")
-    # load runtime and schedule services
+async def _main(logger, repl=True):
+    import aioservice
+
+    # load core services e.g. network.service
+    await aioservice.boot(debug=False, log=logger, debug_log=True)
+    print("loading services...")
+    repl = aioctl.getenv("AIOREPL", repl)
+    if repl:
+        aioctl.add(aiorepl.task, name="repl")
+        print(">>> ")
+
+    sys_handler = False
+    for i, handler in enumerate(logger.handlers):
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:
+                sys_handler = logger.handlers.pop(i)
+    # load runtime or schedule type services
     aioservice.init(log=logger, debug_log=True)
-    print(">>> ")
+    if not repl and sys_handler:
+        logger.addHandler(sys_handler)
 
-
-    # now all tasks are running
     await asyncio.gather(*aioctl.tasks())
 ```
 
@@ -155,7 +160,47 @@ aioctl/aioservice
 2023-06-04 00:36:35 [pyboard] [INFO] [hello.service] LED 3 toggled!
 <-------------------------------------------------------------------------------->
 
+```
+### Using environment variables
 
-
+To use environment variables with `aioctl.getenv`, `tools/config/dotenv.py` is
+required, then just upload a file named `.env` to the device with e.g.
+```
+HOSTNAME=mydevice
+LOGLEVEL=DEBUG
+LED_PIN=2
+AIOREPL=False
 
 ```
+
+### Freezing the Asyncmd app 
+
+It is also possible to freeze the `asyncmd` app so it can "bootload" itself,
+which requires freezing the desired services, `asyncmd_boot.py` and `frz_services.py`. (See examples of how to build
+in `asyncmd/boards`)
+
+The app bootloader:
+```py
+def bootloader(log):
+    import os
+
+    try:
+        os.stat("./aioservices") # check if aioservices exists, 
+    except Exception:
+        log.info("asyncmd bootloader setup")
+        import asyncmd_boot
+
+        asyncmd_boot.setup(log) # generates aioservices based on frz_services.py
+    try:
+        os.stat("services.config") # check if config files exists
+        os.stat(".env") 
+    except Exception:
+        from asyncmd_boot import config_setup
+
+        log.info("asyncmd config setup")
+        config_setup(log) # generates default config based on frz_services.py
+```
+
+To run the `asyncmd` app as default `_app_boot.py` is required to be imported in
+`boot.py` which will check if `main.py` exists and it will generate the default
+one if not.
