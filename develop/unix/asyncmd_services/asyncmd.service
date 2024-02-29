@@ -6,8 +6,8 @@ Description=asyncmd service
 
 [Service]
 # Command to execute when the service is started
-ExecStart=/home/cgg/.local/bin/micropython /home/cgg/Develop/MICROPYTHON/micropython/extmod/asyncmd/develop/unix/unix_service.py 
-WorkingDirectory=/home/cgg
+ExecStart=/home/cgg/.local/bin/micropython /home/cgg/Develop/MICROPYTHON/asyncmd/develop/unix/main.py
+WorkingDirectory=/home/cgg/Develop/asyncmd/develop/unix/
 StandardOutput=inherit
 StandardError=inherit
 
