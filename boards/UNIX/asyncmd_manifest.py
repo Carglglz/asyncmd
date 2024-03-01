@@ -3,6 +3,7 @@ import os
 
 sys.path.append(os.path.dirname("__file__"))
 
+import make_defconfig  # noqa
 
 # Services
 include("../../mod/asyncmd.py")
