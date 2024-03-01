@@ -58,6 +58,26 @@ def _suid(_aioctl, name):
     return name
 
 
+def _get_env_var(value):
+    import aioctl
+    import re
+
+    if isinstance(value, str):
+        m = re.search(r"\${.*}", value)
+        if not m:
+            return value
+        var_rep = m.group(0)
+        var_key = var_rep.replace("${", "").replace("}", "")
+        return value.replace(var_rep, aioctl.getenv(var_key, var_rep))
+
+    elif isinstance(value, type([])):
+        return [_get_env_var(val) for val in value]
+    elif isinstance(value, dict):
+        return {k: _get_env_var(v) for k, v in value.items()}
+    else:
+        return value
+
+
 def load(name=None, debug=False, log=None, debug_log=False, config=False):
     global _SERVICES_GROUP, _SERVICES_STATUS, _SERVICE_LOGGER
     import aioctl
@@ -73,11 +93,19 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                     if _servs_config[service.name]["enabled"]:
                         service.enabled = True
                         if "args" in _servs_config[service.name]:
-                            service.args = _servs_config[service.name]["args"]
+                            service.args = [
+                                _get_env_var(arg)
+                                for arg in _servs_config[service.name]["args"]
+                            ]
 
                         if "kwargs" in _servs_config[service.name]:
                             service.kwargs.update(
-                                **_servs_config[service.name]["kwargs"]
+                                **{
+                                    k: _get_env_var(v)
+                                    for k, v in _servs_config[service.name][
+                                        "kwargs"
+                                    ].items()
+                                }
                             )
 
                             if "schedule" in service.kwargs and hasattr(
@@ -130,10 +158,17 @@ def load(name=None, debug=False, log=None, debug_log=False, config=False):
                 _serv_config = get_config(name)
                 if _serv_config:
                     if "args" in _serv_config:
-                        service.args = _serv_config["args"]
+                        service.args = [
+                            _get_env_var(arg) for arg in _serv_config["args"]
+                        ]
 
                     if "kwargs" in _serv_config:
-                        service.kwargs.update(**_serv_config["kwargs"])
+                        service.kwargs.update(
+                            **{
+                                k: _get_env_var(v)
+                                for k, v in _serv_config["kwargs"].items()
+                            }
+                        )
                         if "schedule" in service.kwargs and hasattr(
                             service, "schedule"
                         ):
