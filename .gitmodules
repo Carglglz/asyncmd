@@ -7,3 +7,6 @@
 [submodule "drivers/sensors/ads1x15"]
 	path = drivers/sensors/ads1x15
 	url = https://github.com/robert-hh/ads1x15.git
+[submodule "async_modules/microdot"]
+	path = async_modules/microdot
+	url = https://github.com/miguelgrinberg/microdot.git
