@@ -279,7 +279,7 @@ of these tools.
 
 - aiotasks --> [examples](examples)
 
-- aioservices --> [example-aioservices](example-aioservices)
+- aioservices --> [example-aioservices](lib-aioservices)
 
 
 #### Use cases for **aioctl**

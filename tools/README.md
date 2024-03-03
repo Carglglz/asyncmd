@@ -17,14 +17,22 @@ Set of tools to get stats about `aiotasks` and/or `aioservices`.
  pipefile(client, topic, file) : function  # client is an async_mqtt client
 
  pipelog(client, topic, from_idx=None, log=aioctl._AIOCTL_LOG) : function
+
 ```
 
+## config 
+
+A `dotenv.py` tool to write and parse *dotenv* files see [api](config/README.md)
 
 ## logging
 
+#### ServiceLogger
+
+A custom logger class in `service_logger.py` to be used in `aioservices`.
+
 #### HeartBeat
-* ledhb.py
-* buzzhb.py
+* `ledhb.py`
+* `buzzhb.py`
 
 `HeartBeat` led and buzzer classes to use with `HeartBeatHandler`.
 
